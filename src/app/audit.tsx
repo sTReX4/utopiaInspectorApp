@@ -1,8 +1,8 @@
-import SignaturePad from '@/components/siganture-pad';
 import Checkbox from 'expo-checkbox';
 import { useState } from 'react';
 import { Alert, Button, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import CustomTextInput from '../components/custom-text-input';
+import SignaturePad from '../components/siganture-pad';
 import ViolationItemCard from '../components/violation-item-card';
 
 export default function AuditFormScreen() {
@@ -27,6 +27,7 @@ export default function AuditFormScreen() {
     const [securityLicenseNo, setSecurityLicenseNo] = useState<string>('');
     const [securityLicenseExpiry, setSecurityLicenseExpiry] = useState<string>('');
     const [pershingCap, setPershingCap] = useState<'Yes' | 'No'>('Yes');
+    const [validSecurityLicense, setValidSecurityLicense] = useState<'Yes' | 'No'>('Yes');
     const [companyId, setCompanyId] = useState<'Yes' | 'No'>('Yes');
     const [authorizedHairCut, setAuthorizedHairCut] = useState<'Yes' | 'No'>('Yes');
     const [properlyShaved, setProperlyShaved] = useState<'Yes' | 'No'>('Yes');
@@ -51,8 +52,10 @@ export default function AuditFormScreen() {
     //Signature State Memory
     const [guardSignature, setGuardSignature] = useState<string | null>(null);
     const [clientSignature, setClientSignature] = useState<string | null>(null);
-
     const [isClientAbsent, setIsClientAbsent] = useState<boolean>(false);
+
+    const [isGuardModalOpen, setIsGuardModalOpen] = useState<boolean>(false);
+    const [isClientModalOpen, setIsClientModalOpen] = useState<boolean>(false);
 
     const handleSubmit = () => {
 
@@ -263,14 +266,14 @@ export default function AuditFormScreen() {
 
                     <ViolationItemCard 
                         itemName="1. Valid Security License" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={validSecurityLicense} 
+                        onUpdate={setValidSecurityLicense} 
                     />
 
                     <ViolationItemCard 
                         itemName="2. Company ID" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={companyId} 
+                        onUpdate={setCompanyId} 
                     />
 
                     <ViolationItemCard 
@@ -281,142 +284,169 @@ export default function AuditFormScreen() {
 
                     <ViolationItemCard 
                         itemName="4. Authorized Hair Cut" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={authorizedHairCut} 
+                        onUpdate={setAuthorizedHairCut} 
                     />
 
                     <ViolationItemCard 
                         itemName="5. Properly Shaved" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={properlyShaved} 
+                        onUpdate={setProperlyShaved} 
                     />
                     
                     <ViolationItemCard 
                         itemName="6. Authorized Uniform" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={authorizedUniform} 
+                        onUpdate={setAuthorizedUniform} 
                     />
                     
                     <ViolationItemCard 
                         itemName="7. Authorized Name Cloth" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={authorizedNameCloth} 
+                        onUpdate={setAuthorizedNameCloth} 
                     />
 
                     <ViolationItemCard 
                         itemName="8. Authorized Agency Patch" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={authorizedAgencyPatch} 
+                        onUpdate={setAuthorizedAgencyPatch} 
                     />
 
                     <ViolationItemCard 
                         itemName="9. Necktie With Clip" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={necktieWithClip} 
+                        onUpdate={setNecktieWithClip} 
                     />
 
                     <ViolationItemCard 
                         itemName="10. Security Badge" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={validSecurityLicense} 
+                        onUpdate={setValidSecurityLicense} 
                     />
 
                     <ViolationItemCard 
                         itemName="11. Collar Pin 2 pcs." 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={collarPin} 
+                        onUpdate={setCollarPin} 
                     />
 
                     <ViolationItemCard 
                         itemName="12. Lanyard (Navy Blue)" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={lanyard} 
+                        onUpdate={setLanyard} 
                     />
 
                     <ViolationItemCard 
                         itemName="13. Whistle" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={whistle} 
+                        onUpdate={setWhistle} 
                     />
 
                     <ViolationItemCard 
                         itemName="14. Holster" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={holster} 
+                        onUpdate={setHolster} 
                     />
 
                     <ViolationItemCard 
                         itemName="15. Belt Clip 6 pcs." 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={beltClip} 
+                        onUpdate={setBeltClip} 
                     />
 
                     <ViolationItemCard 
                         itemName="16. Belt with buckle" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={beltWithBuckle} 
+                        onUpdate={setBeltWithBuckle} 
                     />
 
                     <ViolationItemCard 
                         itemName="17. Garrison Belt" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={garrisonBelt} 
+                        onUpdate={setGarrisonBelt} 
                     />
 
                     <ViolationItemCard 
                         itemName="18. Authorized Shoes" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={authorizedShoes} 
+                        onUpdate={setAuthorizedShoes} 
                     />
 
                     <ViolationItemCard 
                         itemName="19. Hand Cuff" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={handCuff} 
+                        onUpdate={setHandCuff} 
                     />
 
                     <ViolationItemCard 
                         itemName="20. Short/Clean finger Nails" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={shortCleanFingerNails} 
+                        onUpdate={setShortCleanFingerNails} 
                     />
 
                     <ViolationItemCard 
                         itemName="21. Medicine Kit With Mediplus" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={medicineKitWithMediplus} 
+                        onUpdate={setMedicineKitWithMediplus} 
                     />
 
 
                     <ViolationItemCard 
                         itemName="22. Stun Gun With Flashlight" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
+                        status={stunGunWithFlashlight} 
+                        onUpdate={setStunGunWithFlashlight} 
                     />
                 </View>
             )}
 
             <Text style={styles.subHeader}>E-Signatures</Text>
-            <SignaturePad
-                title="Guard Signature"
-                onSign={(signature) => setGuardSignature(signature)}
-            />
+                <View style={styles.signatureTriggerRow}>
+                    <Text style={styles.triggerLabel}>Guard on Duty:</Text>
+                    <TouchableOpacity 
+                        style={[styles.triggerButton, guardSignature && styles.triggerButtonSuccess]} 
+                        onPress={() => setIsGuardModalOpen(true)}
+                    >
+                        <Text style={styles.triggerButtonText}>
+                            {guardSignature ? "✅ Signature Captured" : "Tap to Sign"}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
 
-            <View style={styles.checkboxContainer}>
-                <Checkbox
-                    value={isClientAbsent}
-                    onValueChange={setIsClientAbsent}
-                    color={isClientAbsent ? '#0056b3' : undefined}
+                <SignaturePad 
+                    title="Guard on Duty Signature" 
+                    visible={isGuardModalOpen}
+                    onClose={() => setIsGuardModalOpen(false)}
+                    onSign={setGuardSignature} 
                 />
-                <Text style={styles.checkboxLabel}>Client is currently UNAVAILABLE on site</Text>
-            </View>
 
-            {!isClientAbsent && (
-                <SignaturePad
-                    title="Client Signature"
-                    onSign={setClientSignature}
-                />
-            )}
+                <View style={styles.checkboxContainer}>
+                    <Checkbox value={isClientAbsent} onValueChange={setIsClientAbsent} color={isClientAbsent ? '#dc3545' : undefined} />
+                    <Text style={styles.checkboxLabel}>Client is currently UNAVAILABLE on site</Text>
+                </View>
+
+                {!isClientAbsent && (
+                    <>
+                        <View style={styles.signatureTriggerRow}>
+                            <Text style={styles.triggerLabel}>Client Rep:</Text>
+                            <TouchableOpacity 
+                                style={[styles.triggerButton, clientSignature && styles.triggerButtonSuccess]} 
+                                onPress={() => setIsClientModalOpen(true)}
+                            >
+                                <Text style={styles.triggerButtonText}>
+                                    {clientSignature ? "✅ Signature Captured" : "Tap to Sign"}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Client Modal Component */}
+                        <SignaturePad 
+                            title="Client / Representative Signature" 
+                            visible={isClientModalOpen}
+                            onClose={() => setIsClientModalOpen(false)}
+                            onSign={setClientSignature} 
+                        />
+                    </>
+                )}
 
             <View style={styles.buttonContainer}>
                 <Button title="Submit" onPress={handleSubmit} color="#0056b3"/>
@@ -525,5 +555,13 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
-  }
+  },
+
+  //E-Signature Styles
+  signatureTriggerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15, backgroundColor: '#fff', padding: 15, borderRadius: 5, borderWidth: 1, borderColor: '#ccc' },
+  triggerLabel: { fontSize: 16, fontWeight: 'bold', color: '#333' },
+  triggerButton: { paddingVertical: 10, paddingHorizontal: 15, backgroundColor: '#f0f0f0', borderRadius: 5, borderWidth: 1, borderColor: '#aaa' },
+  triggerButtonSuccess: { backgroundColor: '#28a745' },
+  triggerButtonText: { fontSize: 14, fontWeight: 'bold', color: '#333' },
+
 });
