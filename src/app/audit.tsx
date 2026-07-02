@@ -1,11 +1,24 @@
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import Checkbox from 'expo-checkbox';
 import { useState } from 'react';
 import { Alert, Button, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import CustomTextInput from '../components/custom-text-input';
+import LiveCameraModal from '../components/live-camera-modal';
 import SignaturePad from '../components/siganture-pad';
 import ViolationItemCard from '../components/violation-item-card';
 
 export default function AuditFormScreen() {
+    // Camera Permissions
+    const [permission, requestPermission] = useCameraPermissions();
+
+    const [isVerified, setIsVerified] = useState<boolean>(false);
+    const [isProcessingScan, setIsProcessingScan] = useState<boolean>(false);
+
+    const [branchCode, setBranchCode] = useState<string>('');
+    const [branchName, setBranchName] = useState<string>('');
+    const [branchLocation, setBranchLocation] = useState<string>('');
+
+
     const [guardName, setGuardName] = useState<string>('');
     const [lespNumber, setLespNumber] = useState<string>('');
     const [remarks, setRemarks] = useState<string>('');
@@ -57,6 +70,29 @@ export default function AuditFormScreen() {
     const [isGuardModalOpen, setIsGuardModalOpen] = useState<boolean>(false);
     const [isClientModalOpen, setIsClientModalOpen] = useState<boolean>(false);
 
+    //Live Photo Camera
+    const [livePhotoUri, setLivePhotoUri] = useState<string | null>(null);
+    const [isCameraModalOpen, setIsCameraModalOpen] = useState<boolean>(false);
+
+    const handleBarcodeScanned = ({ data }: { data: string }) => {
+        try {
+            const parsedData = JSON.parse(data);
+            
+            if (parsedData.code && parsedData.name && parsedData.location) {
+                setBranchCode(parsedData.code);
+                setBranchName(parsedData.name);
+                setBranchLocation(parsedData.location);
+                setIsVerified(true);
+                Alert.alert("Detachment Verified", `Welcome to ${parsedData.name}, ${parsedData.location}`);
+            } else {
+                Alert.alert("Invalid QR Code", "This QR code does not belong to a valid detachment.", [{ text: "Try Again", onPress: () => setIsProcessingScan(false) }]);
+            }
+            } catch (error) {
+                Alert.alert("Scan Failed", "Unrecognized QR format. Please scan an official Utopia detachment code.", [{ text: "Try Again", onPress: () => setIsProcessingScan(false) }]);
+            }
+        
+    };
+
     const handleSubmit = () => {
 
         if (!guardSignature) {
@@ -64,7 +100,17 @@ export default function AuditFormScreen() {
             return;
         }
 
+        //Live Photo Capture Modal
+        if (!livePhotoUri) {
+            Alert.alert("Missing Evidence", "You must capture a live photo of the guard on post before submitting the audit.");
+            return ;
+        }
+
         const payload = {
+            branch_code: branchCode,
+            branch_name: branchName,
+            branch_location: branchLocation,
+
             inspector_in_time: new Date().toISOString(),
             guard_name: guardName,
             lesp_number: lespNumber,
@@ -104,7 +150,11 @@ export default function AuditFormScreen() {
                 short_clean_finger_nails: shortCleanFingerNails,
                 medicine_kit_with_mediplus: medicineKitWithMediplus,
                 stun_gun_with_flashlight: stunGunWithFlashlight,
-            } : "No violations recorded"
+            } : "No violations recorded",
+
+            live_photo_uri: livePhotoUri,
+            guard_signature: guardSignature,
+            client_signature: isClientAbsent ? "Client Absent" : clientSignature
         };
 
         console.log("SECURE PAYLOAD LOCKED");
@@ -113,9 +163,52 @@ export default function AuditFormScreen() {
         Alert.alert('Form Submitted', 'Your audit form has been submitted successfully.');
     };
 
+    // For Camera QR Code Scanning
+        if (!permission) {
+            return <View style={styles.container}><Text>Loading Camera...</Text></View>;
+        }
+
+        if (!permission.granted) {
+            return (
+                <View style={[styles.container, { justifyContent: 'center'}]}>
+                    <Text style={{ textAlign: 'center', marginBottom: 20 }}>Camera access is required to scan the detachment QR code.</Text>
+                    <Button title="Grant Camera Permission" onPress={requestPermission} color="#0056b3"/>
+                </View>
+            );
+        }
+
+        if (!isVerified) {
+            return (
+                <View style={{flex: 1}}>
+                    <CameraView
+                        style={StyleSheet.absoluteFill}
+                        barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                        onBarcodeScanned={handleBarcodeScanned}
+                    />
+
+                    <View style={styles.overlay}>
+                        <View style={styles.unfocusedContainer} />
+                        <View style={styles.middleContainer}>
+                            <View style={styles.unfocusedContainer} />
+                            <View style={styles.focusedContainer} />
+                            <View style={styles.unfocusedContainer} />
+                    </View>
+                    <View style={styles.bottomContainer} />
+                        <Text style={styles.scannerText}>Scan Detachment QR Code to Begin Audit</Text>
+                    </View>
+                </View>
+            );
+        }
+
     return (
 
         <ScrollView style={styles.container}>
+
+            <View style={styles.detachmentHeader}>
+                <Text style={styles.detachmentTitle}>{branchName} ({branchCode})</Text>
+                <Text style={styles.detachmentSubtitle}>{branchLocation}</Text>
+            </View>
+
             <Text style={styles.header}>Audit Form</Text>
 
             <CustomTextInput
@@ -399,6 +492,25 @@ export default function AuditFormScreen() {
                 </View>
             )}
 
+            <Text style={styles.subHeader}>Live Photo Capture</Text>
+            <View style={styles.signatureTriggerRow}>   
+                <Text style={styles.triggerLabel}>Guard on Post:</Text>
+                <TouchableOpacity 
+                    style={[styles.triggerButton, livePhotoUri && styles.triggerButtonSuccess]} 
+                    onPress={() => setIsCameraModalOpen(true)}
+                >
+                    <Text style={styles.triggerButtonText}>
+                        {livePhotoUri ? "✅ Photo Captured" : "📷 Tap to Open Camera"}
+                    </Text>
+                </TouchableOpacity>
+            </View>
+
+            <LiveCameraModal
+                visible={isCameraModalOpen}
+                onClose={() => setIsCameraModalOpen(false)}
+                onCapture={(uri) => {setLivePhotoUri(uri);}}
+            />
+
             <Text style={styles.subHeader}>E-Signatures</Text>
                 <View style={styles.signatureTriggerRow}>
                     <Text style={styles.triggerLabel}>Guard on Duty:</Text>
@@ -564,4 +676,67 @@ const styles = StyleSheet.create({
   triggerButtonSuccess: { backgroundColor: '#28a745' },
   triggerButtonText: { fontSize: 14, fontWeight: 'bold', color: '#333' },
 
+  //QR CODE THAT HOPEFULLY WORKS ON FIRST TRY GOD
+  scannerOverlay: {
+    position: 'absolute',
+    bottom: 50,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    padding: 15,
+    borderRadius: 10,
+  },
+  scannerText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  detachmentHeader: {
+    backgroundColor: '#e9ecef',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderLeftWidth: 5,
+    borderLeftColor: '#28a745',
+  },
+  detachmentTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  detachmentSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 5,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  unfocusedContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)', // Darkens the outside
+  },
+  middleContainer: {
+    flexDirection: 'row',
+    flex: 1.5, // Controls the height of the scanning box
+  },
+  focusedContainer: {
+    flex: 2, // Controls the width of the scanning box
+    borderColor: '#fff',
+    borderWidth: 2,
+    borderRadius: 12, // Gives it that modern rounded look from your reference
+    backgroundColor: 'transparent',
+  },
+  bottomContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 40, // Lifts the text slightly
+  }
 });
