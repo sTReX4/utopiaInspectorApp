@@ -1,5 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Checkbox from 'expo-checkbox';
+import * as Location from 'expo-location';
 import { useState } from 'react';
 import { Alert, Button, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import CustomTextInput from '../components/custom-text-input';
@@ -73,6 +74,11 @@ export default function AuditFormScreen() {
     //Live Photo Camera
     const [livePhotoUri, setLivePhotoUri] = useState<string | null>(null);
     const [isCameraModalOpen, setIsCameraModalOpen] = useState<boolean>(false);
+
+    // Coordinates Tracker
+    const [locationPermission, requestLocationPermission ] = Location.useForegroundPermissions();
+    const [location, setLocation] = useState<Location.LocationObject | null>(null);
+    const [timeIn, setTimeIn] = useState<string | null>(null);
 
     const handleBarcodeScanned = ({ data }: { data: string }) => {
         try {
@@ -413,8 +419,8 @@ export default function AuditFormScreen() {
 
                     <ViolationItemCard 
                         itemName="10. Security Badge" 
-                        status={validSecurityLicense} 
-                        onUpdate={setValidSecurityLicense} 
+                        status={securityBadge} 
+                        onUpdate={setSecurityBadge} 
                     />
 
                     <ViolationItemCard 
