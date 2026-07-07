@@ -24,7 +24,8 @@ export default function LiveCameraModal({ visible, onClose, onCapture }: LiveCam
     return (
         <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
             <View style={styles.container}>
-                <CameraView style={styles.camera} facing="back" ref={cameraRef}>
+                <CameraView style={StyleSheet.absoluteFill} facing="back" ref={cameraRef} />
+                <View style={StyleSheet.absoluteFill}>
                     <View style={{ flex: 1}}/>
 
                     <View style={styles.controlsContainer}>
@@ -37,9 +38,9 @@ export default function LiveCameraModal({ visible, onClose, onCapture }: LiveCam
                         </TouchableOpacity>
                         
                         <View style={{ flex: 1 }} />
-
                     </View>
-                </CameraView>
+                </View>
+
             </View>
         </Modal>
     );

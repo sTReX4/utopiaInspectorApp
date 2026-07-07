@@ -6,9 +6,14 @@ import { Alert, Button, ScrollView, StyleSheet, Text, TouchableOpacity, View } f
 import CustomTextInput from '../components/custom-text-input';
 import LiveCameraModal from '../components/live-camera-modal';
 import SignaturePad from '../components/siganture-pad';
+import SubmissionReceiptModal from '../components/submission-receipt-modal';
 import ViolationItemCard from '../components/violation-item-card';
 
 export default function AuditFormScreen() {
+
+    // Modal State for Submission Receipt
+    const [submittedPayload, setSubmittedPayload] = useState<any>(null);
+
     // Camera Permissions
     const [permission, requestPermission] = useCameraPermissions();
 
@@ -68,8 +73,7 @@ export default function AuditFormScreen() {
     const [clientSignature, setClientSignature] = useState<string | null>(null);
     const [isClientAbsent, setIsClientAbsent] = useState<boolean>(false);
 
-    const [isGuardModalOpen, setIsGuardModalOpen] = useState<boolean>(false);
-    const [isClientModalOpen, setIsClientModalOpen] = useState<boolean>(false);
+    const [activeSigner, setActiveSigner] = useState<'guard' | 'client' | null>(null);
 
     //Live Photo Camera
     const [livePhotoUri, setLivePhotoUri] = useState<string | null>(null);
@@ -80,23 +84,33 @@ export default function AuditFormScreen() {
     const [location, setLocation] = useState<Location.LocationObject | null>(null);
     const [timeIn, setTimeIn] = useState<string | null>(null);
 
-    const handleBarcodeScanned = ({ data }: { data: string }) => {
+    const handleBarcodeScanned = async ({ data }: { data: string }) => {
+        if (isVerified || isProcessingScan) return;
+
+        setIsProcessingScan(true);
+
         try {
             const parsedData = JSON.parse(data);
             
             if (parsedData.code && parsedData.name && parsedData.location) {
+                setTimeIn(new Date().toISOString());
+                
+                let currentLocation = await Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.High
+                });
+                setLocation(currentLocation);
+
                 setBranchCode(parsedData.code);
                 setBranchName(parsedData.name);
                 setBranchLocation(parsedData.location);
                 setIsVerified(true);
-                Alert.alert("Detachment Verified", `Welcome to ${parsedData.name}, ${parsedData.location}`);
+                Alert.alert("Detachment Verified", `Welcome to ${parsedData.name}\nGPS Secured.`);
             } else {
                 Alert.alert("Invalid QR Code", "This QR code does not belong to a valid detachment.", [{ text: "Try Again", onPress: () => setIsProcessingScan(false) }]);
             }
-            } catch (error) {
-                Alert.alert("Scan Failed", "Unrecognized QR format. Please scan an official Utopia detachment code.", [{ text: "Try Again", onPress: () => setIsProcessingScan(false) }]);
-            }
-        
+        } catch (error) {
+            Alert.alert("Scan Failed", "Unrecognized QR format. Please scan an official Utopia detachment code.", [{ text: "Try Again", onPress: () => setIsProcessingScan(false) }]);
+        }
     };
 
     const handleSubmit = () => {
@@ -117,10 +131,13 @@ export default function AuditFormScreen() {
             branch_name: branchName,
             branch_location: branchLocation,
 
-            inspector_in_time: new Date().toISOString(),
-            guard_name: guardName,
-            lesp_number: lespNumber,
-            uniform_compliance: isUniformCompliant,
+            inspector_in_time: timeIn, // Use the locked time from the QR scan
+            inspector_out_time: new Date().toISOString(), // Stamp the exact submit time
+            gps_coordinates: location ? {
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+                accuracy: location.coords.accuracy
+            } : "GPS Unavailable",
 
             metrics: {
                 lto_license: ltoStatus,
@@ -166,19 +183,19 @@ export default function AuditFormScreen() {
         console.log("SECURE PAYLOAD LOCKED");
         console.log(JSON.stringify(payload, null, 2));
 
-        Alert.alert('Form Submitted', 'Your audit form has been submitted successfully.');
+        setSubmittedPayload(payload);
     };
 
     // For Camera QR Code Scanning
-        if (!permission) {
+        if (!permission || !locationPermission) {
             return <View style={styles.container}><Text>Loading Camera...</Text></View>;
         }
 
         if (!permission.granted) {
             return (
                 <View style={[styles.container, { justifyContent: 'center'}]}>
-                    <Text style={{ textAlign: 'center', marginBottom: 20 }}>Camera access is required to scan the detachment QR code.</Text>
-                    <Button title="Grant Camera Permission" onPress={requestPermission} color="#0056b3"/>
+                <Text style={{ textAlign: 'center', marginBottom: 20 }}>Camera and GPS access are strictly required to conduct this audit.</Text>
+                <Button title="Grant Permissions" onPress={() => { requestPermission(); requestLocationPermission(); }} color="#0056b3"/>
                 </View>
             );
         }
@@ -207,6 +224,8 @@ export default function AuditFormScreen() {
         }
 
     return (
+
+        <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
 
         <ScrollView style={styles.container}>
 
@@ -522,20 +541,13 @@ export default function AuditFormScreen() {
                     <Text style={styles.triggerLabel}>Guard on Duty:</Text>
                     <TouchableOpacity 
                         style={[styles.triggerButton, guardSignature && styles.triggerButtonSuccess]} 
-                        onPress={() => setIsGuardModalOpen(true)}
+                        onPress={() => setActiveSigner('guard')}
                     >
                         <Text style={styles.triggerButtonText}>
                             {guardSignature ? "✅ Signature Captured" : "Tap to Sign"}
                         </Text>
                     </TouchableOpacity>
                 </View>
-
-                <SignaturePad 
-                    title="Guard on Duty Signature" 
-                    visible={isGuardModalOpen}
-                    onClose={() => setIsGuardModalOpen(false)}
-                    onSign={setGuardSignature} 
-                />
 
                 <View style={styles.checkboxContainer}>
                     <Checkbox value={isClientAbsent} onValueChange={setIsClientAbsent} color={isClientAbsent ? '#dc3545' : undefined} />
@@ -548,29 +560,42 @@ export default function AuditFormScreen() {
                             <Text style={styles.triggerLabel}>Client Rep:</Text>
                             <TouchableOpacity 
                                 style={[styles.triggerButton, clientSignature && styles.triggerButtonSuccess]} 
-                                onPress={() => setIsClientModalOpen(true)}
+                                onPress={() => setActiveSigner('client')}
                             >
                                 <Text style={styles.triggerButtonText}>
                                     {clientSignature ? "✅ Signature Captured" : "Tap to Sign"}
                                 </Text>
                             </TouchableOpacity>
                         </View>
-
-                        {/* Client Modal Component */}
-                        <SignaturePad 
-                            title="Client / Representative Signature" 
-                            visible={isClientModalOpen}
-                            onClose={() => setIsClientModalOpen(false)}
-                            onSign={setClientSignature} 
-                        />
                     </>
                 )}
 
             <View style={styles.buttonContainer}>
                 <Button title="Submit" onPress={handleSubmit} color="#0056b3"/>
             </View>
+            </ScrollView>
 
-        </ScrollView>
+            {activeSigner !== null && (
+                <SignaturePad 
+                    title={activeSigner === 'guard' ? "Guard on Duty Signature" : "Client / Representative Signature"} 
+                    visible={true} // Always true because the wrapper controls if it exists
+                    onClose={() => setActiveSigner(null)}
+                    onSign={(signature) => {
+                        if (activeSigner === 'guard') setGuardSignature(signature);
+                        if (activeSigner === 'client') setClientSignature(signature);
+                        setActiveSigner(null);
+                    }} 
+                />
+            )}
+
+            <SubmissionReceiptModal
+                visible={!!submittedPayload}
+                payload={submittedPayload}
+                onClose={() => setSubmittedPayload(null)}
+            />
+        </View>
+
+        
     );
 }
 
