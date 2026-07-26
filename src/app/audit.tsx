@@ -84,6 +84,24 @@ export default function AuditFormScreen() {
     const [location, setLocation] = useState<Location.LocationObject | null>(null);
     const [timeIn, setTimeIn] = useState<string | null>(null);
 
+    //No-show Guard
+    const [isGuardPresent, setIsGuardPresent] = useState<boolean>(true);
+    const [isAtmOnline, setIsAtmOnline] = useState<boolean>(false);
+    const [isAtmOffline, setIsAtmOffline] = useState<boolean>(false);
+    const [isDoorSecure, setIsDoorSecure] = useState<boolean>(false);
+
+    const handleAtmOnlineToggle = (newValue: boolean) => {
+        setIsAtmOnline(newValue);
+        if (newValue)
+            setIsAtmOffline(false);
+        };
+
+    const handleAtmOfflineToggle = (newValue: boolean) => {
+        setIsAtmOffline(newValue);
+        if (newValue)
+            setIsAtmOnline(false);
+        };
+
     const handleBarcodeScanned = async ({ data }: { data: string }) => {
         if (isVerified || isProcessingScan) return;
 
@@ -115,7 +133,7 @@ export default function AuditFormScreen() {
 
     const handleSubmit = () => {
 
-        if (!guardSignature) {
+        if (isGuardPresent && !guardSignature) {
             Alert.alert("Missing Signature", "The Guard on duty MUST sign the audit.");
             return;
         }
@@ -139,17 +157,24 @@ export default function AuditFormScreen() {
                 accuracy: location.coords.accuracy
             } : "GPS Unavailable",
 
-            metrics: {
+            guard_present_status: !isGuardPresent ? {
+                atm_online: isAtmOnline,
+                atm_offline: isAtmOffline,
+                door_secure: isDoorSecure
+            } : "N/A",
+
+            metrics: isGuardPresent ? {
                 lto_license: ltoStatus,
                 ddo_license: ddoStatus,
                 ltofp_license: ltofpStatus,
                 fa_license: faStatus,
                 id_license: idStatus,
                 rlm_license: rlmStatus,
-            },
+            } : "N/A",
+
             remarks: remarks,
 
-            violation_ticket: isTicketOpen ? {
+            violation_ticket: (isGuardPresent && isTicketOpen) ? {
                 security_license_no: securityLicenseNo,
                 security_license_expiry: securityLicenseExpiry,
                 pershing_cap: pershingCap,
@@ -176,7 +201,7 @@ export default function AuditFormScreen() {
             } : "No violations recorded",
 
             live_photo_uri: livePhotoUri,
-            guard_signature: guardSignature,
+            guard_signature: isGuardPresent ? guardSignature : "Guard Absent",
             client_signature: isClientAbsent ? "Client Absent" : clientSignature
         };
 
@@ -229,297 +254,339 @@ export default function AuditFormScreen() {
 
         <ScrollView style={styles.container}>
 
+            <View style={{ marginBottom: 20, padding: 15, backgroundColor: '#fff', borderRadius: 8}}>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 10 }}>Guard Duty Status</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                    <Checkbox value={isGuardPresent} onValueChange={setIsGuardPresent} color={isGuardPresent ? '#28a745' : undefined} />
+                    <Text style={{ marginLeft: 10, fontSize: 16 }}>Guard is Present</Text>
+                </View>
+            </View> 
+
             <View style={styles.detachmentHeader}>
                 <Text style={styles.detachmentTitle}>{branchName} ({branchCode})</Text>
                 <Text style={styles.detachmentSubtitle}>{branchLocation}</Text>
             </View>
 
-            <Text style={styles.header}>Audit Form</Text>
+        {isGuardPresent ? (
 
-            <CustomTextInput
-                label="Guard Name"
-                value={guardName}
-                onChangeText={setGuardName}
-            />
-            
-            <CustomTextInput
-                label="LESP Details"
-                value={lespNumber}
-                onChangeText={setLespNumber}
-            />
+            <View>
+                <Text style={styles.header}>Audit Form</Text>
 
-            <View style={styles.checkboxContainer}>
-                <Checkbox
-                    value={isUniformCompliant}
-                    onValueChange={setIsUniformCompliant}
-                    color={isUniformCompliant ? '#0056b3' : undefined}
+                <CustomTextInput
+                    label="Guard Name"
+                    value={guardName}
+                    onChangeText={setGuardName}
                 />
-                <Text style={styles.checkboxLabel}>Proper Uniform Authorized?</Text>
-            </View>
 
-            <Text style={styles.subHeader}>Documents</Text>
-            <Text style={styles.labelTitle}>LTO</Text>
-            <View style={styles.radioGroup}>
-                {['Valid', 'Expired', 'Missing'].map((status) => (
-                    <TouchableOpacity
-                        key={status}
-                        style={[styles.radioButton, ltoStatus === status && styles.radioButtonActive]}
-                        onPress={() => setLtoStatus(status)}
-                    >
-                        <Text style={[styles.radioText, ltoStatus === status && styles.radioTextActive]}>
-                            {status}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
+                <CustomTextInput
+                    label="LESP Details"
+                    value={lespNumber}
+                    onChangeText={setLespNumber}
+                />
 
-            <Text style={styles.labelTitle}>DDO</Text>
-            <View style={styles.radioGroup}>
-                {['Valid', 'Expired', 'Missing'].map((status) => (
-                    <TouchableOpacity
-                        key={status}
-                        style={[styles.radioButton, ddoStatus === status && styles.radioButtonActive]}
-                        onPress={() => setDdoStatus(status)}
-                    >
-                        <Text style={[styles.radioText, ddoStatus === status && styles.radioTextActive]}>
-                            {status}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            <Text style={styles.labelTitle}>LTOFP</Text>
-            <View style={styles.radioGroup}>
-                {['Valid', 'Expired', 'Missing'].map((status) => (
-                    <TouchableOpacity
-                        key={status}
-                        style={[styles.radioButton, ltofpStatus === status && styles.radioButtonActive]}
-                        onPress={() => setLtofpStatus(status)}
-                    >
-                        <Text style={[styles.radioText, ltofpStatus === status && styles.radioTextActive]}>
-                            {status}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            <Text style={styles.labelTitle}>FA LICENSE</Text>
-            <View style={styles.radioGroup}>
-                {['Valid', 'Expired', 'Missing'].map((status) => (
-                    <TouchableOpacity
-                        key={status}
-                        style={[styles.radioButton, faStatus === status && styles.radioButtonActive]}
-                        onPress={() => setFaStatus(status)}
-                    >
-                        <Text style={[styles.radioText, faStatus === status && styles.radioTextActive]}>
-                            {status}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            <Text style={styles.labelTitle}>COMPANY ID</Text>
-            <View style={styles.radioGroup}>
-                {['Valid', 'Expired', 'Missing'].map((status) => (
-                    <TouchableOpacity
-                        key={status}
-                        style={[styles.radioButton, idStatus === status && styles.radioButtonActive]}
-                        onPress={() => setIdStatus(status)}
-                    >
-                        <Text style={[styles.radioText, idStatus === status && styles.radioTextActive]}>
-                            {status}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            <Text style={styles.labelTitle}>RLM</Text>
-            <View style={styles.radioGroup}>
-                {['Valid', 'Expired', 'Missing'].map((status) => (
-                    <TouchableOpacity
-                        key={status}
-                        style={[styles.radioButton, rlmStatus === status && styles.radioButtonActive]}
-                        onPress={() => setRlmStatus(status)}
-                    >
-                        <Text style={[styles.radioText, rlmStatus === status && styles.radioTextActive]}>
-                            {status}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            <CustomTextInput
-                label="Remarks"
-                value={remarks}
-                onChangeText={setRemarks}
-                multiline={true}
-            />
-
-            <TouchableOpacity 
-                style={styles.dropdownButton} 
-                onPress={() => setIsTicketOpen(!isTicketOpen)}
-            >
-                <Text style={styles.dropdownText}>
-                    {isTicketOpen ? "[-]" : "[+]"} Log Guard Violations
-                </Text>
-            </TouchableOpacity>
-
-            {isTicketOpen && (
-                <View style={styles.checkboxGroup}>
-                    <Text style={styles.subHeader}>Violation Ticket</Text>
-
-                    <CustomTextInput
-                        label="Security License No."
-                        value={securityLicenseNo}
-                        onChangeText={setSecurityLicenseNo}
+                <View style={styles.checkboxContainer}>
+                    <Checkbox
+                        value={isUniformCompliant}
+                        onValueChange={setIsUniformCompliant}
+                        color={isUniformCompliant ? '#0056b3' : undefined}
                     />
-
-                    <CustomTextInput
-                        label="Security License Expiry"
-                        value={securityLicenseExpiry}
-                        onChangeText={setSecurityLicenseExpiry}
-                    />
-
-                    <Text style={styles.subHeader}>Presentable/Operational/Applicable</Text>
-
-                    <ViolationItemCard 
-                        itemName="1. Valid Security License" 
-                        status={validSecurityLicense} 
-                        onUpdate={setValidSecurityLicense} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="2. Company ID" 
-                        status={companyId} 
-                        onUpdate={setCompanyId} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="3. Pershing Cap" 
-                        status={pershingCap} 
-                        onUpdate={setPershingCap} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="4. Authorized Hair Cut" 
-                        status={authorizedHairCut} 
-                        onUpdate={setAuthorizedHairCut} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="5. Properly Shaved" 
-                        status={properlyShaved} 
-                        onUpdate={setProperlyShaved} 
-                    />
-                    
-                    <ViolationItemCard 
-                        itemName="6. Authorized Uniform" 
-                        status={authorizedUniform} 
-                        onUpdate={setAuthorizedUniform} 
-                    />
-                    
-                    <ViolationItemCard 
-                        itemName="7. Authorized Name Cloth" 
-                        status={authorizedNameCloth} 
-                        onUpdate={setAuthorizedNameCloth} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="8. Authorized Agency Patch" 
-                        status={authorizedAgencyPatch} 
-                        onUpdate={setAuthorizedAgencyPatch} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="9. Necktie With Clip" 
-                        status={necktieWithClip} 
-                        onUpdate={setNecktieWithClip} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="10. Security Badge" 
-                        status={securityBadge} 
-                        onUpdate={setSecurityBadge} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="11. Collar Pin 2 pcs." 
-                        status={collarPin} 
-                        onUpdate={setCollarPin} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="12. Lanyard (Navy Blue)" 
-                        status={lanyard} 
-                        onUpdate={setLanyard} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="13. Whistle" 
-                        status={whistle} 
-                        onUpdate={setWhistle} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="14. Holster" 
-                        status={holster} 
-                        onUpdate={setHolster} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="15. Belt Clip 6 pcs." 
-                        status={beltClip} 
-                        onUpdate={setBeltClip} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="16. Belt with buckle" 
-                        status={beltWithBuckle} 
-                        onUpdate={setBeltWithBuckle} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="17. Garrison Belt" 
-                        status={garrisonBelt} 
-                        onUpdate={setGarrisonBelt} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="18. Authorized Shoes" 
-                        status={authorizedShoes} 
-                        onUpdate={setAuthorizedShoes} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="19. Hand Cuff" 
-                        status={handCuff} 
-                        onUpdate={setHandCuff} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="20. Short/Clean finger Nails" 
-                        status={shortCleanFingerNails} 
-                        onUpdate={setShortCleanFingerNails} 
-                    />
-
-                    <ViolationItemCard 
-                        itemName="21. Medicine Kit With Mediplus" 
-                        status={medicineKitWithMediplus} 
-                        onUpdate={setMedicineKitWithMediplus} 
-                    />
-
-
-                    <ViolationItemCard 
-                        itemName="22. Stun Gun With Flashlight" 
-                        status={stunGunWithFlashlight} 
-                        onUpdate={setStunGunWithFlashlight} 
-                    />
+                    <Text style={styles.checkboxLabel}>Proper Uniform Authorized?</Text>
                 </View>
-            )}
 
+                <Text style={styles.subHeader}>Documents</Text>
+                <Text style={styles.labelTitle}>LTO</Text>
+                <View style={styles.radioGroup}>
+                    {['Valid', 'Expired', 'Missing'].map((status) => (
+                        <TouchableOpacity
+                            key={status}
+                            style={[styles.radioButton, ltoStatus === status && styles.radioButtonActive]}
+                            onPress={() => setLtoStatus(status)}
+                        >
+                            <Text style={[styles.radioText, ltoStatus === status && styles.radioTextActive]}>
+                                {status}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+
+                <Text style={styles.labelTitle}>DDO</Text>
+                <View style={styles.radioGroup}>
+                    {['Valid', 'Expired', 'Missing'].map((status) => (
+                        <TouchableOpacity
+                            key={status}
+                            style={[styles.radioButton, ddoStatus === status && styles.radioButtonActive]}
+                            onPress={() => setDdoStatus(status)}
+                        >
+                            <Text style={[styles.radioText, ddoStatus === status && styles.radioTextActive]}>
+                                {status}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+
+                <Text style={styles.labelTitle}>LTOFP</Text>
+                <View style={styles.radioGroup}>
+                    {['Valid', 'Expired', 'Missing'].map((status) => (
+                        <TouchableOpacity
+                            key={status}
+                            style={[styles.radioButton, ltofpStatus === status && styles.radioButtonActive]}
+                            onPress={() => setLtofpStatus(status)}
+                        >
+                            <Text style={[styles.radioText, ltofpStatus === status && styles.radioTextActive]}>
+                                {status}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+
+                <Text style={styles.labelTitle}>FA LICENSE</Text>
+                <View style={styles.radioGroup}>
+                    {['Valid', 'Expired', 'Missing'].map((status) => (
+                        <TouchableOpacity
+                            key={status}
+                            style={[styles.radioButton, faStatus === status && styles.radioButtonActive]}
+                            onPress={() => setFaStatus(status)}
+                        >
+                            <Text style={[styles.radioText, faStatus === status && styles.radioTextActive]}>
+                                {status}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+
+                <Text style={styles.labelTitle}>COMPANY ID</Text>
+                <View style={styles.radioGroup}>
+                    {['Valid', 'Expired', 'Missing'].map((status) => (
+                        <TouchableOpacity
+                            key={status}
+                            style={[styles.radioButton, idStatus === status && styles.radioButtonActive]}
+                            onPress={() => setIdStatus(status)}
+                        >
+                            <Text style={[styles.radioText, idStatus === status && styles.radioTextActive]}>
+                                {status}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+
+                <Text style={styles.labelTitle}>RLM</Text>
+                <View style={styles.radioGroup}>
+                    {['Valid', 'Expired', 'Missing'].map((status) => (
+                        <TouchableOpacity
+                            key={status}
+                            style={[styles.radioButton, rlmStatus === status && styles.radioButtonActive]}
+                            onPress={() => setRlmStatus(status)}
+                        >
+                            <Text style={[styles.radioText, rlmStatus === status && styles.radioTextActive]}>
+                                {status}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+
+                <CustomTextInput
+                    label="Remarks"
+                    value={remarks}
+                    onChangeText={setRemarks}
+                    multiline={true}
+                />
+
+                <TouchableOpacity 
+                    style={styles.dropdownButton} 
+                    onPress={() => setIsTicketOpen(!isTicketOpen)}
+                >
+                    <Text style={styles.dropdownText}>
+                        {isTicketOpen ? "[-]" : "[+]"} Log Guard Violations
+                    </Text>
+                </TouchableOpacity>
+
+                {isTicketOpen && (
+                    <View style={styles.checkboxGroup}>
+                        <Text style={styles.subHeader}>Violation Ticket</Text>
+
+                        <CustomTextInput
+                            label="Security License No."
+                            value={securityLicenseNo}
+                            onChangeText={setSecurityLicenseNo}
+                        />
+
+                        <CustomTextInput
+                            label="Security License Expiry"
+                            value={securityLicenseExpiry}
+                            onChangeText={setSecurityLicenseExpiry}
+                        />
+
+                        <Text style={styles.subHeader}>Presentable/Operational/Applicable</Text>
+
+                        <ViolationItemCard 
+                            itemName="1. Valid Security License" 
+                            status={validSecurityLicense} 
+                            onUpdate={setValidSecurityLicense} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="2. Company ID" 
+                            status={companyId} 
+                            onUpdate={setCompanyId} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="3. Pershing Cap" 
+                            status={pershingCap} 
+                            onUpdate={setPershingCap} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="4. Authorized Hair Cut" 
+                            status={authorizedHairCut} 
+                            onUpdate={setAuthorizedHairCut} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="5. Properly Shaved" 
+                            status={properlyShaved} 
+                            onUpdate={setProperlyShaved} 
+                        />
+                        
+                        <ViolationItemCard 
+                            itemName="6. Authorized Uniform" 
+                            status={authorizedUniform} 
+                            onUpdate={setAuthorizedUniform} 
+                        />
+                        
+                        <ViolationItemCard 
+                            itemName="7. Authorized Name Cloth" 
+                            status={authorizedNameCloth} 
+                            onUpdate={setAuthorizedNameCloth} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="8. Authorized Agency Patch" 
+                            status={authorizedAgencyPatch} 
+                            onUpdate={setAuthorizedAgencyPatch} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="9. Necktie With Clip" 
+                            status={necktieWithClip} 
+                            onUpdate={setNecktieWithClip} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="10. Security Badge" 
+                            status={securityBadge} 
+                            onUpdate={setSecurityBadge} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="11. Collar Pin 2 pcs." 
+                            status={collarPin} 
+                            onUpdate={setCollarPin} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="12. Lanyard (Navy Blue)" 
+                            status={lanyard} 
+                            onUpdate={setLanyard} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="13. Whistle" 
+                            status={whistle} 
+                            onUpdate={setWhistle} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="14. Holster" 
+                            status={holster} 
+                            onUpdate={setHolster} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="15. Belt Clip 6 pcs." 
+                            status={beltClip} 
+                            onUpdate={setBeltClip} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="16. Belt with buckle" 
+                            status={beltWithBuckle} 
+                            onUpdate={setBeltWithBuckle} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="17. Garrison Belt" 
+                            status={garrisonBelt} 
+                            onUpdate={setGarrisonBelt} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="18. Authorized Shoes" 
+                            status={authorizedShoes} 
+                            onUpdate={setAuthorizedShoes} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="19. Hand Cuff" 
+                            status={handCuff} 
+                            onUpdate={setHandCuff} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="20. Short/Clean finger Nails" 
+                            status={shortCleanFingerNails} 
+                            onUpdate={setShortCleanFingerNails} 
+                        />
+
+                        <ViolationItemCard 
+                            itemName="21. Medicine Kit With Mediplus" 
+                            status={medicineKitWithMediplus} 
+                            onUpdate={setMedicineKitWithMediplus} 
+                        />
+
+
+                        <ViolationItemCard 
+                            itemName="22. Stun Gun With Flashlight" 
+                            status={stunGunWithFlashlight} 
+                            onUpdate={setStunGunWithFlashlight} 
+                        />
+                    </View>
+                )}
+            </View>
+
+        ) : (
+            <View style={{ marginBottom: 20, padding: 15, backgroundColor: '#fff3cd', borderRadius: 8, borderLeftWidth: 5, borderLeftColor: '#ffc107'}}>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#856404', marginBottom: 15 }}>
+                    Bank Detachment Status (Guard Absent)
+                </Text>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15}}>
+                    <Checkbox value={isAtmOnline} onValueChange={handleAtmOnlineToggle} />
+                    <Text style={{ marginLeft: 10, fontSize: 16, fontWeight: '500' }}>ATM is Online</Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15}}>
+                    <Checkbox value={isAtmOffline} onValueChange={handleAtmOfflineToggle}/>
+                    <Text style={{ marginLeft: 10, fontSize: 16, fontWeight: '500' }}>ATM is Offline</Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center'}}>
+                    <Checkbox value={isDoorSecure} onValueChange={setIsDoorSecure} />
+                    <Text style={{ marginLeft: 10, fontSize: 16, fontWeight: '500' }}>DOOR GLASS PADLOCK NO PROBLEM</Text>
+                </View>
+            </View>
+        )}
             <Text style={styles.subHeader}>Live Photo Capture</Text>
+
+            <Text style={{ fontStyle: 'italic', color: '#666', marginBottom: 15}}>
+                {isGuardPresent ? "Capture a live photo of the guard on post for verification." 
+                : "Capture a live photo of the detachment to document the absence of the guard."}
+            </Text>
+
             <View style={styles.signatureTriggerRow}>   
-                <Text style={styles.triggerLabel}>Guard on Post:</Text>
+                <Text style={styles.triggerLabel}>
+                    {isGuardPresent ? "Guard on Post:" : "Site Condition:"}
+                </Text>
                 <TouchableOpacity 
                     style={[styles.triggerButton, livePhotoUri && styles.triggerButtonSuccess]} 
                     onPress={() => setIsCameraModalOpen(true)}
@@ -537,6 +604,8 @@ export default function AuditFormScreen() {
             />
 
             <Text style={styles.subHeader}>E-Signatures</Text>
+
+            {isGuardPresent && (
                 <View style={styles.signatureTriggerRow}>
                     <Text style={styles.triggerLabel}>Guard on Duty:</Text>
                     <TouchableOpacity 
@@ -548,6 +617,7 @@ export default function AuditFormScreen() {
                         </Text>
                     </TouchableOpacity>
                 </View>
+            )}
 
                 <View style={styles.checkboxContainer}>
                     <Checkbox value={isClientAbsent} onValueChange={setIsClientAbsent} color={isClientAbsent ? '#dc3545' : undefined} />
@@ -573,7 +643,7 @@ export default function AuditFormScreen() {
             <View style={styles.buttonContainer}>
                 <Button title="Submit" onPress={handleSubmit} color="#0056b3"/>
             </View>
-            </ScrollView>
+        </ScrollView>
 
             {activeSigner !== null && (
                 <SignaturePad 
