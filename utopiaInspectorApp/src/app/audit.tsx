@@ -282,6 +282,17 @@ export default function AuditFormScreen() {
                     </View>
                     <View style={styles.bottomContainer} />
                         <Text style={styles.scannerText}>Scan Detachment QR Code to Begin Audit</Text>
+
+                        <Button
+                            title="DEV BYPASS (FOR TESTING ONLY)"
+                            color="red"
+                            onPress={() => {
+                                setBranchCode("DEV-001");
+                                setBranchName("Development Branch");
+                                setBranchLocation("Localhost");
+                                setIsVerified(true);
+                            }}
+                        />
                     </View>
                 </View>
             );
