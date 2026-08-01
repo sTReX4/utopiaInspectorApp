@@ -267,6 +267,18 @@ export default function AuditFormScreen() {
         if (!isVerified) {
             return (
                 <View style={{flex: 1}}>
+
+                    <Button
+                            title="DEV BYPASS (FOR TESTING ONLY)"
+                            color="red"
+                            onPress={() => {
+                                setBranchCode("DEV-001");
+                                setBranchName("Development Branch");
+                                setBranchLocation("Localhost");
+                                setIsVerified(true);
+                            }}
+                    />
+
                     <CameraView
                         style={StyleSheet.absoluteFill}
                         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
@@ -283,16 +295,6 @@ export default function AuditFormScreen() {
                     <View style={styles.bottomContainer} />
                         <Text style={styles.scannerText}>Scan Detachment QR Code to Begin Audit</Text>
 
-                        <Button
-                            title="DEV BYPASS (FOR TESTING ONLY)"
-                            color="red"
-                            onPress={() => {
-                                setBranchCode("DEV-001");
-                                setBranchName("Development Branch");
-                                setBranchLocation("Localhost");
-                                setIsVerified(true);
-                            }}
-                        />
                     </View>
                 </View>
             );
