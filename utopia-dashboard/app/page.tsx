@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import LivePhotoGrid from './components/livePhotoGrid';
+import DashboardStats from './components/dashboardStats';
 
 export const revalidate = 0;
 
@@ -20,8 +21,8 @@ export default async function DashboardHome() {
           <p className="text-gray-600 mt-1">Real-time security audit monitoring.</p>
         </div>
 
-        {/* Future Implementation: Top KPI Counters will go here 
-        */}
+        {/* The New Top KPI Counters */}
+        <DashboardStats />
 
         {/* The Live Photo Grid Component */}
         <LivePhotoGrid />

@@ -150,12 +150,12 @@ export default function AuditDetailPanel({ auditId, onClose }: AuditDetailPanelP
                  <div className="w-full sm:w-2/3 grid grid-cols-2 gap-4 text-sm">
                     <div className="col-span-2">
                       <span className="text-xs text-gray-500 block uppercase font-bold">Guard on Post</span>
-                      <span className={`font-bold ${auditData.guard_name ? 'text-green-600' : 'text-red-600'}`}>
-                        {auditData.guard_name || 'NO-SHOW (ABSENT)'}
+                      <span className={`font-bold ${!auditData.guard_present_status ? 'text-green-600' : 'text-red-600'}`}>
+                        {!auditData.guard_present_status ? (auditData.guard_name || 'PRESENT') : 'NO-SHOW (ABSENT)'}
                       </span>
                     </div>
 
-                    {auditData.guard_name && (
+                    {!auditData.guard_present_status && (
                       <>
                         <div>
                           <span className="text-xs text-gray-500 block uppercase font-bold">Uniform Compliance</span>
@@ -176,6 +176,32 @@ export default function AuditDetailPanel({ auditId, onClose }: AuditDetailPanelP
                           <span className="font-mono text-gray-800">{auditData.firearm_serial || 'N/A'}</span>
                         </div>
                       </>
+                    )}
+
+                    {auditData.guard_present_status && (
+                      <div className="col-span-2 bg-red-50 border border-red-100 p-3 rounded-lg mt-2">
+                        <span className="text-xs text-red-800 block uppercase font-bold mb-2">Emergency Facility Status</span>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="flex justify-between border-b border-red-100 pb-1">
+                            <span className="text-gray-700">ATM Online</span>
+                            <span className={`font-bold ${auditData.guard_present_status.atm_online ? 'text-green-600' : 'text-red-600'}`}>
+                              {auditData.guard_present_status.atm_online ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between border-b border-red-100 pb-1">
+                            <span className="text-gray-700">ATM Offline</span>
+                            <span className={`font-bold ${auditData.guard_present_status.atm_offline ? 'text-red-600' : 'text-green-600'}`}>
+                              {auditData.guard_present_status.atm_offline ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between border-b border-red-100 pb-1 col-span-2">
+                            <span className="text-gray-700">Facility Doors Secure</span>
+                            <span className={`font-bold ${auditData.guard_present_status.door_secure ? 'text-green-600' : 'text-red-600'}`}>
+                              {auditData.guard_present_status.door_secure ? 'Secured' : 'Breached/Open'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     )}
                  </div>
                </div>
