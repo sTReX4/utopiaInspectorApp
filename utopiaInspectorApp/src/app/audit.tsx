@@ -1,5 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Checkbox from 'expo-checkbox';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Location from 'expo-location';
 import { useState } from 'react';
 import { Alert, Button, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -8,6 +9,7 @@ import LiveCameraModal from '../components/live-camera-modal';
 import SignaturePad from '../components/siganture-pad';
 import SubmissionReceiptModal from '../components/submission-receipt-modal';
 import ViolationItemCard from '../components/violation-item-card';
+import DateInputGroup from '../components/date-input-group';
 
 export default function AuditFormScreen() {
 
@@ -24,9 +26,15 @@ export default function AuditFormScreen() {
     const [branchName, setBranchName] = useState<string>('');
     const [branchLocation, setBranchLocation] = useState<string>('');
 
-
     const [guardName, setGuardName] = useState<string>('');
-    const [lespNumber, setLespNumber] = useState<string>('');
+
+    const [firearmSerial, setFirearmSerial] = useState<string>('');
+    const [firearmMake, setFirearmMake] = useState<string>('');
+
+    const [lespExpDay, setLespExpDay] = useState<string>('');
+    const [lespExpMonth, setLespExpMonth] = useState<string>('');
+    const [lespExpYear, setLespExpYear] = useState<string>('');
+
     const [remarks, setRemarks] = useState<string>('');
 
     const [isUniformCompliant, setIsUniformCompliant] = useState<boolean>(false);
@@ -67,6 +75,8 @@ export default function AuditFormScreen() {
     const [shortCleanFingerNails, setShortCleanFingerNails] = useState<'Yes' | 'No'>('Yes');
     const [medicineKitWithMediplus, setMedicineKitWithMediplus] = useState<'Yes' | 'No'>('Yes');
     const [stunGunWithFlashlight, setStunGunWithFlashlight] = useState<'Yes' | 'No'>('Yes');
+
+    const [violationRemarks, setViolationRemarks] = useState<string>('');
 
     //Signature State Memory
     const [guardSignature, setGuardSignature] = useState<string | null>(null);
@@ -111,6 +121,16 @@ export default function AuditFormScreen() {
             const parsedData = JSON.parse(data);
             
             if (parsedData.code && parsedData.name && parsedData.location) {
+
+                if (!locationPermission?.granted) {
+                    Alert.alert(
+                        "GPS Required", 
+                        "You must enable location services to verify your arrival at the detachment.",
+                        [{ text: "OK", onPress: () => setIsProcessingScan(false) }]
+                    );
+                    return;
+                }
+
                 setTimeIn(new Date().toISOString());
                 
                 let currentLocation = await Location.getCurrentPositionAsync({
@@ -144,6 +164,17 @@ export default function AuditFormScreen() {
             return ;
         }
 
+        let base64Photo = null;
+        try {
+            base64Photo = await FileSystem.readAsStringAsync(livePhotoUri, { encoding: FileSystem.EncodingType.Base64, });
+        } catch (error) {
+            console.error("Error reading live photo file:", error);
+            Alert.alert("File Read Error", "Failed to process the captured photo.");
+            return;
+        }
+
+        const formattedLespExpiry = `${lespExpDay}/${lespExpMonth}/${lespExpYear}`;
+
         const payload = {
             branch_code: branchCode,
             branch_name: branchName,
@@ -167,12 +198,12 @@ export default function AuditFormScreen() {
             } : null,
 
             guard_name: isGuardPresent ? guardName : null,
-            lesp_expiry_number: isGuardPresent ? lespNumber : null, 
-            uniform_compliance: isGuardPresent ? (isUniformCompliant ? "Compliant" : "Non-Compliant") : null,
+            lesp_expiry: isGuardPresent ? formattedLespExpiry : null, 
+            uniform_compliance: isGuardPresent ? isUniformCompliant : null,
             
             // Firearm details added back for database alignment
-            firearm_serial: isGuardPresent ? "SN-MVP-001" : null, // Replace with state variable if you have one
-            firearm_make: isGuardPresent ? "MVP Standard Issue" : null, // Replace with state variable if you have one
+            firearm_serial: isGuardPresent ? firearmSerial : null,
+            firearm_make: isGuardPresent ? firearmMake : null,
 
             // Database JSONB expects an object or null
             metrics: isGuardPresent ? {
@@ -211,9 +242,10 @@ export default function AuditFormScreen() {
                 short_clean_finger_nails: shortCleanFingerNails,
                 medicine_kit_with_mediplus: medicineKitWithMediplus,
                 stun_gun_with_flashlight: stunGunWithFlashlight,
+                violation_remarks: violationRemarks
             } : null,
 
-            live_photo_uri: livePhotoUri,
+            live_photo_uri: `data:image/jpeg;base64,${base64Photo}`,
             guard_signature: isGuardPresent ? guardSignature : null,
             client_signature: isClientAbsent ? null : clientSignature
         };
@@ -331,9 +363,25 @@ export default function AuditFormScreen() {
                 />
 
                 <CustomTextInput
-                    label="LESP Expiry"
-                    value={lespNumber}
-                    onChangeText={setLespNumber}
+                    label="Firearm Serial No."
+                    value={firearmSerial}
+                    onChangeText={setFirearmSerial}
+                />
+
+                <CustomTextInput
+                    label="Firearm Make"
+                    value={firearmMake}
+                    onChangeText={setFirearmMake}
+                />
+
+                <DateInputGroup 
+                label="LESP Expiry Date"
+                day={lespExpDay}
+                month={lespExpMonth}
+                year={lespExpYear}
+                onDayChange={setLespExpDay}
+                onMonthChange={setLespExpMonth}
+                onYearChange={setLespExpYear}
                 />
 
                 <View style={styles.checkboxContainer}>
@@ -601,6 +649,13 @@ export default function AuditFormScreen() {
                             itemName="22. Stun Gun With Flashlight" 
                             status={stunGunWithFlashlight} 
                             onUpdate={setStunGunWithFlashlight} 
+                        />
+
+                        <CustomTextInput
+                            label="Violation"
+                            value={violationRemarks}
+                            onChangeText={setViolationRemarks}
+                            multiline={true}
                         />
                     </View>
                 )}
