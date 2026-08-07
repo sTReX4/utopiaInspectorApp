@@ -269,42 +269,43 @@ export default function SitesPage() {
         </div>
       )}
 
-      {/* === MODAL: QR CODE GENERATOR === */}
-      {selectedSiteForMap && (
+      {/* === MODAL: ACTUAL QR CODE GENERATOR === */}
+      {selectedSiteForQR && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col">
             
             <div className="bg-gray-900 p-4 flex justify-between items-center text-white shrink-0">
-              <h3 className="font-bold">Detachment GPS Location</h3>
-              <button onClick={() => setSelectedSiteForMap(null)} className="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+              <h3 className="font-bold">Verification QR Code</h3>
+              <button onClick={() => setSelectedSiteForQR(null)} className="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
             </div>
 
-            <div className="p-6 flex flex-col space-y-4">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">{selectedSiteForMap.branch_name}</h2>
-                <p className="text-sm text-gray-500">{selectedSiteForMap.branch_location}</p>
-              </div>
+            <div className="p-6 flex flex-col items-center justify-center space-y-4">
+              <h2 className="text-xl font-bold text-gray-900 text-center">{selectedSiteForQR.branch_name}</h2>
               
-              <div className="h-72 w-full bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
-                {selectedSiteForMap.latitude && selectedSiteForMap.longitude ? (
-                  <LocationPicker 
-                    position={{ lat: selectedSiteForMap.latitude, lng: selectedSiteForMap.longitude }} 
-                    // We pass an empty function here so clicking the map doesn't move the saved pin!
-                    setPosition={() => {}} 
-                  />
-                ) : (
-                  <div className="h-full w-full flex flex-col items-center justify-center text-gray-500">
-                    <MapPin className="w-8 h-8 text-gray-300 mb-2" />
-                    <span>No GPS coordinates recorded for this detachment.</span>
-                  </div>
-                )}
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                <QRCodeSVG 
+                  value={JSON.stringify({
+                    code: selectedSiteForQR.branch_code,
+                    name: selectedSiteForQR.branch_name,
+                    location: selectedSiteForQR.branch_location
+                  })} 
+                  size={200} 
+                  level="H" 
+                  includeMargin={true} 
+                />
               </div>
 
-              {selectedSiteForMap.latitude && (
-                <div className="bg-gray-50 p-3 rounded border text-sm font-mono text-gray-600 text-center">
-                  Lat: {selectedSiteForMap.latitude} | Lng: {selectedSiteForMap.longitude}
-                </div>
-              )}
+              <p className="text-sm text-gray-500 text-center">
+                Scan this code using the Utopia Inspector App to verify arrival at {selectedSiteForQR.branch_code}.
+              </p>
+
+              <button 
+                onClick={() => window.print()}
+                className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center transition-colors"
+              >
+                <Printer className="w-5 h-5 mr-2" />
+                Print QR Code
+              </button>
             </div>
           </div>
         </div>
