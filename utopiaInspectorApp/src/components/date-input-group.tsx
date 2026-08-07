@@ -1,5 +1,9 @@
-import React from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
+const days = Array.from({ length: 31 }, (_, index) => String(index + 1));
+const months = Array.from({ length: 12 }, (_, index) => String(index + 1));
+const years = Array.from({ length: 21 }, (_, index) => String(2040 - index));
 
 interface DateInputGroupProps {
     label: string;
@@ -11,6 +15,8 @@ interface DateInputGroupProps {
     onYearChange: (text: string) => void;
 }
 
+type DatePart = 'day' | 'month' | 'year' | null;
+
 export default function DateInputGroup({
     label,
     day,
@@ -20,49 +26,101 @@ export default function DateInputGroup({
     onMonthChange,
     onYearChange,
 }: DateInputGroupProps) {
-    const enforceNumericInput = (text: string, stateUpdater: (val: string) => void) => {
+    const [openList, setOpenList] = useState<DatePart>(null);
+
+    const enforceNumericInput = (
+        text: string,
+        stateUpdater: (value: string) => void,
+        min: number,
+        max: number,
+        maxLength: number,
+    ) => {
         const numericValue = text.replace(/[^0-9]/g, '');
+
+        if (
+            numericValue.length === maxLength &&
+            (Number(numericValue) < min || Number(numericValue) > max)
+        ) {
+            return;
+        }
+
         stateUpdater(numericValue);
+    };
+
+    const selectValue = (value: string, stateUpdater: (value: string) => void) => {
+        stateUpdater(value);
+        setOpenList(null);
+    };
+
+    const renderOptions = (placeholder: string, options: string[], stateUpdater: (value: string) => void) => {
+        const optionItems = [
+            ...(placeholder === 'YYYY' ? [] : [{ label: '0', value: '' }]),
+            ...options.map((value) => ({ label: value, value })),
+        ];
+
+        return (
+            <ScrollView style={styles.optionsList} nestedScrollEnabled>
+                {optionItems.map((item) => (
+                    <TouchableOpacity key={item.label} style={styles.option} onPress={() => selectValue(item.value, stateUpdater)}>
+                        <Text style={styles.optionText}>{item.label}</Text>
+                    </TouchableOpacity>
+                ))}
+            </ScrollView>
+        );
     };
 
     return (
         <View style={styles.container}>
             <Text style={styles.label}>{label}</Text>
 
-        <View style={styles.row}>
-            <TextInput
-                style={styles.box}
-                value={day}
-                onChangeText={(text) => enforceNumericInput(text, onDayChange)}
-                keyboardType="numeric"
-                placeholder="DD"
-                maxLength={2}
-                placeholderTextColor="#999"
-            />
+            <View style={styles.row}>
+                <View style={styles.fieldGroup}>
+                    <TextInput
+                        style={styles.box}
+                        value={day}
+                        onChangeText={(text) => enforceNumericInput(text, onDayChange, 1, 31, 2)}
+                        keyboardType="numeric"
+                        placeholder="DD"
+                        maxLength={2}
+                        placeholderTextColor="#999"
+                    />
+                    <TouchableOpacity style={styles.arrowButton} onPress={() => setOpenList(openList === 'day' ? null : 'day')}>
+                        <Text style={styles.arrow}>⌄</Text>
+                    </TouchableOpacity>
+                    {openList === 'day' && renderOptions('DD', days, onDayChange)}
+                </View>
 
-            <Text style={styles.slash}>/</Text>
+                <View style={styles.fieldGroup}>
+                    <TextInput
+                        style={styles.box}
+                        value={month}
+                        onChangeText={(text) => enforceNumericInput(text, onMonthChange, 1, 12, 2)}
+                        keyboardType="numeric"
+                        placeholder="MM"
+                        maxLength={2}
+                        placeholderTextColor="#999"
+                    />
+                    <TouchableOpacity style={styles.arrowButton} onPress={() => setOpenList(openList === 'month' ? null : 'month')}>
+                        <Text style={styles.arrow}>⌄</Text>
+                    </TouchableOpacity>
+                    {openList === 'month' && renderOptions('MM', months, onMonthChange)}
+                </View>
 
-            <TextInput
-                    style={styles.box}
-                    value={month}
-                    onChangeText={(text) => enforceNumericInput(text, onMonthChange)}
-                    keyboardType="numeric"
-                    maxLength={2}
-                    placeholder="MM"
-                    placeholderTextColor="#999"
-            />
-
-            <Text style={styles.slash}>/</Text>
-
-            <TextInput
-                    style={[styles.box, styles.yearBox]} // Year box is slightly wider
-                    value={year}
-                    onChangeText={(text) => enforceNumericInput(text, onYearChange)}
-                    keyboardType="numeric"
-                    maxLength={4}
-                    placeholder="YYYY"
-                    placeholderTextColor="#999"
-            />
+                <View style={[styles.fieldGroup, styles.yearFieldGroup]}>
+                    <TextInput
+                        style={[styles.box, styles.yearBox]}
+                        value={year}
+                        onChangeText={(text) => enforceNumericInput(text, onYearChange, 2020, 2040, 4)}
+                        keyboardType="numeric"
+                        placeholder="YYYY"
+                        maxLength={4}
+                        placeholderTextColor="#999"
+                    />
+                    <TouchableOpacity style={styles.arrowButton} onPress={() => setOpenList(openList === 'year' ? null : 'year')}>
+                        <Text style={styles.arrow}>⌄</Text>
+                    </TouchableOpacity>
+                    {openList === 'year' && renderOptions('YYYY', years, onYearChange)}
+                </View>
             </View>
         </View>
     );
@@ -71,7 +129,9 @@ export default function DateInputGroup({
 const styles = StyleSheet.create({
     container: { marginBottom: 15 },
     label: { fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#333' },
-    row: { flexDirection: 'row', alignItems: 'center' },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    fieldGroup: { flexDirection: 'row', alignItems: 'center', position: 'relative' },
+    yearFieldGroup: {},
     box: {
         backgroundColor: '#fff',
         borderWidth: 1,
@@ -83,13 +143,32 @@ const styles = StyleSheet.create({
         width: 60,
         color: '#333',
     },
-    yearBox: {
-        width: 80,
+    yearBox: { width: 80 },
+    arrowButton: {
+        width: 28,
+        height: 42,
+        marginLeft: 3,
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 5,
+        backgroundColor: '#fff',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    slash: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#777',
-        marginHorizontal: 10,
-    }
+    arrow: { fontSize: 22, color: '#555', marginTop: -5 },
+    optionsList: {
+        position: 'absolute',
+        top: 48,
+        left: 0,
+        width: '100%',
+        maxHeight: 180,
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 5,
+        backgroundColor: '#fff',
+        zIndex: 10,
+        elevation: 10,
+    },
+    option: { height: 40, paddingHorizontal: 14, justifyContent: 'center' },
+    optionText: { fontSize: 16, color: '#333' },
 });

@@ -6,6 +6,26 @@ const supabaseAdminKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 // REMINDER: For secure backend operations, consider using SUPABASE_SERVICE_ROLE_KEY here instead if I run into RLS issues
 const supabase = createClient(supabaseUrl, supabaseAdminKey);
 
+export async function GET() {
+    try {
+        const { data, error } = await supabase
+            .from('audits')
+            .select('id, inspector_name, guard_name, branch_name, branch_location, time_in, time_out, lesp_expiry, uniform_status, remarks')
+            .order('time_in', { ascending: false })
+            .limit(100);
+
+        if (error) {
+            console.error('Audit history fetch error:', error);
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+
+        return NextResponse.json(data);
+    } catch (err) {
+        console.error('Unexpected audit history error:', err);
+        return NextResponse.json({ error: 'Unable to load audit history.' }, { status: 500 });
+    }
+}
+
 export async function POST(request: Request) {
     try {
         const body = await request.json();
