@@ -26,7 +26,9 @@ export default function AuditFormScreen() {
     const [branchName, setBranchName] = useState<string>('');
     const [branchLocation, setBranchLocation] = useState<string>('');
 
-    const [guardName, setGuardName] = useState<string>('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [middleInitial, setMiddleInitial] = useState('');
 
     const [firearmSerial, setFirearmSerial] = useState<string>('');
     const [firearmMake, setFirearmMake] = useState<string>('');
@@ -187,7 +189,7 @@ export default function AuditFormScreen() {
             gps_coordinates: location ? {
                 latitude: location.coords.latitude,
                 longitude: location.coords.longitude,
-                accuracy: location.coords.accuracy
+                accuracy: location.coords.accuracy  
             } : null,
 
             // Database JSONB expects an object or null
@@ -197,7 +199,7 @@ export default function AuditFormScreen() {
                 door_secure: isDoorSecure
             } : null,
 
-            guard_name: isGuardPresent ? guardName : null,
+            guard_name: isGuardPresent ? `${firstName}${middleInitial ? ' ' + middleInitial : ''} ${lastName}`.trim() : null,
             lesp_expiry: isGuardPresent ? formattedLespExpiry : null, 
             uniform_compliance: isGuardPresent ? isUniformCompliant : null,
             
@@ -254,7 +256,7 @@ export default function AuditFormScreen() {
         console.log(JSON.stringify(payload, null, 2));
 
         try {
-            const API_URL = 'http://192.168.1.3:3000/api/audits';
+            const API_URL = 'http://192.168.1.5:3000/api/audits';
 
             const response = await fetch (API_URL, {
                 method: 'POST',
@@ -299,7 +301,6 @@ export default function AuditFormScreen() {
         if (!isVerified) {
             return (
                 <View style={{flex: 1}}>
-
                     <CameraView
                         style={StyleSheet.absoluteFill}
                         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
@@ -314,8 +315,7 @@ export default function AuditFormScreen() {
                             <View style={styles.unfocusedContainer} />
                     </View>
                     <View style={styles.bottomContainer} />
-
-                        <Button
+                    <Button
                             title="DEV BYPASS (FOR TESTING ONLY)"
                             color="red"
                             onPress={() => {
@@ -324,7 +324,7 @@ export default function AuditFormScreen() {
                                 setBranchLocation("Localhost");
                                 setIsVerified(true);
                             }}
-                        />
+                    />
                         <Text style={styles.scannerText}>Scan Detachment QR Code to Begin Audit</Text>
 
                     </View>
@@ -356,11 +356,38 @@ export default function AuditFormScreen() {
             <View>
                 <Text style={styles.header}>Audit Form</Text>
 
-                <CustomTextInput
-                    label="Guard Name"
-                    value={guardName}
-                    onChangeText={setGuardName}
-                />
+                <View style={styles.nameGroup}>
+
+    <Text style={styles.nameLabel}>Guard Name</Text>
+
+    {/* First Name */}
+    <CustomTextInput
+        label="First Name"
+        value={firstName}
+        onChangeText={setFirstName}
+    />
+
+    <View style={styles.nameRow}>
+
+        <View style={{ flex: 3 }}>
+            <CustomTextInput
+                label="Last Name"
+                value={lastName}
+                onChangeText={setLastName}
+            />
+        </View>
+
+        <View style={{ flex: 1 }}>
+            <CustomTextInput
+                label="M.I"
+                value={middleInitial}
+                onChangeText={setMiddleInitial}
+            />
+        </View>
+
+    </View>
+
+</View>
 
                 <CustomTextInput
                     label="Firearm Serial No."
@@ -946,5 +973,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingTop: 100, // Lifts the text slightly
-  }
+  },
+
+  nameGroup: {
+    marginBottom: 20,
+  },
+
+  nameLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+  },
+
+  nameRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
 });
