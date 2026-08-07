@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import LivePhotoGrid from './components/livePhotoGrid';
 import DashboardStats from './components/dashboardStats';
 
+
 export const revalidate = 0;
 
 export default async function DashboardHome() {
