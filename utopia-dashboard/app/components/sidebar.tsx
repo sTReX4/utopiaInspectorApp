@@ -9,9 +9,9 @@ export default function Sidebar() {
 
   const navItems = [
     { name: 'Dashboard', href: '/', icon: Home },
-    { name: 'Audit Reports', href: '/audits', icon: Shield }, // Placeholder for future
     { name: 'Sites & Detachments', href: '/sites', icon: MapPin },
     { name: 'Inspector Tracker', href: '/tracker', icon: Users },
+    { name: 'Report Extraction', href: '/reports', icon: Shield },
     { name: 'Settings', href: '/settings', icon: Settings }, // Placeholder for future
   ];
 

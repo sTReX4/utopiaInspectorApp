@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import LivePhotoGrid from './components/livePhotoGrid';
 import DashboardStats from './components/dashboardStats';
-import { Plus, Search, MapPin, QrCode, Power, PowerOff, Printer, Map } from 'lucide-react';
+
 
 export const revalidate = 0;
 
