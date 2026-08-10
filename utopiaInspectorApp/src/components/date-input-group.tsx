@@ -1,9 +1,34 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const days = Array.from({ length: 31 }, (_, index) => String(index + 1));
-const months = Array.from({ length: 12 }, (_, index) => String(index + 1));
-const years = Array.from({ length: 21 }, (_, index) => String(2040 - index));
+function formatDateDDMMYYYY(date: Date): string {
+  return new Intl.DateTimeFormat('it-IT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+}
+
+function getInitialDate(day: string, month: string, year: string): Date {
+  const parsedDay = Number(day);
+  const parsedMonth = Number(month) - 1;
+  const parsedYear = Number(year);
+
+  const candidate = new Date(parsedYear, parsedMonth, parsedDay);
+
+  if (
+    Number.isNaN(parsedDay) ||
+    Number.isNaN(parsedMonth) ||
+    Number.isNaN(parsedYear) ||
+    candidate.getFullYear() !== parsedYear ||
+    candidate.getMonth() !== parsedMonth ||
+    candidate.getDate() !== parsedDay
+  ) {
+    return new Date();
+  }
+
+  return candidate;
+}
 
 interface DateInputGroupProps {
     label: string;
@@ -15,7 +40,8 @@ interface DateInputGroupProps {
     onYearChange: (text: string) => void;
 }
 
-type DatePart = 'day' | 'month' | 'year' | null;
+const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const weekdayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export default function DateInputGroup({
     label,
@@ -26,102 +52,121 @@ export default function DateInputGroup({
     onMonthChange,
     onYearChange,
 }: DateInputGroupProps) {
-    const [openList, setOpenList] = useState<DatePart>(null);
+    const [isCalendarVisible, setIsCalendarVisible] = useState(false);
+    const [viewDate, setViewDate] = useState(() => getInitialDate(day, month, year));
 
-    const enforceNumericInput = (
-        text: string,
-        stateUpdater: (value: string) => void,
-        min: number,
-        max: number,
-        maxLength: number,
-    ) => {
-        const numericValue = text.replace(/[^0-9]/g, '');
+    const openCalendar = () => {
+        setViewDate(getInitialDate(day, month, year));
+        setIsCalendarVisible(true);
+    };
 
-        if (
-            numericValue.length === maxLength &&
-            (Number(numericValue) < min || Number(numericValue) > max)
-        ) {
-            return;
+    const handleDateSelect = (selectedDate: Date) => {
+        onDayChange(String(selectedDate.getDate()).padStart(2, '0'));
+        onMonthChange(String(selectedDate.getMonth() + 1).padStart(2, '0'));
+        onYearChange(String(selectedDate.getFullYear()));
+        setIsCalendarVisible(false);
+    };
+
+    const calendarDays = Array.from({ length: 42 }, (_, index) => {
+        const firstDayOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+        const firstDayIndex = firstDayOfMonth.getDay();
+        const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
+        const offset = index - firstDayIndex;
+
+        if (offset < 0) {
+            const prevMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 0);
+            const dayNumber = prevMonth.getDate() + offset + 1;
+            return {
+                day: dayNumber,
+                date: new Date(prevMonth.getFullYear(), prevMonth.getMonth(), dayNumber),
+                isCurrentMonth: false,
+            };
         }
 
-        stateUpdater(numericValue);
-    };
+        if (offset >= daysInMonth) {
+            const nextMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1);
+            const dayNumber = offset - daysInMonth + 1;
+            return {
+                day: dayNumber,
+                date: new Date(nextMonth.getFullYear(), nextMonth.getMonth(), dayNumber),
+                isCurrentMonth: false,
+            };
+        }
 
-    const selectValue = (value: string, stateUpdater: (value: string) => void) => {
-        stateUpdater(value);
-        setOpenList(null);
-    };
+        return {
+            day: offset + 1,
+            date: new Date(viewDate.getFullYear(), viewDate.getMonth(), offset + 1),
+            isCurrentMonth: true,
+        };
+    });
 
-    const renderOptions = (placeholder: string, options: string[], stateUpdater: (value: string) => void) => {
-        const optionItems = [
-            ...(placeholder === 'YYYY' ? [] : [{ label: '0', value: '' }]),
-            ...options.map((value) => ({ label: value, value })),
-        ];
-
-        return (
-            <ScrollView style={styles.optionsList} nestedScrollEnabled>
-                {optionItems.map((item) => (
-                    <TouchableOpacity key={item.label} style={styles.option} onPress={() => selectValue(item.value, stateUpdater)}>
-                        <Text style={styles.optionText}>{item.label}</Text>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
-        );
-    };
+    const selectedDate = getInitialDate(day, month, year);
 
     return (
         <View style={styles.container}>
             <Text style={styles.label}>{label}</Text>
 
-            <View style={styles.row}>
-                <View style={styles.fieldGroup}>
-                    <TextInput
-                        style={styles.box}
-                        value={day}
-                        onChangeText={(text) => enforceNumericInput(text, onDayChange, 1, 31, 2)}
-                        keyboardType="numeric"
-                        placeholder="DD"
-                        maxLength={2}
-                        placeholderTextColor="#999"
-                    />
-                    <TouchableOpacity style={styles.arrowButton} onPress={() => setOpenList(openList === 'day' ? null : 'day')}>
-                        <Text style={styles.arrow}>⌄</Text>
-                    </TouchableOpacity>
-                    {openList === 'day' && renderOptions('DD', days, onDayChange)}
+            <TouchableOpacity style={styles.triggerButton} onPress={openCalendar} activeOpacity={0.85}>
+                <View style={styles.valueBox}>
+                    <Text style={styles.valueLabel}>DD</Text>
+                    <Text style={styles.valueText}>{day || 'DD'}</Text>
                 </View>
+                <View style={styles.valueBox}>
+                    <Text style={styles.valueLabel}>MM</Text>
+                    <Text style={styles.valueText}>{month || 'MM'}</Text>
+                </View>
+                <View style={[styles.valueBox, styles.yearBox]}>
+                    <Text style={styles.valueLabel}>YYYY</Text>
+                    <Text style={styles.valueText}>{year || 'YYYY'}</Text>
+                </View>
+            </TouchableOpacity>
 
-                <View style={styles.fieldGroup}>
-                    <TextInput
-                        style={styles.box}
-                        value={month}
-                        onChangeText={(text) => enforceNumericInput(text, onMonthChange, 1, 12, 2)}
-                        keyboardType="numeric"
-                        placeholder="MM"
-                        maxLength={2}
-                        placeholderTextColor="#999"
-                    />
-                    <TouchableOpacity style={styles.arrowButton} onPress={() => setOpenList(openList === 'month' ? null : 'month')}>
-                        <Text style={styles.arrow}>⌄</Text>
-                    </TouchableOpacity>
-                    {openList === 'month' && renderOptions('MM', months, onMonthChange)}
-                </View>
+            <Modal transparent visible={isCalendarVisible} animationType="fade" onRequestClose={() => setIsCalendarVisible(false)}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.calendarCard}>
+                        <View style={styles.calendarHeader}>
+                            <TouchableOpacity onPress={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}>
+                                <Text style={styles.navButton}>‹</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.calendarTitle}>{monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}</Text>
+                            <TouchableOpacity onPress={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}>
+                                <Text style={styles.navButton}>›</Text>
+                            </TouchableOpacity>
+                        </View>
 
-                <View style={[styles.fieldGroup, styles.yearFieldGroup]}>
-                    <TextInput
-                        style={[styles.box, styles.yearBox]}
-                        value={year}
-                        onChangeText={(text) => enforceNumericInput(text, onYearChange, 2020, 2040, 4)}
-                        keyboardType="numeric"
-                        placeholder="YYYY"
-                        maxLength={4}
-                        placeholderTextColor="#999"
-                    />
-                    <TouchableOpacity style={styles.arrowButton} onPress={() => setOpenList(openList === 'year' ? null : 'year')}>
-                        <Text style={styles.arrow}>⌄</Text>
-                    </TouchableOpacity>
-                    {openList === 'year' && renderOptions('YYYY', years, onYearChange)}
+                        <View style={styles.weekdayRow}>
+                            {weekdayNames.map((weekday) => (
+                                <Text key={weekday} style={styles.weekdayText}>{weekday}</Text>
+                            ))}
+                        </View>
+
+                        <View style={styles.calendarGrid}>
+                            {calendarDays.map((item, index) => {
+                                const isSelected =
+                                    item.date.getDate() === selectedDate.getDate() &&
+                                    item.date.getMonth() === selectedDate.getMonth() &&
+                                    item.date.getFullYear() === selectedDate.getFullYear();
+
+                                return (
+                                    <TouchableOpacity
+                                        key={`${item.date.toISOString()}-${index}`}
+                                        style={[styles.dayCell, !item.isCurrentMonth && styles.dayCellMuted, isSelected && styles.dayCellSelected]}
+                                        onPress={() => handleDateSelect(item.date)}
+                                    >
+                                        <Text style={[styles.dayText, !item.isCurrentMonth && styles.dayTextMuted, isSelected && styles.dayTextSelected]}>
+                                            {item.day}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+
+                        <TouchableOpacity style={styles.doneButton} onPress={() => setIsCalendarVisible(false)}>
+                            <Text style={styles.doneButtonText}>Done</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
-            </View>
+            </Modal>
         </View>
     );
 }
@@ -129,46 +174,76 @@ export default function DateInputGroup({
 const styles = StyleSheet.create({
     container: { marginBottom: 15 },
     label: { fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#333' },
-    row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    fieldGroup: { flexDirection: 'row', alignItems: 'center', position: 'relative' },
-    yearFieldGroup: {},
-    box: {
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 5,
-        padding: 10,
-        fontSize: 16,
-        textAlign: 'center',
-        width: 60,
-        color: '#333',
+    triggerButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
-    yearBox: { width: 80 },
-    arrowButton: {
-        width: 28,
-        height: 42,
-        marginLeft: 3,
+    valueBox: {
+        flex: 1,
+        backgroundColor: '#fff',
         borderWidth: 1,
         borderColor: '#ccc',
-        borderRadius: 5,
-        backgroundColor: '#fff',
-        justifyContent: 'center',
+        borderRadius: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 8,
         alignItems: 'center',
     },
-    arrow: { fontSize: 22, color: '#555', marginTop: -5 },
-    optionsList: {
-        position: 'absolute',
-        top: 48,
-        left: 0,
-        width: '100%',
-        maxHeight: 180,
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 5,
-        backgroundColor: '#fff',
-        zIndex: 10,
-        elevation: 10,
+    yearBox: { flex: 1.2 },
+    valueLabel: { fontSize: 11, color: '#888', marginBottom: 4, textTransform: 'uppercase' },
+    valueText: { fontSize: 16, color: '#333', fontWeight: '600' },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.35)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
     },
-    option: { height: 40, paddingHorizontal: 14, justifyContent: 'center' },
-    optionText: { fontSize: 16, color: '#333' },
+    calendarCard: {
+        width: '100%',
+        maxWidth: 360,
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 16,
+    },
+    calendarHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    navButton: { fontSize: 28, color: '#0056b3', fontWeight: '700' },
+    calendarTitle: { fontSize: 18, fontWeight: '700', color: '#222' },
+    weekdayRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+    weekdayText: { width: '14.28%', textAlign: 'center', color: '#777', fontSize: 12, fontWeight: '600' },
+    calendarGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+    },
+    dayCell: {
+        width: '14.28%',
+        aspectRatio: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 999,
+        marginBottom: 6,
+    },
+    dayCellMuted: { opacity: 0.45 },
+    dayCellSelected: { backgroundColor: '#0056b3' },
+    dayText: { fontSize: 14, color: '#222' },
+    dayTextMuted: { color: '#999' },
+    dayTextSelected: { color: '#fff', fontWeight: '700' },
+    doneButton: {
+        marginTop: 12,
+        alignItems: 'center',
+        backgroundColor: '#0056b3',
+        paddingVertical: 10,
+        borderRadius: 8,
+    },
+    doneButtonText: { color: '#fff', fontWeight: '700' },
 });
