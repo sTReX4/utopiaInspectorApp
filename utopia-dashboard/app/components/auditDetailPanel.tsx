@@ -126,8 +126,15 @@ export default function AuditDetailPanel({ auditId, onClose }: AuditDetailPanelP
                     <span>📍 Map unavailable</span>
                   </div>
                 )}
-                <div className="p-2 text-xs text-gray-500 text-center font-mono bg-white border-t">
-                  Lat: {auditData?.gps_latitude || 'N/A'} | Lng: {auditData?.gps_longitude || 'N/A'}
+                <div className="bg-gray-50 p-2 text-center flex flex-col items-center justify-center border-t border-gray-200">
+                  <span className="text-xs text-gray-500 font-mono">
+                    Lat: {auditData?.gps_latitude || 'N/A'} | Lng: {auditData?.gps_longitude || 'N/A'}
+                  </span>
+                  {auditData?.branch_location && (
+                    <span className="text-xs text-gray-600 mt-1 font-sans font-medium bg-gray-200 px-3 py-0.5 rounded-full">
+                      📍 QR Location: {auditData.branch_location}
+                    </span>
+                  )}
                 </div>
               </div>
             </section>
