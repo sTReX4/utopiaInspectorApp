@@ -136,7 +136,7 @@ export default function SitesPage() {
         <input 
           type="text" 
           placeholder="Search by branch name or code..." 
-          className="flex-1 outline-none text-gray-700"
+          className="flex-1 outline-none text-gray-900"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -228,7 +228,7 @@ export default function SitesPage() {
               <div className="w-full md:w-1/2 space-y-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Branch Code (Unique)</label>
-                  <input required type="text" placeholder="e.g. BDO-001" className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" value={newSite.code} onChange={e => setNewSite({...newSite, code: e.target.value})} />
+                  <input required type="text" placeholder="e.g. BDO-001" className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none " value={newSite.code} onChange={e => setNewSite({...newSite, code: e.target.value})} />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Branch Name</label>
@@ -306,6 +306,46 @@ export default function SitesPage() {
                 <Printer className="w-5 h-5 mr-2" />
                 Print QR Code
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* === MODAL: VIEW MAP LOCATION === */}
+      {selectedSiteForMap && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
+            
+            <div className="bg-gray-900 p-4 flex justify-between items-center text-white shrink-0">
+              <h3 className="font-bold">Detachment GPS Location</h3>
+              <button onClick={() => setSelectedSiteForMap(null)} className="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+            </div>
+
+            <div className="p-6 flex flex-col space-y-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">{selectedSiteForMap.branch_name}</h2>
+                <p className="text-sm text-gray-500">{selectedSiteForMap.branch_location}</p>
+              </div>
+              
+              <div className="h-72 w-full bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                {selectedSiteForMap.latitude && selectedSiteForMap.longitude ? (
+                  <LocationPicker 
+                    position={{ lat: selectedSiteForMap.latitude, lng: selectedSiteForMap.longitude }} 
+                    // We pass an empty function here so clicking the map doesn't accidentally move the saved pin!
+                    setPosition={() => {}} 
+                  />
+                ) : (
+                  <div className="h-full w-full flex flex-col items-center justify-center text-gray-500">
+                    <MapPin className="w-8 h-8 text-gray-300 mb-2" />
+                    <span>No GPS coordinates recorded for this detachment.</span>
+                  </div>
+                )}
+              </div>
+
+              {selectedSiteForMap.latitude && (
+                <div className="bg-gray-50 p-3 rounded border text-sm font-mono text-gray-600 text-center">
+                  Lat: {selectedSiteForMap.latitude} | Lng: {selectedSiteForMap.longitude}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,16 +1,11 @@
-import { supabase } from '@/lib/supabase';
+'use client';
+
+import { useState } from 'react';
 import LivePhotoGrid from './components/livePhotoGrid';
 import DashboardStats from './components/dashboardStats';
 
-
-export const revalidate = 0;
-
-export default async function DashboardHome() {
-  const { data: audits, error } = await supabase.from('audits').select('*').order('created_at', { ascending: false });
-
-  if (error) {
-    return <div className="p-10 text-red-500">Error loading dashboard: {error.message}</div>;
-  }
+export default function DashboardHome() {
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
   return (
     <main className="min-h-screen bg-gray-100 p-8">
@@ -22,14 +17,14 @@ export default async function DashboardHome() {
           <p className="text-gray-600 mt-1">Real-time security audit monitoring.</p>
         </div>
 
-        {/* The New Top KPI Counters */}
-        <DashboardStats />
+        {/* Top KPI Counters with Filter Callback */}
+        <DashboardStats 
+          activeFilter={activeFilter} 
+          onFilterSelect={setActiveFilter} 
+        />
 
-        {/* The Live Photo Grid Component */}
-        <LivePhotoGrid />
-
-        {/* Future Implementation: The Audit Data Table will go here 
-        */}
+        {/* Live Photo Grid filtered dynamically */}
+        <LivePhotoGrid activeFilter={activeFilter} />
 
       </div>
     </main>

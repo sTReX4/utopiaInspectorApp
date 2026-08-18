@@ -12,6 +12,7 @@ export default function Sidebar() {
     { name: 'Sites & Detachments', href: '/sites', icon: MapPin },
     { name: 'Inspector Tracker', href: '/tracker', icon: Users },
     { name: 'Report Extraction', href: '/reports', icon: Shield },
+    { name: 'Personnel Roster', href: '/personnel', icon: Users },
     { name: 'Settings', href: '/settings', icon: Settings }, // Placeholder for future
   ];
 
