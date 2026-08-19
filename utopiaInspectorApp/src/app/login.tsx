@@ -1,3 +1,4 @@
+import Checkbox from 'expo-checkbox';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, BackHandler, Image, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -17,6 +18,7 @@ export default function LoginScreen() {
   const [birthDay, setBirthDay] = useState('');
   const [birthMonth, setBirthMonth] = useState('');
   const [birthYear, setBirthYear] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -83,8 +85,12 @@ export default function LoginScreen() {
           <Pressable style={styles.signUpLink} onPress={() => setScreen('name')}>
             <Text style={styles.linkText}>Sign up</Text>
           </Pressable>
-          <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email Address" keyboardType="email-address" autoCapitalize="none" placeholderTextColor="#9aa0a6" />
-          <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry placeholderTextColor="#9aa0a6" />
+          <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email Address" keyboardType="email-address" autoCapitalize="none" autoComplete="email" textContentType="emailAddress" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
+          <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry autoComplete="password" textContentType="password" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
+          <View style={styles.rememberRow}>
+            <Checkbox value={rememberMe} onValueChange={setRememberMe} color={rememberMe ? primaryColor : undefined} />
+            <Text style={styles.rememberText}>Remember me</Text>
+          </View>
           <PrimaryButton label="Log in" onPress={signIn} />
           <Pressable style={styles.devPassButton} onPress={goToDashboard}>
             <Text style={styles.devPassText}>Dev Pass</Text>
@@ -98,10 +104,10 @@ export default function LoginScreen() {
         <>
           <Text style={styles.title}>Register</Text>
           <Text style={styles.instruction}>Please Enter Your Name</Text>
-          <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} placeholder="First name" placeholderTextColor="#9aa0a6" />
+          <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} placeholder="First name" autoComplete="given-name" textContentType="givenName" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
           <View style={styles.nameRow}>
-            <TextInput style={[styles.input, styles.lastNameInput]} value={lastName} onChangeText={setLastName} placeholder="Last name" placeholderTextColor="#9aa0a6" />
-            <TextInput style={[styles.input, styles.middleInput]} value={middleInitial} onChangeText={setMiddleInitial} placeholder="M.I." maxLength={1} placeholderTextColor="#9aa0a6" />
+            <TextInput style={[styles.input, styles.lastNameInput]} value={lastName} onChangeText={setLastName} placeholder="Last name" autoComplete="family-name" textContentType="familyName" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
+            <TextInput style={[styles.input, styles.middleInput]} value={middleInitial} onChangeText={setMiddleInitial} placeholder="M.I." maxLength={1} autoComplete="name" textContentType="middleName" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
           </View>
           <PrimaryButton label="Next" onPress={nextFromName} />
         </>
@@ -127,8 +133,8 @@ export default function LoginScreen() {
       <>
         <Text style={styles.title}>Register</Text>
         <Text style={styles.instruction}>Enter your email and{`\n`}password</Text>
-        <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email address" keyboardType="email-address" autoCapitalize="none" placeholderTextColor="#9aa0a6" />
-        <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry placeholderTextColor="#9aa0a6" />
+        <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email address" keyboardType="email-address" autoCapitalize="none" autoComplete="email" textContentType="emailAddress" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
+        <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry autoComplete="password" textContentType="password" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
         <PrimaryButton label="Register" onPress={register} />
       </>
     );
@@ -136,14 +142,18 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <View style={styles.outerShell}>
           <View style={styles.card}>
             <Image source={require('../../imgfolder/download-removebg-preview.png')} style={styles.logo} resizeMode="contain" />
             {content()}
-            <Text style={styles.footer}>Utopia Security And Safety Solutions{`\n`}Inc.</Text>
+            <Text style={styles.footer}>Utopia Security And Safety Solutions Inc.</Text>
           </View>
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -154,16 +164,19 @@ function PrimaryButton({ label, onPress }: { label: string; onPress: () => void 
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#f6f6f6' },
-  flex: { flex: 1 },
+  safeArea: { flex: 1, backgroundColor: '#16213b' },
+  flex: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollContent: { flexGrow: 1, justifyContent: 'center', padding: 12 },
-  card: { minHeight: 670, borderWidth: 1, borderColor: '#d7e4f5', backgroundColor: '#fff', paddingHorizontal: 72, paddingTop: 105, alignItems: 'stretch' },
+  outerShell: { width: '92%', maxWidth: 430, alignSelf: 'center' },
+  card: { minHeight: 670, borderWidth: 1, borderColor: '#d7e4f5', backgroundColor: '#fff', paddingHorizontal: 72, paddingTop: 105, alignItems: 'stretch', justifyContent: 'space-between' },
   logo: { width: 145, height: 165, alignSelf: 'center', marginBottom: 34 },
   title: { color: '#2e78c6', fontSize: 30, fontWeight: '400', textAlign: 'center', marginBottom: 76 },
   signUpLink: { alignSelf: 'flex-end', marginBottom: 4 },
   linkText: { color: '#009ce0', fontSize: 14 },
   instruction: { color: '#009ce0', fontSize: 14, textAlign: 'center', lineHeight: 19, marginBottom: 15 },
   input: { height: 43, borderWidth: 1, borderColor: '#a9c9ef', paddingHorizontal: 10, fontSize: 14, color: '#333', marginBottom: 16 },
+  rememberRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  rememberText: { marginLeft: 10, color: '#3c4d64', fontSize: 14 },
   nameRow: { flexDirection: 'row', gap: 16 },
   lastNameInput: { flex: 1 },
   middleInput: { width: 67 },
