@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useNavigation } from 'expo-router';
-import { Alert, Button, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Button, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import CustomTextInput from '../components/custom-text-input';
 import LiveCameraModal from '../components/live-camera-modal';
 import SignaturePad from '../components/siganture-pad';
@@ -331,7 +331,7 @@ export default function AuditFormScreen() {
                 : null,
             live_photo_uri: `data:image/jpeg;base64,${base64Photo}`,
             guard_signature: isGuardPresent ? guardSignature : null,
-            client_signature: isClientAbsent ? null : clientSignature,
+            client_signature: isClientAbsent ? 'UNAVAILABLE_ON_SITE' : clientSignature,
         };
 
         console.log('SECURE PAYLOAD LOCKED');
@@ -431,6 +431,11 @@ export default function AuditFormScreen() {
             return;
         }
 
+        if (!isClientAbsent && !clientSignature) {
+            Alert.alert('Missing Signature', 'The client representative must sign, or mark them as unavailable on site.');
+            return;
+        }
+
         if (!livePhotoUri) {
             Alert.alert('Missing Evidence', 'You must capture a live photo of the guard on post before submitting the audit.');
             return;
@@ -492,12 +497,12 @@ export default function AuditFormScreen() {
     return (
     <>// Main Audit Form Layout
         <Stack.Screen
-            options={{
+                options={{
                 title: 'Digital Audit',
                 headerRight: () => (
-                    <TouchableOpacity
-                        onPress={handleClearAll}
-                        style={{ marginRight: 15 }}
+                <TouchableOpacity
+                onPress={handleClearAll}
+                style={{ marginRight: 15 }}
                     >
                         <Text
                             style={{
@@ -514,9 +519,17 @@ export default function AuditFormScreen() {
         />
 
         <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
-
-
-        <ScrollView style={styles.container}>
+        <KeyboardAvoidingView
+            style={styles.keyboardAvoidingView}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+        >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <ScrollView
+            style={styles.container}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        >
 
             <View style={{ marginBottom: 20, padding: 15, backgroundColor: '#fff', borderRadius: 8}}>
                 <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 10 }}>Guard Duty Status</Text>
@@ -533,7 +546,7 @@ export default function AuditFormScreen() {
 
         {isGuardPresent ? (
 
-            <View>
+                <View>
                 <Text style={styles.header}>Audit Form</Text>
 
                 <View style={styles.nameGroup}>
@@ -548,7 +561,7 @@ export default function AuditFormScreen() {
         hint="Type the guard's first name"
     />
 
-    <View style={styles.nameRow}>   
+        <View style={styles.nameRow}>   
 
         <View style={{ flex: 3 }}>
             <CustomTextInput
@@ -568,9 +581,9 @@ export default function AuditFormScreen() {
             />
         </View>
 
-    </View>
+        </View>
 
-</View>
+        </View>
 
                 <CustomTextInput
                     label="Firearm Serial No."
@@ -954,7 +967,14 @@ export default function AuditFormScreen() {
             )}
 
                 <View style={styles.checkboxContainer}>
-                    <Checkbox value={isClientAbsent} onValueChange={setIsClientAbsent} color={isClientAbsent ? '#dc3545' : undefined} />
+                    <Checkbox
+                        value={isClientAbsent}
+                        onValueChange={(absent) => {
+                            setIsClientAbsent(absent);
+                            if (absent) setClientSignature(null);
+                        }}
+                        color={isClientAbsent ? '#dc3545' : undefined}
+                    />
                     <Text style={styles.checkboxLabel}>Client is currently UNAVAILABLE on site</Text>
                 </View>
 
@@ -978,17 +998,16 @@ export default function AuditFormScreen() {
                 <Button title="Submit" onPress={handleSubmit} color="#0056b3"/>
             </View>
         </ScrollView>
+        </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
 
             {activeSigner !== null && (
-                <SignaturePad 
-                    title={activeSigner === 'guard' ? "Guard on Duty Signature" : "Client / Representative Signature"} 
-                    visible={true} // Always true because the wrapper controls if it exists
+                <SignaturePad
+                    key={activeSigner}
+                    title={activeSigner === 'guard' ? 'Guard on Duty Signature' : 'Client / Representative Signature'}
+                    visible={true}
                     onClose={() => setActiveSigner(null)}
-                    onSign={(signature) => {
-                        if (activeSigner === 'guard') setGuardSignature(signature);
-                        if (activeSigner === 'client') setClientSignature(signature);
-                        setActiveSigner(null);
-                    }} 
+                    onSign={activeSigner === 'guard' ? setGuardSignature : setClientSignature}
                 />
             )}
 
@@ -1003,6 +1022,9 @@ export default function AuditFormScreen() {
 }
 
 const styles = StyleSheet.create({
+    keyboardAvoidingView: {
+        flex: 1,
+    },
   container: {
     flex: 1,
     padding: 20,

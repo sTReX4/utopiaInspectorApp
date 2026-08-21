@@ -67,8 +67,8 @@ export default function SubmissionReceiptModal({ visible, onClose, payload }: Re
 
                     <View style={styles.signatureBlock}>
                         <Text style={styles.signatureLabel}>Client Rep</Text>
-                        {payload.client_signature === "Client Absent" ? (
-                            <Text style={styles.absentText}>Client Absent</Text>
+                        {payload.client_signature === 'UNAVAILABLE_ON_SITE' ? (
+                            <Text style={styles.absentText}>Unavailable on site</Text>
                         ) : payload.client_signature ? (
                             <Image source={{ uri: payload.client_signature }} style={styles.signatureImage} />
                         ) : (

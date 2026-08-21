@@ -1,7 +1,7 @@
 import Checkbox from 'expo-checkbox';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, BackHandler, Image, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, BackHandler, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
 
 type Screen = 'login' | 'name' | 'birthday' | 'credentials';
 
@@ -141,21 +141,25 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <View style={styles.outerShell}>
-          <View style={styles.card}>
-            <Image source={require('../../imgfolder/download-removebg-preview.png')} style={styles.logo} resizeMode="contain" />
-            {content()}
-            <Text style={styles.footer}>Utopia Security And Safety Solutions Inc.</Text>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={styles.flex}>
+            <View style={styles.outerShell}>
+              <View style={styles.card}>
+                <Image source={require('../../imgfolder/download-removebg-preview.png')} style={styles.logo} resizeMode="contain" />
+                {content()}
+                <Text style={styles.footer}>Utopia Security And Safety Solutions Inc.</Text>
+              </View>
+              </View>
+              </View>
+              </TouchableWithoutFeedback>
+              </KeyboardAvoidingView>
+              </SafeAreaView>
   );
 }
 
