@@ -8,7 +8,7 @@ import { useNavigation } from 'expo-router';
 import { Alert, Button, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import CustomTextInput from '../components/custom-text-input';
 import LiveCameraModal from '../components/live-camera-modal';
-import SignaturePad from '../components/siganture-pad';
+import SignaturePad from '../components/signature-pad';
 import SubmissionReceiptModal from '../components/submission-receipt-modal';
 import ViolationItemCard from '../components/violation-item-card';
 import DateInputGroup from '../components/date-input-group';
@@ -490,7 +490,7 @@ export default function AuditFormScreen() {
         }
 
     return (
-    <>// Main Audit Form Layout
+    <>
         <Stack.Screen
             options={{
                 title: 'Digital Audit',
@@ -979,18 +979,16 @@ export default function AuditFormScreen() {
             </View>
         </ScrollView>
 
-            {activeSigner !== null && (
-                <SignaturePad 
-                    title={activeSigner === 'guard' ? "Guard on Duty Signature" : "Client / Representative Signature"} 
-                    visible={true} // Always true because the wrapper controls if it exists
-                    onClose={() => setActiveSigner(null)}
-                    onSign={(signature) => {
-                        if (activeSigner === 'guard') setGuardSignature(signature);
-                        if (activeSigner === 'client') setClientSignature(signature);
-                        setActiveSigner(null);
-                    }} 
-                />
-            )}
+            <SignaturePad 
+                title={activeSigner === 'guard' ? "Guard on Duty Signature" : "Client / Representative Signature"} 
+                visible={activeSigner !== null} 
+                onClose={() => setActiveSigner(null)}
+                onSign={(signature) => {
+                    if (activeSigner === 'guard') setGuardSignature(signature);
+                    if (activeSigner === 'client') setClientSignature(signature);
+                    setActiveSigner(null);
+                }} 
+            />
 
             <SubmissionReceiptModal
                 visible={!!submittedPayload}
@@ -998,7 +996,7 @@ export default function AuditFormScreen() {
                 onClose={() => setSubmittedPayload(null)}
             />
         </View>
-        </>
+    </>
     );
 }
 

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import SignatureScreen from 'react-native-signature-canvas';
 
@@ -11,6 +11,16 @@ interface SignaturePadProps {
 
 export default function SignaturePad({ title, visible, onClose, onSign }: SignaturePadProps) {
     const signatureRef = useRef<any>(null);
+    
+    // FIX: State to force a brand new canvas key every time the modal opens
+    const [canvasKey, setCanvasKey] = useState(0);
+
+    // FIX: Generate a fresh WebView only when it becomes visible
+    useEffect(() => {
+        if (visible) {
+            setCanvasKey(prev => prev + 1);
+        }
+    }, [visible]);
 
     const handleSignature = (signature: string) => {
         onSign(signature);
@@ -19,15 +29,13 @@ export default function SignaturePad({ title, visible, onClose, onSign }: Signat
 
     return (
         <Modal visible={visible} animationType="slide" transparent={true}>
-
             <View style={styles.modalOverlay}>
-
                 <View style={styles.modalContent}>
-
                     <Text style={styles.title}>{title}</Text>
 
                     <View style={styles.canvasContainer}>
                         <SignatureScreen
+                            key={canvasKey} // FIX: Destroys the old canvas and mounts a fresh one dynamically
                             ref={signatureRef}
                             onOK={handleSignature}
                             webStyle={`.m-signature-pad--footer { display: none; margin: 0px; }`}
@@ -44,7 +52,7 @@ export default function SignaturePad({ title, visible, onClose, onSign }: Signat
 
                         <TouchableOpacity
                             style={[styles.button, styles.clearButton]}
-                            onPress={() => signatureRef.current.clearSignature()}
+                            onPress={() => signatureRef.current?.clearSignature()}
                         >
                             <Text style={styles.buttonText}>Clear</Text>
                         </TouchableOpacity>
@@ -58,7 +66,6 @@ export default function SignaturePad({ title, visible, onClose, onSign }: Signat
                     </View>
                 </View>
             </View>
-            
         </Modal>
     );
 }
@@ -78,7 +85,7 @@ const styles = StyleSheet.create({
     },
     title: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
     canvasContainer: { 
-        height: 300, // Taller canvas since it's a pop-up now
+        height: 300, 
         backgroundColor: '#fff', 
         borderWidth: 1, 
         borderColor: '#ccc',
