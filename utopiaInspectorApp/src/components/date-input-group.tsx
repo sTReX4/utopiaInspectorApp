@@ -135,10 +135,12 @@ export default function DateInputGroup({
                         </View>
 
                         <View style={styles.weekdayRow}>
-                            {weekdayNames.map((weekday) => (
-                                <Text key={weekday} style={styles.weekdayText}>{weekday}</Text>
-                            ))}
-                        </View>
+                        {weekdayNames.map((weekday, index) => (
+                            <Text key={index} style={styles.weekdayText}>
+                                {weekday}
+                            </Text>
+                        ))}
+                    </View>
 
                         <View style={styles.calendarGrid}>
                             {calendarDays.map((item, index) => {
