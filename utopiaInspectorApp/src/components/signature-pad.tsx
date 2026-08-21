@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { Alert, BackHandler, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, BackHandler, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import SignatureScreen from 'react-native-signature-canvas';
 
 interface SignaturePadProps {
@@ -11,6 +11,16 @@ interface SignaturePadProps {
 
 export default function SignaturePad({ title, visible, onClose, onSign }: SignaturePadProps) {
     const signatureRef = useRef<any>(null);
+    
+    // FIX: State to force a brand new canvas key every time the modal opens
+    const [canvasKey, setCanvasKey] = useState(0);
+
+    // FIX: Generate a fresh WebView only when it becomes visible
+    useEffect(() => {
+        if (visible) {
+            setCanvasKey(prev => prev + 1);
+        }
+    }, [visible]);
 
     useEffect(() => {
         if (!visible) {
@@ -40,25 +50,25 @@ export default function SignaturePad({ title, visible, onClose, onSign }: Signat
     }
 
     return (
-                    <View style={styles.modalOverlay}>
-
-                    <View style={styles.modalContent}>
-
+        <Modal visible={visible} animationType="slide" transparent={true}>
+            <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
                     <Text style={styles.title}>{title}</Text>
 
                     <View style={styles.canvasContainer}>
-                    <SignatureScreen
-                        ref={signatureRef}
-                        onOK={handleSignature}
-                        onEmpty={() => Alert.alert('Signature required', 'Please add a signature before saving.')}
-                        onError={(error) => {
-                            console.error('Signature pad error:', error);
-                            Alert.alert('Signature error', 'The signature pad could not save. Please try again.');
-                        }}
-                        androidLayerType="software"
-                        androidHardwareAccelerationDisabled={true}
-                        webStyle={`.m-signature-pad--footer { display: none; margin: 0px; }`}
-                    />
+                        <SignatureScreen
+                            key={canvasKey}
+                            ref={signatureRef}
+                            onOK={handleSignature}
+                            onEmpty={() => Alert.alert('Signature required', 'Please add a signature before saving.')}
+                            onError={(error) => {
+                                console.error('Signature pad error:', error);
+                                Alert.alert('Signature error', 'The signature pad could not save. Please try again.');
+                            }}
+                            androidLayerType="software"
+                            androidHardwareAccelerationDisabled={true}
+                            webStyle={`.m-signature-pad--footer { display: none; margin: 0px; }`}
+                        />
                     </View>
 
                     <View style={styles.buttonRow}>
@@ -69,12 +79,12 @@ export default function SignaturePad({ title, visible, onClose, onSign }: Signat
                         <Text style={styles.buttonText}>Cancel</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity
-                        style={[styles.button, styles.clearButton]}
-                        onPress={() => signatureRef.current?.clearSignature()}
-                    >
-                        <Text style={styles.buttonText}>Clear</Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.button, styles.clearButton]}
+                            onPress={() => signatureRef.current?.clearSignature()}
+                        >
+                            <Text style={styles.buttonText}>Clear</Text>
+                        </TouchableOpacity>
 
                     <TouchableOpacity
                         style={[styles.button, styles.saveButton]}
@@ -84,7 +94,8 @@ export default function SignaturePad({ title, visible, onClose, onSign }: Signat
                     </TouchableOpacity>
                     </View>
                     </View>
-                    </View>
+            </View>
+        </Modal>
     );
 }
 
@@ -109,7 +120,7 @@ const styles = StyleSheet.create({
     },
     title: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
     canvasContainer: { 
-        height: 300, // Taller canvas since it's a pop-up now\
+        height: 300,
         width: '100%',
         backgroundColor: '#fff', 
         borderWidth: 1, 

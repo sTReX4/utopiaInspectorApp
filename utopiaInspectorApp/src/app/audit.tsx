@@ -5,10 +5,11 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useNavigation } from 'expo-router';
-import { Alert, Button, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Alert, Button, Keyboard, Platform, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import CustomTextInput from '../components/custom-text-input';
 import LiveCameraModal from '../components/live-camera-modal';
-import SignaturePad from '../components/siganture-pad';
+import SignaturePad from '../components/signature-pad';
 import SubmissionReceiptModal from '../components/submission-receipt-modal';
 import ViolationItemCard from '../components/violation-item-card';
 import DateInputGroup from '../components/date-input-group';
@@ -495,7 +496,7 @@ export default function AuditFormScreen() {
         }
 
     return (
-    <>// Main Audit Form Layout
+    <>
         <Stack.Screen
                 options={{
                 title: 'Digital Audit',
@@ -519,16 +520,17 @@ export default function AuditFormScreen() {
         />
 
         <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
-        <KeyboardAvoidingView
-            style={styles.keyboardAvoidingView}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-        >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <ScrollView
+        <KeyboardAwareScrollView
             style={styles.container}
+            contentContainerStyle={styles.contentContainer}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            enableOnAndroid
+            enableAutomaticScroll
+            enableResetScrollToCoords={false}
+            extraScrollHeight={24}
+            extraHeight={24}
         >
 
             <View style={{ marginBottom: 20, padding: 15, backgroundColor: '#fff', borderRadius: 8}}>
@@ -997,9 +999,8 @@ export default function AuditFormScreen() {
             <View style={styles.buttonContainer}>
                 <Button title="Submit" onPress={handleSubmit} color="#0056b3"/>
             </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
         </TouchableWithoutFeedback>
-        </KeyboardAvoidingView>
 
             {activeSigner !== null && (
                 <SignaturePad
@@ -1017,19 +1018,19 @@ export default function AuditFormScreen() {
                 onClose={() => setSubmittedPayload(null)}
             />
         </View>
-        </>
+    </>
     );
 }
 
 const styles = StyleSheet.create({
-    keyboardAvoidingView: {
-        flex: 1,
-    },
   container: {
     flex: 1,
     padding: 20,
     backgroundColor: '#f5f5f5'
   },
+    contentContainer: {
+        paddingBottom: 120,
+    },
   header: {
     fontSize: 24,
     fontWeight: 'bold',

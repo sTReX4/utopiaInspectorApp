@@ -1,6 +1,7 @@
 import { Stack, useRouter } from 'expo-router';
 import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useState } from 'react';
+import { signOutAccount } from '../lib/account';
 
 function DashboardHeaderTitle() {
   const router = useRouter();
@@ -8,28 +9,19 @@ function DashboardHeaderTitle() {
 
   const menuSections = [
     {
-      title: 'Main Menu',
-      items: [
-        { label: 'Home', route: '/dashboard' },
-        { label: 'Digital Audit', route: '/audit' },
-        { label: 'History', route: '/history' },
-        { label: 'Log in', route: '/login' },
-      ],
-    },
-    {
       title: 'General',
       items: [
         { label: 'Notifications' },
-        { label: 'Settings' },
+        { label: 'Settings', route: '/settings' },
         { label: 'Support' },
       ],
     },
     {
       title: 'Account',
       items: [
-        { label: 'Profile' },
+        { label: 'Profile', route: '/profile' },
         { label: 'Security' },
-        { label: 'Sign out', route: '/login' },
+        { label: 'Sign out' },
       ],
     },
   ];
@@ -79,6 +71,10 @@ function DashboardHeaderTitle() {
                       key={item.label}
                       onPress={() => {
                         setMenuOpen(false);
+                        if (item.label === 'Sign out') {
+                          signOutAccount().then(() => router.replace('/login'));
+                          return;
+                        }
                         if (item.route) router.push(item.route as any);
                       }}
                       style={styles.menuItem}
@@ -105,7 +101,7 @@ export default function RootLayout() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen
-        name="dashboard"
+        name="homepage"
         options={{
           headerTitle: () => <DashboardHeaderTitle />,
           headerTitleAlign: 'left',
@@ -127,6 +123,8 @@ export default function RootLayout() {
       />
       <Stack.Screen name="history" options={{ title: 'History' }} />
       <Stack.Screen name="audit" options={{ title: 'Digital Audit' }} />
+      <Stack.Screen name="profile" options={{ title: 'Profile' }} />
+      <Stack.Screen name="settings" options={{ title: 'Settings' }} />
     </Stack>
   );
 }
