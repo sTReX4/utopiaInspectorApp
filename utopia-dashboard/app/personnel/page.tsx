@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { Search, Plus, ShieldCheck, ShieldAlert, User, ShieldX, Lock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
-// TypeScript interface matching your new Supabase table
 interface Guard {
   id: string;
   guard_name: string;
@@ -50,6 +49,13 @@ export default function PersonnelPage() {
   const handleAddGuard = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // --- STRICT RBAC GATEKEEPER ---
+    if (userRole !== 'Superadmin') {
+      alert("Security Block: Admin accounts do not have HR privileges to create personnel records.");
+      setIsAddModalOpen(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('guards')
       .insert([{
@@ -68,20 +74,17 @@ export default function PersonnelPage() {
       return;
     }
 
-    // Update UI instantly, sort alphabetically
     const updatedGuards = [...guards, data].sort((a, b) => a.guard_name.localeCompare(b.guard_name));
     setGuards(updatedGuards); 
     setIsAddModalOpen(false); 
     setNewGuard({ guard_name: '', lesp_number: '', lesp_expiry_date: '', assigned_branch: '' }); 
   };
 
-  // --- AUTOMATED EXPIRY LOGIC ENGINE ---
   const getExpiryStatus = (dateString: string) => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize today's date
+    today.setHours(0, 0, 0, 0); 
     const expiryDate = new Date(dateString);
     
-    // Calculate difference in days
     const diffTime = expiryDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -110,7 +113,7 @@ export default function PersonnelPage() {
         </div>
         
         <div className="flex items-center gap-4">
-          {/* DEV ROLE TOGGLE - Remove before production */}
+          {/* DEV ROLE TOGGLE */}
           <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 px-3 py-1.5 rounded-lg shadow-sm">
             <span className="text-xs font-bold text-yellow-800 uppercase tracking-wide">Role:</span>
             <select 
@@ -147,7 +150,7 @@ export default function PersonnelPage() {
         <input 
           type="text" 
           placeholder="Search by guard name or LESP number..." 
-          className="flex-1 outline-none text-gray-700"
+          className="flex-1 outline-none text-gray-900 placeholder-gray-400 bg-white"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -203,7 +206,7 @@ export default function PersonnelPage() {
       </div>
 
       {/* === MODAL: REGISTER NEW GUARD === */}
-      {isAddModalOpen && (
+      {isAddModalOpen && userRole === 'Superadmin' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
             <div className="bg-gray-900 p-4 flex justify-between items-center text-white shrink-0">

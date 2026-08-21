@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 interface AuditDetailPanelProps {
     auditId: string | null;
     onClose: () => void;
+    userRole?: 'admin' | 'superadmin';
 }
 
 // Math function to calculate the physical distance (in meters) between two GPS coordinates
@@ -25,7 +26,7 @@ const calculateDistanceInMeters = (
     return Math.round(R * c);
 };
 
-export default function AuditDetailPanel({ auditId, onClose }: AuditDetailPanelProps) {
+export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDetailPanelProps) {
     const [auditData, setAuditData] = useState<any>(null);
     const [detachmentGps, setDetachmentGps] = useState<{lat: number, lng: number} | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -39,6 +40,9 @@ export default function AuditDetailPanel({ auditId, onClose }: AuditDetailPanelP
     // --- QC/TBD Manager Escalation States ---
     const [isEscalating, setIsEscalating] = useState(false);
     const [escalationSuccess, setEscalationSuccess] = useState(false);
+    const [escalationRemarks, setEscalationRemarks] = useState('');
+
+    const [isResolving, setIsResolving] = useState(false);
 
     const handleRequestSignature = async () => {
         if (!clientEmail) return;
@@ -54,15 +58,46 @@ export default function AuditDetailPanel({ auditId, onClose }: AuditDetailPanelP
     };
 
     const handleEscalateReport = async () => {
+        if (!escalationRemarks.trim()) return;
+        
         setIsEscalating(true);
         try {
-            // Future Implementation: fetch('/api/escalate-report', { method: 'POST', body: auditId })
-            await new Promise(resolve => setTimeout(resolve, 1200));
+            // Push the update directly to the audits table
+            const { error } = await supabase
+                .from('audits')
+                .update({ 
+                    escalation_status: 'Pending QC Review',
+                    escalation_remarks: escalationRemarks 
+                })
+                .eq('id', auditId);
+
+            if (error) throw error;
+            
             setEscalationSuccess(true);
         } catch (error) {
             console.error('Error escalating report:', error);
+            // In a larger scale app, we would fire a toast notification here
         } finally {
             setIsEscalating(false);
+        }
+    };
+
+    const handleResolveEscalation = async () => {
+        setIsResolving(true);
+        try {
+            const { error } = await supabase
+                .from('audits')
+                .update({ escalation_status: 'Resolved' })
+                .eq('id', auditId);
+
+            if (error) throw error;
+            
+            // Update local state immediately so the UI flips without needing a refetch
+            setAuditData((prev: any) => ({ ...prev, escalation_status: 'Resolved' }));
+        } catch (error) {
+            console.error('Error resolving report:', error);
+        } finally {
+            setIsResolving(false);
         }
     };
 
@@ -71,7 +106,9 @@ export default function AuditDetailPanel({ auditId, onClose }: AuditDetailPanelP
             setAuditData(null);
             setDetachmentGps(null);
             setMapView('inspector');
-            setEscalationSuccess(false); // Reset escalation state on new audit click
+            setEscalationSuccess(false);
+            setEscalationRemarks('');
+            setIsResolving(false);
             return;
         }
 
@@ -157,25 +194,80 @@ export default function AuditDetailPanel({ auditId, onClose }: AuditDetailPanelP
         ) : auditData ? (
           <div className="p-6 space-y-8 flex-1">
             
-            {/* --- NEW: AUTOMATED QC/TBD ESCALATION BANNER --- */}
+            {/* --- AUTOMATED QC/TBD ESCALATION BANNER & SUPERADMIN RESOLUTION --- */}
             {needsEscalation && (
-              <section className="bg-red-50 border border-red-200 rounded-lg p-4 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <section className={`border rounded-lg p-4 shadow-sm flex flex-col gap-4 ${
+                auditData?.escalation_status === 'Resolved' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+              }`}>
                 <div>
-                  <h3 className="text-red-800 font-bold flex items-center gap-2">
-                    ⚠️ QC/TBD Manager Review Required
+                  <h3 className={`font-bold flex items-center gap-2 ${
+                    auditData?.escalation_status === 'Resolved' ? 'text-green-800' : 'text-red-800'
+                  }`}>
+                    {auditData?.escalation_status === 'Resolved' 
+                      ? '✅ Escalation Resolved by Superadmin' 
+                      : '⚠️ QC/TBD Manager Review Required'}
                   </h3>
-                  <ul className="text-sm text-red-700 mt-1 list-disc list-inside">
-                    {isGpsMismatch && <li><span className="font-semibold">Tier 2 Location Mismatch:</span> Inspector was {distance} meters away from the official detachment.</li>}
+                  <ul className={`text-sm mt-1 list-disc list-inside ${
+                    auditData?.escalation_status === 'Resolved' ? 'text-green-700' : 'text-red-700'
+                  }`}>
+                    {isGpsMismatch && <li><span className="font-semibold">Tier 2 Location Mismatch:</span> Inspector was {distance} meters away.</li>}
                     {hasViolations && <li><span className="font-semibold">Guard Violations:</span> Inspector logged active uniform/equipment violations.</li>}
                   </ul>
                 </div>
-                <button
-                  onClick={handleEscalateReport}
-                  disabled={isEscalating || escalationSuccess}
-                  className={`shrink-0 font-bold py-2 px-4 rounded shadow-sm transition-colors text-sm w-full sm:w-auto ${escalationSuccess ? 'bg-green-600 text-white cursor-default' : isEscalating ? 'bg-red-300 text-white cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 text-white'}`}
-                >
-                  {escalationSuccess ? '✓ Escalated to QC' : isEscalating ? 'Sending...' : 'Escalate Report'}
-                </button>
+
+                {/* DYNAMIC SCENARIO RENDERER */}
+                {auditData?.escalation_status === 'Resolved' ? (
+                   <div className="bg-green-100 border border-green-300 text-green-800 p-3 rounded text-sm font-bold flex items-center justify-between shadow-inner mt-2">
+                     <span>Case Closed. Record Archived.</span>
+                   </div>
+                ) : auditData?.escalation_status === 'Pending QC Review' ? (
+                  <div className="flex flex-col gap-3 border-t border-red-100 pt-3 mt-1">
+                    <div>
+                      <span className="text-xs font-bold text-red-900 uppercase">Admin Remarks:</span>
+                      <p className="text-sm text-red-800 italic bg-white p-2 rounded border border-red-100 mt-1">
+                        "{auditData.escalation_remarks || 'No remarks provided.'}"
+                      </p>
+                    </div>
+                    {userRole === 'superadmin' && (
+                      <button
+                        onClick={handleResolveEscalation}
+                        disabled={isResolving}
+                        className={`self-end font-bold py-2 px-6 rounded shadow-sm transition-colors text-sm w-full sm:w-auto ${
+                          isResolving ? 'bg-green-400 text-white cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'
+                        }`}
+                      >
+                        {isResolving ? 'Resolving...' : 'Mark as Resolved'}
+                      </button>
+                    )}
+                  </div>
+                ) : !escalationSuccess ? (
+                  <div className="flex flex-col gap-2 border-t border-red-100 pt-3 mt-1">
+                    <label className="text-xs font-bold text-red-900 uppercase">Superadmin Context / Remarks</label>
+                    <textarea
+                      className="w-full p-2 text-sm text-gray-900 bg-white placeholder-gray-400 border border-red-200 rounded outline-none focus:ring-1 focus:ring-red-500 resize-none transition-shadow"
+                      rows={2}
+                      placeholder="Explain why this requires Superadmin review..."
+                      value={escalationRemarks}
+                      onChange={(e) => setEscalationRemarks(e.target.value)}
+                    />
+                    <button
+                      onClick={handleEscalateReport}
+                      disabled={isEscalating || !escalationRemarks.trim()}
+                      className={`self-end font-bold py-2 px-4 rounded shadow-sm transition-colors text-sm w-full sm:w-auto ${
+                        isEscalating || !escalationRemarks.trim() 
+                          ? 'bg-red-300 text-white cursor-not-allowed' 
+                          : 'bg-red-600 hover:bg-red-700 text-white'
+                      }`}
+                    >
+                      {isEscalating ? 'Escalating...' : 'Submit Escalation'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-2 bg-green-100 border border-green-300 text-green-800 p-3 rounded text-sm font-bold flex items-center justify-between shadow-inner">
+                    <span>✓ Successfully Escalated to QC</span>
+                    <span className="font-normal text-green-700 italic text-xs">Remarks attached.</span>
+                  </div>
+                )}
               </section>
             )}
 

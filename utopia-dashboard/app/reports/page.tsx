@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Search, Filter, AlertTriangle, FileText, Calendar, MapPin, Database, User, Lock } from 'lucide-react';
+import { Search, Filter, AlertTriangle, FileText, Calendar, MapPin, Database, User, Lock, RefreshCcw } from 'lucide-react';
 import PdfPreviewModal from '@/app/components/PdfPreviewModal';
 import CsvPreviewModal from '@/app/components/CsvPreviewModal'; 
+import AuditDetailPanel from '@/app/components/auditDetailPanel'; 
+import { useAuth } from '@/app/context/AuthContext'; 
 
 interface AuditRecord {
   id: string;
@@ -25,9 +27,15 @@ interface AuditRecord {
 }
 
 export default function ReportsExtractionPage() {
+  const { role } = useAuth(); 
+
   const [audits, setAudits] = useState<AuditRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasQueried, setHasQueried] = useState(false);
+
+  // --- NEW: Dropdown Population States ---
+  const [inspectorOptions, setInspectorOptions] = useState<{full_name: string}[]>([]);
+  const [branchOptions, setBranchOptions] = useState<{branch_name: string}[]>([]);
 
   const [filterInspector, setFilterInspector] = useState('');
   const [filterBranch, setFilterBranch] = useState('');
@@ -36,12 +44,25 @@ export default function ReportsExtractionPage() {
   const [filterOnlyViolations, setFilterOnlyViolations] = useState(false);
   const [filterGpsIssues, setFilterGpsIssues] = useState(false);
   
-  // Modal States
   const [previewAuditData, setPreviewAuditData] = useState<any>(null); 
   const [showCsvPreview, setShowCsvPreview] = useState(false); 
   
-  // NEW: State to track which specific report the user wants to generate a PDF for
+  const [selectedDetailAuditId, setSelectedDetailAuditId] = useState<string | null>(null);
   const [selectedPdfAuditId, setSelectedPdfAuditId] = useState<string>(''); 
+
+  // --- NEW: Fetch Dropdown Options on Mount ---
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      // Get all inspectors
+      const { data: inspectors } = await supabase.from('inspectors').select('full_name').order('full_name');
+      if (inspectors) setInspectorOptions(inspectors);
+
+      // Get all branches
+      const { data: detachments } = await supabase.from('detachments').select('branch_name').order('branch_name');
+      if (detachments) setBranchOptions(detachments);
+    };
+    fetchDropdownData();
+  }, []);
 
   const handleRunQuery = async () => {
     setIsLoading(true);
@@ -50,7 +71,7 @@ export default function ReportsExtractionPage() {
     try {
       let query = supabase
         .from('audits')
-        .select('id, inspector_name, time_in, time_out, branch_code, branch_name, branch_location, guard_name, violations_checklist, guard_present_status, firearm_serial, firearm_make, remarks, guard_signature, gps_latitude')
+        .select('id, inspector_name, time_in, time_out, branch_code, branch_name, branch_location, guard_name, violations_checklist, guard_present_status, firearm_serial, firearm_make, remarks, guard_signature, gps_latitude, escalation_status, escalation_remarks, live_photo_url')
         .order('time_in', { ascending: false });
 
       if (filterInspector) query = query.ilike('inspector_name', `%${filterInspector}%`);
@@ -65,7 +86,6 @@ export default function ReportsExtractionPage() {
       
       setAudits(data || []);
       
-      // NEW: Automatically select the first record in the dropdown by default if data exists
       if (data && data.length > 0) {
         setSelectedPdfAuditId(data[0].id);
       } else {
@@ -80,6 +100,19 @@ export default function ReportsExtractionPage() {
     }
   };
 
+  // --- NEW: Reset all states to default ---
+  const handleClearQuery = () => {
+    setFilterInspector('');
+    setFilterBranch('');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+    setFilterOnlyViolations(false);
+    setFilterGpsIssues(false);
+    setAudits([]);
+    setHasQueried(false);
+    setSelectedPdfAuditId('');
+  };
+
   const formatDate = (isoString: string) => {
     if (!isoString) return 'N/A';
     return new Date(isoString).toLocaleDateString('en-US', {
@@ -87,7 +120,6 @@ export default function ReportsExtractionPage() {
     });
   };
 
-  // STRICT VALIDATION: CSV Export requires an Inspector and a Start Date
   const canExportCsv = hasQueried && audits.length > 0 && filterInspector.trim() !== '' && filterDateFrom !== '';
 
   return (
@@ -105,32 +137,49 @@ export default function ReportsExtractionPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+          
+          {/* UPGRADED: Inspector Dropdown */}
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Target Inspector</label>
             <div className="relative">
-              <User className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="e.g. Dela Cruz"
-                className="w-full pl-9 pr-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900 bg-white"
+              <User className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
+              <select
+                className="w-full pl-9 pr-8 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900 bg-white appearance-none cursor-pointer"
                 value={filterInspector}
                 onChange={(e) => setFilterInspector(e.target.value)}
-              />
+              >
+                <option value="">-- All Inspectors --</option>
+                {inspectorOptions.map((inspector, idx) => (
+                  <option key={idx} value={inspector.full_name}>{inspector.full_name}</option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
             </div>
           </div>
+
+          {/* UPGRADED: Branch Dropdown */}
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Target Branch</label>
             <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="e.g. BDO Makati"
-                className="w-full pl-9 pr-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900 bg-white"
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
+              <select
+                className="w-full pl-9 pr-8 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900 bg-white appearance-none cursor-pointer"
                 value={filterBranch}
                 onChange={(e) => setFilterBranch(e.target.value)}
-              />
+              >
+                <option value="">-- All Branches --</option>
+                {branchOptions.map((branch, idx) => (
+                  <option key={idx} value={branch.branch_name}>{branch.branch_name}</option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
             </div>
           </div>
+
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Target Date (Required for CSV)</label>
             <div className="relative">
@@ -171,10 +220,18 @@ export default function ReportsExtractionPage() {
           </div>
         </div>
 
-        <button onClick={handleRunQuery} className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-lg font-bold flex items-center transition-colors w-full sm:w-auto justify-center">
-          <Database className="w-4 h-4 mr-2" />
-          {isLoading ? 'Querying Database...' : 'Run Query'}
-        </button>
+        {/* UPGRADED: Button Action Row */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          <button onClick={handleRunQuery} className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-lg font-bold flex items-center transition-colors w-full sm:w-auto justify-center shadow-sm">
+            <Database className="w-4 h-4 mr-2" />
+            {isLoading ? 'Querying...' : 'Run Query'}
+          </button>
+          
+          <button onClick={handleClearQuery} className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-6 py-2.5 rounded-lg font-bold flex items-center transition-colors w-full sm:w-auto justify-center shadow-sm">
+            <RefreshCcw className="w-4 h-4 mr-2 text-gray-400" />
+            Clear Filters
+          </button>
+        </div>
       </div>
 
       {/* PANEL 2: RAW DATA PREVIEW */}
@@ -207,7 +264,12 @@ export default function ReportsExtractionPage() {
                 <tr><td colSpan={5} className="p-12 text-center text-gray-400">No audits match your current query parameters.</td></tr>
               ) : (
                 audits.map((audit) => (
-                  <tr key={audit.id} className="hover:bg-gray-50">
+                  <tr 
+                    key={audit.id} 
+                    onClick={() => setSelectedDetailAuditId(audit.id)}
+                    className="hover:bg-blue-50 cursor-pointer transition-colors"
+                    title="Click to view full inspection report"
+                  >
                     <td className="p-4 text-sm text-gray-600 whitespace-nowrap">{formatDate(audit.time_in)}</td>
                     <td className="p-4 text-sm font-bold text-gray-800">{audit.branch_name}</td>
                     <td className="p-4 text-sm text-gray-800">{audit.inspector_name || 'UNKNOWN'}</td>
@@ -244,7 +306,7 @@ export default function ReportsExtractionPage() {
                <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start">
                  <Lock className="w-4 h-4 text-red-600 mr-2 mt-0.5 shrink-0" />
                  <p className="text-xs text-red-800 font-medium">
-                   <strong>Strict Filter Required:</strong> You must explicitly type a Target Inspector and select a Start Date to generate a Master Routing Form CSV.
+                   <strong>Strict Filter Required:</strong> You must explicitly select a Target Inspector and a Start Date to generate a Master Routing Form CSV.
                  </p>
                </div>
             )}
@@ -269,7 +331,6 @@ export default function ReportsExtractionPage() {
               Generates standardized, read-only PDF documents containing photographic evidence and dual e-signatures.
             </p>
 
-            {/* NEW: PDF Selector Dropdown */}
             {hasQueried && audits.length > 0 && (
               <div className="mb-4 bg-blue-50 p-3 rounded-lg border border-blue-100">
                 <label className="block text-xs font-bold text-blue-800 uppercase mb-2">Select Report to Generate</label>
@@ -288,7 +349,6 @@ export default function ReportsExtractionPage() {
             )}
           </div>
           <button
-            // NEW: Grabs the explicitly selected audit instead of defaulting to audits[0]
             onClick={() => {
               const targetAudit = audits.find(a => a.id === selectedPdfAuditId) || audits[0];
               setPreviewAuditData(targetAudit);
@@ -315,6 +375,15 @@ export default function ReportsExtractionPage() {
           onClose={() => setShowCsvPreview(false)} 
           targetInspector={filterInspector} 
           targetDate={filterDateFrom} 
+        />
+      )}
+
+      {/* Audit Detail Panel Modal */}
+      {selectedDetailAuditId && (
+        <AuditDetailPanel 
+          auditId={selectedDetailAuditId} 
+          onClose={() => setSelectedDetailAuditId(null)} 
+          userRole={role as 'admin' | 'superadmin'}
         />
       )}
     </div>
