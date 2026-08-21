@@ -3,7 +3,7 @@
 import { useAuth } from '@/app/context/AuthContext';
 import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Plus, Search, MapPin, QrCode, Power, PowerOff, Printer, Map, Lock, Eye, UserPlus, User } from 'lucide-react';
+import { Plus, Search, MapPin, QrCode, Power, PowerOff, Printer, Map, Lock, Eye, UserPlus, User, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 
@@ -12,7 +12,6 @@ const LocationPicker = dynamic(() => import('../components/locationPicker'), {
   loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg flex items-center justify-center text-gray-500">Loading Map...</div>
 });
 
-// Upgraded TypeScript Interfaces
 interface Inspector {
   id: string;
   full_name: string;
@@ -27,11 +26,11 @@ interface Detachment {
   latitude?: number;
   longitude?: number;
   assigned_inspector_id?: string | null;
-  inspector?: { full_name: string } | null; // Joined data from Supabase
+  inspector?: { full_name: string } | null; 
+  assigned_guards?: string[]; // NEW: Track guards deployed here
 }
 
 export default function SitesPage() {
-  // 1. ALL HOOKS MUST GO AT THE TOP
   const { role, isLoading: authLoading } = useAuth();
   const [sites, setSites] = useState<Detachment[]>([]);
   const [inspectors, setInspectors] = useState<Inspector[]>([]);
@@ -43,7 +42,7 @@ export default function SitesPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedSiteForMap, setSelectedSiteForMap] = useState<Detachment | null>(null);
   
-  // New: Dispatch / Assignment States
+  // Dispatch States
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [siteToAssign, setSiteToAssign] = useState<Detachment | null>(null);
   const [selectedInspectorId, setSelectedInspectorId] = useState<string>('');
@@ -55,10 +54,8 @@ export default function SitesPage() {
       coordinates: null as { lat: number; lng: number } | null 
   });
 
-  // 2. SECURITY VARIABLE
   const isSuperadmin = role === 'superadmin';
 
-  // 3. EFFECT HOOKS
   useEffect(() => {
     fetchSites();
     fetchInspectors();
@@ -66,8 +63,9 @@ export default function SitesPage() {
 
   const fetchSites = async () => {
     setIsLoading(true);
-    // Fetch detachments AND join the assigned inspector's name
-    const { data, error } = await supabase
+    
+    // 1. Fetch Detachments & Inspectors assigned
+    const { data: detachmentsData, error } = await supabase
       .from('detachments')
       .select(`
         *,
@@ -75,18 +73,29 @@ export default function SitesPage() {
       `)
       .order('created_at', { ascending: false });
 
-    if (error) console.error('Error fetching sites:', error);
-    else setSites(data || []);
+    // 2. Fetch all Active Guards to map their assignments
+    const { data: guardsData } = await supabase
+      .from('guards')
+      .select('guard_name, assigned_branch')
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('Error fetching sites:', error);
+    } else {
+      // 3. Map the guards directly into the matching detachments
+      const mappedSites = (detachmentsData || []).map(site => ({
+        ...site,
+        assigned_guards: (guardsData || [])
+          .filter(g => g.assigned_branch === site.branch_name)
+          .map(g => g.guard_name)
+      }));
+      setSites(mappedSites);
+    }
     setIsLoading(false);
   };
 
   const fetchInspectors = async () => {
-    const { data, error } = await supabase
-      .from('inspectors')
-      .select('id, full_name')
-      .eq('is_active', true)
-      .order('full_name');
-      
+    const { data, error } = await supabase.from('inspectors').select('id, full_name').eq('is_active', true).order('full_name');
     if (!error && data) setInspectors(data);
   };
 
@@ -115,51 +124,32 @@ export default function SitesPage() {
       return;
     }
 
-    setSites([data, ...sites]); 
+    setSites([{ ...data, assigned_guards: [] }, ...sites]); 
     setIsAddModalOpen(false); 
     setNewSite({ code: '', name: '', location: '', coordinates: null }); 
   };
 
   const toggleSiteStatus = async (id: string, currentStatus: boolean) => {
-    const { error } = await supabase
-      .from('detachments')
-      .update({ is_active: !currentStatus })
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error updating status:', error);
-      return;
-    }
-    setSites(sites.map(site => site.id === id ? { ...site, is_active: !currentStatus } : site));
+    const { error } = await supabase.from('detachments').update({ is_active: !currentStatus }).eq('id', id);
+    if (!error) setSites(sites.map(site => site.id === id ? { ...site, is_active: !currentStatus } : site));
   };
 
   const handleAssignInspector = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!siteToAssign) return;
 
-    // If 'UNASSIGNED' is selected, set it to null in the DB
     const inspectorIdToSave = selectedInspectorId === 'UNASSIGNED' ? null : selectedInspectorId;
+    const { error } = await supabase.from('detachments').update({ assigned_inspector_id: inspectorIdToSave }).eq('id', siteToAssign.id);
 
-    const { error } = await supabase
-      .from('detachments')
-      .update({ assigned_inspector_id: inspectorIdToSave })
-      .eq('id', siteToAssign.id);
-
-    if (error) {
-      alert("Error assigning inspector.");
-      console.error(error);
-      return;
+    if (!error) {
+      const assignedInspectorData = inspectors.find(i => i.id === selectedInspectorId);
+      setSites(sites.map(site => site.id === siteToAssign.id ? { 
+          ...site, 
+          assigned_inspector_id: inspectorIdToSave,
+          inspector: assignedInspectorData ? { full_name: assignedInspectorData.full_name } : null
+      } : site));
+      setIsAssignModalOpen(false);
     }
-
-    // Update local UI state seamlessly
-    const assignedInspectorData = inspectors.find(i => i.id === selectedInspectorId);
-    setSites(sites.map(site => site.id === siteToAssign.id ? { 
-        ...site, 
-        assigned_inspector_id: inspectorIdToSave,
-        inspector: assignedInspectorData ? { full_name: assignedInspectorData.full_name } : null
-    } : site));
-    
-    setIsAssignModalOpen(false);
   };
 
   const filteredSites = sites.filter(site => 
@@ -167,14 +157,11 @@ export default function SitesPage() {
     site.branch_code.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // 4. EARLY RETURNS & SECURITY GATES
   if (authLoading) return <div className="p-8 text-center font-bold text-gray-500">Verifying Security Clearance...</div>;
 
-  // 5. MAIN UI RENDER
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       
-      {/* Header Panel */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <div className="flex items-center gap-3">
@@ -189,12 +176,8 @@ export default function SitesPage() {
         </div>
         
         {isSuperadmin ? (
-          <button 
-            onClick={() => setIsAddModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center transition-colors shadow-sm"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Add Detachment
+          <button onClick={() => setIsAddModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center transition-colors shadow-sm">
+            <Plus className="w-5 h-5 mr-2" /> Add Detachment
           </button>
         ) : (
           <button disabled className="bg-gray-100 text-gray-400 px-4 py-2 rounded-lg font-bold flex items-center cursor-not-allowed border border-gray-200 shadow-sm">
@@ -203,7 +186,6 @@ export default function SitesPage() {
         )}
       </div>
 
-      {/* Search Bar */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center">
         <Search className="w-5 h-5 text-gray-400 mr-3" />
         <input 
@@ -215,7 +197,6 @@ export default function SitesPage() {
         />
       </div>
 
-      {/* Main Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -223,8 +204,8 @@ export default function SitesPage() {
               <th className="p-4 font-semibold">Branch Code</th>
               <th className="p-4 font-semibold">Branch Name</th>
               <th className="p-4 font-semibold">Location</th>
+              <th className="p-4 font-semibold">Deployed Guard(s)</th>
               <th className="p-4 font-semibold">Assigned Inspector</th>
-              <th className="p-4 font-semibold">Status</th>
               <th className="p-4 font-semibold text-right">Actions</th>
             </tr>
           </thead>
@@ -245,7 +226,22 @@ export default function SitesPage() {
                     </div>
                   </td>
                   
-                  {/* NEW: Assigned Inspector Column */}
+                  {/* NEW: Deployed Guards Render */}
+                  <td className="p-4">
+                    {site.assigned_guards && site.assigned_guards.length > 0 ? (
+                      <div className="flex flex-col gap-1">
+                        {site.assigned_guards.map((gName, idx) => (
+                          <span key={idx} className="flex items-center text-xs font-bold text-gray-800 bg-gray-100 px-2 py-1 rounded w-max border border-gray-200">
+                            <ShieldCheck className="w-3 h-3 mr-1 text-gray-500" />
+                            {gName}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm font-medium text-gray-400 italic">Unmanned Post</span>
+                    )}
+                  </td>
+
                   <td className="p-4">
                     {site.inspector ? (
                       <span className="flex items-center text-sm font-bold text-gray-800 bg-blue-50 px-2 py-1 rounded w-max border border-blue-100">
@@ -257,14 +253,7 @@ export default function SitesPage() {
                     )}
                   </td>
 
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${site.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {site.is_active ? 'ACTIVE' : 'INACTIVE'}
-                    </span>
-                  </td>
                   <td className="p-4 text-right space-x-1 flex justify-end">
-                    
-                    {/* NEW: DISPATCH BUTTON (Allowed for Admins) */}
                     <button 
                       onClick={() => {
                         setSiteToAssign(site);
@@ -295,7 +284,6 @@ export default function SitesPage() {
                       </button>
                     )}
 
-                    {/* RBAC CONDITIONAL: STATUS TOGGLE BUTTON (Superadmin Only) */}
                     {isSuperadmin ? (
                       <button 
                         onClick={() => toggleSiteStatus(site.id, site.is_active)}
@@ -317,7 +305,7 @@ export default function SitesPage() {
         </table>
       </div>
 
-      {/* === MODAL: DISPATCH / ASSIGN INSPECTOR === */}
+      {/* === MODAL: DISPATCH INSPECTOR === */}
       {isAssignModalOpen && siteToAssign && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col">
