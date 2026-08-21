@@ -1,8 +1,10 @@
+import { Stack } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Checkbox from 'expo-checkbox';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Location from 'expo-location';
-import { useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useNavigation } from 'expo-router';
 import { Alert, Button, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import CustomTextInput from '../components/custom-text-input';
 import LiveCameraModal from '../components/live-camera-modal';
@@ -11,10 +13,15 @@ import SubmissionReceiptModal from '../components/submission-receipt-modal';
 import ViolationItemCard from '../components/violation-item-card';
 import DateInputGroup from '../components/date-input-group';
 
+const NAME_HISTORY_FILE = FileSystem.documentDirectory + 'nameHistory.json';
+
 export default function AuditFormScreen() {
+
+    const navigation = useNavigation();
 
     // Modal State for Submission Receipt
     const [submittedPayload, setSubmittedPayload] = useState<any>(null);
+    const [savedNames, setSavedNames] = useState<string[]>([]);
 
     // Camera Permissions
     const [permission, requestPermission] = useCameraPermissions();
@@ -102,6 +109,269 @@ export default function AuditFormScreen() {
     const [isAtmOffline, setIsAtmOffline] = useState<boolean>(false);
     const [isDoorSecure, setIsDoorSecure] = useState<boolean>(false);
 
+    useEffect(() => {
+        const loadNameHistory = async () => {
+            try {
+                const info = await FileSystem.getInfoAsync(NAME_HISTORY_FILE);
+                if (!info.exists) {
+                    setSavedNames([]);
+                    return;
+                }
+
+                const content = await FileSystem.readAsStringAsync(NAME_HISTORY_FILE, { encoding: FileSystem.EncodingType.UTF8 });
+                const parsed = JSON.parse(content) as string[];
+                setSavedNames(Array.from(new Set(parsed.filter(Boolean))));
+            } catch (error) {
+                console.error('Failed to load saved guard names:', error);
+            }
+        };
+
+        loadNameHistory();
+    }, []);
+
+    const addNameToHistory = async (name: string) => {
+        if (!name.trim()) return;
+
+        const normalized = name.trim();
+        const nextNames = [normalized, ...savedNames.filter((item) => item.toLowerCase() !== normalized.toLowerCase())].slice(0, 20);
+        setSavedNames(nextNames);
+
+        try {
+            await FileSystem.writeAsStringAsync(NAME_HISTORY_FILE, JSON.stringify(nextNames), { encoding: FileSystem.EncodingType.UTF8 });
+        } catch (error) {
+            console.error('Failed to save guard name history:', error);
+        }
+    };
+
+    const nameQuery = useMemo(() => {
+        return [firstName, middleInitial, lastName].filter(Boolean).join(' ').trim();
+    }, [firstName, middleInitial, lastName]);
+
+    const nameSuggestions = useMemo(() => {
+        if (!nameQuery) return [];
+        const lowerQuery = nameQuery.toLowerCase();
+        return savedNames
+            .filter((name) => name.toLowerCase().includes(lowerQuery))
+            .slice(0, 5);
+    }, [nameQuery, savedNames]);
+
+    const applyNameSuggestion = (name: string) => {
+        const parts = name.split(' ').filter(Boolean);
+        setFirstName(parts[0] ?? '');
+        if (parts.length === 1) {
+            setMiddleInitial('');
+            setLastName('');
+        } else if (parts.length === 2) {
+            setMiddleInitial('');
+            setLastName(parts[1]);
+        } else {
+            setMiddleInitial(parts.slice(1, parts.length - 1).join(' '));
+            setLastName(parts[parts.length - 1]);
+        }
+    };
+
+    const clearAuditInputs = () => {
+        setFirstName('');
+        setLastName('');
+        setMiddleInitial('');
+
+        setFirearmSerial('');
+        setFirearmMake('');
+
+        setLespExpDay('');
+        setLespExpMonth('');
+        setLespExpYear('');
+
+        setRemarks('');
+
+        setIsUniformCompliant(false);
+
+        setLtoStatus('Valid');
+        setDdoStatus('Valid');
+        setLtofpStatus('Valid');
+        setFaStatus('Valid');
+        setIdStatus('Valid');
+        setRlmStatus('Valid');
+
+        setIsTicketOpen(false);
+
+        setSecurityLicenseNo('');
+        setSecurityLicenseExpiry('');
+
+        setPershingCap('Yes');
+        setValidSecurityLicense('Yes');
+        setCompanyId('Yes');
+        setAuthorizedHairCut('Yes');
+        setProperlyShaved('Yes');
+        setAuthorizedUniform('Yes');
+        setAuthorizedNameCloth('Yes');
+        setAuthorizedAgencyPatch('Yes');
+        setNecktieWithClip('Yes');
+        setSecurityBadge('Yes');
+        setCollarPin('Yes');
+        setLanyard('Yes');
+        setWhistle('Yes');
+        setHolster('Yes');
+        setBeltClip('Yes');
+        setBeltWithBuckle('Yes');
+        setGarrisonBelt('Yes');
+        setAuthorizedShoes('Yes');
+        setHandCuff('Yes');
+        setShortCleanFingerNails('Yes');
+        setMedicineKitWithMediplus('Yes');
+        setStunGunWithFlashlight('Yes');
+
+        setViolationRemarks('');
+
+        setGuardSignature(null);
+        setClientSignature(null);
+
+        setIsClientAbsent(false);
+
+        setLivePhotoUri(null);
+
+        setIsAtmOnline(false);
+        setIsAtmOffline(false);
+        setIsDoorSecure(false);
+    };
+
+    const handleClearAll = () => {
+        Alert.alert(
+            'Clear Form',
+            'Are you sure you want to clear all fields?',
+            [
+                {
+                    text: 'Cancel',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Clear',
+                    style: 'destructive',
+                    onPress: clearAuditInputs,
+                },
+            ]
+        );
+    };
+
+    const submitAuditPayload = async () => {
+        let base64Photo = null;
+        try {
+            base64Photo = await FileSystem.readAsStringAsync(livePhotoUri!, { encoding: FileSystem.EncodingType.Base64 });
+        } catch (error) {
+            console.error('Error reading live photo file:', error);
+            Alert.alert('File Read Error', 'Failed to process the captured photo.');
+            return;
+        }
+
+        const formattedLespExpiry = `${lespExpDay}/${lespExpMonth}/${lespExpYear}`;
+
+        const payload = {
+            branch_code: branchCode,
+            branch_name: branchName,
+            branch_location: branchLocation,
+            inspector_in_time: timeIn,
+            inspector_out_time: new Date().toISOString(),
+            gps_coordinates: location
+                ? {
+                      latitude: location.coords.latitude,
+                      longitude: location.coords.longitude,
+                      accuracy: location.coords.accuracy,
+                  }
+                : null,
+            guard_present_status: !isGuardPresent
+                ? {
+                      atm_online: isAtmOnline,
+                      atm_offline: isAtmOffline,
+                      door_secure: isDoorSecure,
+                  }
+                : null,
+            guard_name: isGuardPresent ? `${firstName}${middleInitial ? ' ' + middleInitial : ''} ${lastName}`.trim() : null,
+            lesp_expiry: isGuardPresent ? formattedLespExpiry : null,
+            uniform_compliance: isGuardPresent ? isUniformCompliant : null,
+            firearm_serial: isGuardPresent ? firearmSerial : null,
+            firearm_make: isGuardPresent ? firearmMake : null,
+            metrics: isGuardPresent
+                ? {
+                      lto_license: ltoStatus,
+                      ddo_license: ddoStatus,
+                      ltofp_license: ltofpStatus,
+                      fa_license: faStatus,
+                      id_license: idStatus,
+                      rlm_license: rlmStatus,
+                  }
+                : null,
+            remarks: remarks,
+            violation_ticket: isGuardPresent && isTicketOpen
+                ? {
+                      security_license_no: securityLicenseNo,
+                      security_license_expiry: securityLicenseExpiry,
+                      pershing_cap: pershingCap,
+                      company_id: companyId,
+                      authorized_hair_cut: authorizedHairCut,
+                      properly_shaved: properlyShaved,
+                      authorized_uniform: authorizedUniform,
+                      authorized_name_cloth: authorizedNameCloth,
+                      authorized_agency_patch: authorizedAgencyPatch,
+                      necktie_with_clip: necktieWithClip,
+                      security_badge: securityBadge,
+                      collar_pin: collarPin,
+                      lanyard: lanyard,
+                      whistle: whistle,
+                      holster: holster,
+                      belt_clip: beltClip,
+                      belt_with_buckle: beltWithBuckle,
+                      garrison_belt: garrisonBelt,
+                      authorized_shoes: authorizedShoes,
+                      hand_cuff: handCuff,
+                      short_clean_finger_nails: shortCleanFingerNails,
+                      medicine_kit_with_mediplus: medicineKitWithMediplus,
+                      stun_gun_with_flashlight: stunGunWithFlashlight,
+                      violation_remarks: violationRemarks,
+                  }
+                : null,
+            live_photo_uri: `data:image/jpeg;base64,${base64Photo}`,
+            guard_signature: isGuardPresent ? guardSignature : null,
+            client_signature: isClientAbsent ? null : clientSignature,
+        };
+
+        console.log('SECURE PAYLOAD LOCKED');
+        console.log(JSON.stringify(payload, null, 2));
+
+        try {
+            const API_URL = 'http://192.168.1.3:3000/api/audits';
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const result = await response.json();
+
+            if (response.ok) {
+                if (isGuardPresent) {
+                    const guardName = `${firstName}${middleInitial ? ' ' + middleInitial : ''} ${lastName}`.trim();
+                    await addNameToHistory(guardName);
+                }
+                clearAuditInputs();
+                Alert.alert('Audit Submitted', 'The audit has been successfully submitted and logged.', [
+                    {
+                        text: 'View Receipt',
+                        onPress: () => setSubmittedPayload(payload),
+                    },
+                    {
+                        text: 'OK',
+                        style: 'cancel',
+                    },
+                ]);
+            } else {
+                Alert.alert('Submission Failed', `Error: ${result.error || 'Unknown error occurred.'}`);
+            }
+        } catch (error) {
+            console.error('Submission Error:', error);
+            Alert.alert('Submission Error', 'An error occurred while submitting the audit. Please check your network connection and try again.');
+        }
+    };
+
+    // Handle ATM Online/Offline Toggle Logic//
     const handleAtmOnlineToggle = (newValue: boolean) => {
         setIsAtmOnline(newValue);
         if (newValue)
@@ -115,7 +385,9 @@ export default function AuditFormScreen() {
         };
 
     const handleBarcodeScanned = async ({ data }: { data: string }) => {
-        if (isVerified || isProcessingScan) return;
+        if (isVerified || isProcessingScan) 
+            
+        return;
 
         setIsProcessingScan(true);
 
@@ -152,144 +424,29 @@ export default function AuditFormScreen() {
             Alert.alert("Scan Failed", "Unrecognized QR format. Please scan an official Utopia detachment code.", [{ text: "Try Again", onPress: () => setIsProcessingScan(false) }]);
         }
     };
-
+    // Handle Form Submission Logic //
     const handleSubmit = async () => {
-
         if (isGuardPresent && !guardSignature) {
-            Alert.alert("Missing Signature", "The Guard on duty MUST sign the audit.");
+            Alert.alert('Missing Signature', 'The Guard on duty MUST sign the audit.');
             return;
         }
 
-        //Live Photo Capture Modal
         if (!livePhotoUri) {
-            Alert.alert("Missing Evidence", "You must capture a live photo of the guard on post before submitting the audit.");
-            return ;
-        }
-
-        let base64Photo = null;
-        try {
-            base64Photo = await FileSystem.readAsStringAsync(livePhotoUri, { encoding: FileSystem.EncodingType.Base64, });
-        } catch (error) {
-            console.error("Error reading live photo file:", error);
-            Alert.alert("File Read Error", "Failed to process the captured photo.");
+            Alert.alert('Missing Evidence', 'You must capture a live photo of the guard on post before submitting the audit.');
             return;
         }
 
-        const formattedLespExpiry = `${lespExpDay}/${lespExpMonth}/${lespExpYear}`;
-
-        const payload = {
-            branch_code: branchCode,
-            branch_name: branchName,
-            branch_location: branchLocation,
-
-            inspector_in_time: timeIn, 
-            inspector_out_time: new Date().toISOString(), 
-            
-            // GPS handled safely
-            gps_coordinates: location ? {
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-                accuracy: location.coords.accuracy  
-            } : null,
-
-            // Database JSONB expects an object or null
-            guard_present_status: !isGuardPresent ? {
-                atm_online: isAtmOnline,
-                atm_offline: isAtmOffline,
-                door_secure: isDoorSecure
-            } : null,
-
-            guard_name: isGuardPresent ? `${firstName}${middleInitial ? ' ' + middleInitial : ''} ${lastName}`.trim() : null,
-            lesp_expiry: isGuardPresent ? formattedLespExpiry : null, 
-            uniform_compliance: isGuardPresent ? isUniformCompliant : null,
-            
-            // Firearm details added back for database alignment
-            firearm_serial: isGuardPresent ? firearmSerial : null,
-            firearm_make: isGuardPresent ? firearmMake : null,
-
-            // Database JSONB expects an object or null
-            metrics: isGuardPresent ? {
-                lto_license: ltoStatus,
-                ddo_license: ddoStatus,
-                ltofp_license: ltofpStatus,
-                fa_license: faStatus,
-                id_license: idStatus,
-                rlm_license: rlmStatus,
-            } : null,
-
-            remarks: remarks,
-
-            // Database JSONB expects an object or null
-            violation_ticket: (isGuardPresent && isTicketOpen) ? {
-                security_license_no: securityLicenseNo,
-                security_license_expiry: securityLicenseExpiry,
-                pershing_cap: pershingCap,
-                company_id: companyId,
-                authorized_hair_cut: authorizedHairCut,
-                properly_shaved: properlyShaved,
-                authorized_uniform: authorizedUniform,
-                authorized_name_cloth: authorizedNameCloth,
-                authorized_agency_patch: authorizedAgencyPatch,
-                necktie_with_clip: necktieWithClip,
-                security_badge: securityBadge,
-                collar_pin: collarPin,
-                lanyard: lanyard,
-                whistle: whistle,
-                holster: holster,
-                belt_clip: beltClip,
-                belt_with_buckle: beltWithBuckle,
-                garrison_belt: garrisonBelt,
-                authorized_shoes: authorizedShoes,
-                hand_cuff: handCuff,
-                short_clean_finger_nails: shortCleanFingerNails,
-                medicine_kit_with_mediplus: medicineKitWithMediplus,
-                stun_gun_with_flashlight: stunGunWithFlashlight,
-                violation_remarks: violationRemarks
-            } : null,
-
-            live_photo_uri: `data:image/jpeg;base64,${base64Photo}`,
-            guard_signature: isGuardPresent ? guardSignature : null,
-            client_signature: isClientAbsent ? null : clientSignature
-        };
-
-        console.log("SECURE PAYLOAD LOCKED");
-        console.log(JSON.stringify(payload, null, 2));
-
-        try {
-            const API_URL = 'https://utopia-inspector-app.vercel.app/api/audits';
-
-            const response = await fetch (API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-
-            const result = await response.json();
-
-            if (response.ok) {
-                Alert.alert("Audit Submitted", "The audit has been successfully submitted and logged.", [
-                    {
-                        text: "View Receipt",
-                        onPress: () => {
-                            setSubmittedPayload(payload); 
-                        }
-                    }
-                ]);
-            } else {
-                Alert.alert("Submission Failed", `Error: ${result.error || 'Unknown error occurred.'}`);
-            }
-        } catch (error) {
-            console.error("Submission Error:", error);
-            Alert.alert("Submission Error", "An error occurred while submitting the audit. Please check your network connection and try again.");
-        }
+        Alert.alert('Submit Audit', 'Are you sure you want to submit this audit now?', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Submit', onPress: submitAuditPayload },
+        ]);
     };
 
-    // For Camera QR Code Scanning
-        if (!permission || !locationPermission) {
-            return <View style={styles.container}><Text>Loading Camera...</Text></View>;
-        }
+    if (!permission || !locationPermission) {
+        return <View style={styles.container}><Text>Loading Camera...</Text></View>;
+    }
 
-        if (!permission.granted) {
+    if (!permission.granted) {
             return (
                 <View style={[styles.container, { justifyContent: 'center'}]}>
                 <Text style={{ textAlign: 'center', marginBottom: 20 }}>Camera and GPS access are strictly required to conduct this audit.</Text>
@@ -308,11 +465,11 @@ export default function AuditFormScreen() {
                     />
 
                     <View style={styles.overlay}>
-                        <View style={styles.unfocusedContainer} />
-                        <View style={styles.middleContainer}>
-                            <View style={styles.unfocusedContainer} />
-                            <View style={styles.focusedContainer} />
-                            <View style={styles.unfocusedContainer} />
+                    <View style={styles.unfocusedContainer} />
+                    <View style={styles.middleContainer}>
+                    <View style={styles.unfocusedContainer} />
+                    <View style={styles.focusedContainer} />
+                    <View style={styles.unfocusedContainer} />
                     </View>
                     <View style={styles.bottomContainer} />
                     <Button
@@ -333,8 +490,31 @@ export default function AuditFormScreen() {
         }
 
     return (
+    <>// Main Audit Form Layout
+        <Stack.Screen
+            options={{
+                title: 'Digital Audit',
+                headerRight: () => (
+                    <TouchableOpacity
+                        onPress={handleClearAll}
+                        style={{ marginRight: 15 }}
+                    >
+                        <Text
+                            style={{
+                                color: '#d32f2f',
+                                fontWeight: 'bold',
+                                fontSize: 12,
+                            }}
+                        >
+                            Clear
+                        </Text>
+                    </TouchableOpacity>
+                ),
+            }}
+        />
 
         <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+
 
         <ScrollView style={styles.container}>
 
@@ -365,15 +545,17 @@ export default function AuditFormScreen() {
         label="First Name"
         value={firstName}
         onChangeText={setFirstName}
+        hint="Type the guard's first name"
     />
 
-    <View style={styles.nameRow}>
+    <View style={styles.nameRow}>   
 
         <View style={{ flex: 3 }}>
             <CustomTextInput
                 label="Last Name"
                 value={lastName}
                 onChangeText={setLastName}
+                hint="Type the guard's last name"
             />
         </View>
 
@@ -382,6 +564,7 @@ export default function AuditFormScreen() {
                 label="M.I"
                 value={middleInitial}
                 onChangeText={setMiddleInitial}
+                hint="Optional middle initial"
             />
         </View>
 
@@ -393,13 +576,30 @@ export default function AuditFormScreen() {
                     label="Firearm Serial No."
                     value={firearmSerial}
                     onChangeText={setFirearmSerial}
+                    hint="Example: GLK-123456"
                 />
 
                 <CustomTextInput
                     label="Firearm Make"
                     value={firearmMake}
                     onChangeText={setFirearmMake}
+                    hint="Example: Glock, Sig Sauer, etc."
                 />
+
+                {nameSuggestions.length > 0 && (
+                    <View style={styles.suggestionList}>
+                        <Text style={styles.suggestionLabel}>Suggested Guard Names</Text>
+                        {nameSuggestions.map((suggestion) => (
+                            <TouchableOpacity
+                                key={suggestion}
+                                style={styles.suggestionItem}
+                                onPress={() => applyNameSuggestion(suggestion)}
+                            >
+                                <Text style={styles.suggestionText}>{suggestion}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
 
                 <DateInputGroup 
                 label="LESP Expiry Date"
@@ -798,8 +998,7 @@ export default function AuditFormScreen() {
                 onClose={() => setSubmittedPayload(null)}
             />
         </View>
-
-        
+        </>
     );
 }
 
@@ -884,6 +1083,21 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginBottom: 60,
+  },
+  clearButtonContainer: {
+    padding: 10,
+    backgroundColor: '#fff',
+  },
+  clearButton: {
+    padding: 10,
+    backgroundColor: '#dc3545',
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  clearButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 
   // Drop Down Selection
@@ -989,5 +1203,30 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  suggestionList: {
+    backgroundColor: '#fff',
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 20,
+  },
+  suggestionLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 8,
+    color: '#333',
+  },
+  suggestionItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: '#f4f6f8',
+    marginBottom: 8,
+  },
+  suggestionText: {
+    color: '#222',
+    fontSize: 15,
   },
 });
