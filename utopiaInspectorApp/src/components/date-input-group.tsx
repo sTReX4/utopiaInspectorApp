@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-function formatDateDDMMYYYY(date: Date): string {
-  return new Intl.DateTimeFormat('it-IT', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date);
+function formatDateMMDDYYYY(day: string, month: string, year: string): string {
+    if (!day || !month || !year) return 'MM/DD/YYYY';
+    return `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
 }
 
 function getInitialDate(day: string, month: string, year: string): Date {
@@ -54,9 +51,13 @@ export default function DateInputGroup({
 }: DateInputGroupProps) {
     const [isCalendarVisible, setIsCalendarVisible] = useState(false);
     const [viewDate, setViewDate] = useState(() => getInitialDate(day, month, year));
+    const [pickerMode, setPickerMode] = useState<'calendar' | 'month' | 'year'>('calendar');
+    const currentYear = new Date().getFullYear();
+    const years = Array.from({ length: currentYear - 1899 }, (_, index) => currentYear - index);
 
     const openCalendar = () => {
         setViewDate(getInitialDate(day, month, year));
+        setPickerMode('calendar');
         setIsCalendarVisible(true);
     };
 
@@ -107,24 +108,15 @@ export default function DateInputGroup({
             <Text style={styles.label}>{label}</Text>
 
             <TouchableOpacity style={styles.triggerButton} onPress={openCalendar} activeOpacity={0.85}>
-                <View style={styles.valueBox}>
-                    <Text style={styles.valueLabel}>DD</Text>
-                    <Text style={styles.valueText}>{day || 'DD'}</Text>
-                </View>
-                <View style={styles.valueBox}>
-                    <Text style={styles.valueLabel}>MM</Text>
-                    <Text style={styles.valueText}>{month || 'MM'}</Text>
-                </View>
-                <View style={[styles.valueBox, styles.yearBox]}>
-                    <Text style={styles.valueLabel}>YYYY</Text>
-                    <Text style={styles.valueText}>{year || 'YYYY'}</Text>
-                </View>
+                <Text style={styles.valueText}>{formatDateMMDDYYYY(day, month, year)}</Text>
+                <Text style={styles.calendarIcon}>▣</Text>
             </TouchableOpacity>
 
             <Modal transparent visible={isCalendarVisible} animationType="fade" onRequestClose={() => setIsCalendarVisible(false)}>
                 <View style={styles.modalOverlay}>
                     <View style={styles.calendarCard}>
                         <View style={styles.calendarHeader}>
+<<<<<<< HEAD
                             <TouchableOpacity onPress={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}>
                                 <Text style={styles.navButton}>‹</Text>
                             </TouchableOpacity>
@@ -158,10 +150,71 @@ export default function DateInputGroup({
                                         <Text style={[styles.dayText, !item.isCurrentMonth && styles.dayTextMuted, isSelected && styles.dayTextSelected]}>
                                             {item.day}
                                         </Text>
+=======
+                            {pickerMode === 'calendar' && (
+                                <TouchableOpacity onPress={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}>
+                                    <Text style={styles.navButton}>‹</Text>
+                                </TouchableOpacity>
+                            )}
+                            {pickerMode === 'calendar' ? (
+                                <View style={styles.selectorHeader}>
+                                    <TouchableOpacity onPress={() => setPickerMode('month')}>
+                                        <Text style={styles.selectorButton}>{monthNames[viewDate.getMonth()]}</Text>
+>>>>>>> origin/moxcorp
                                     </TouchableOpacity>
-                                );
-                            })}
+                                    <TouchableOpacity onPress={() => setPickerMode('year')}>
+                                        <Text style={styles.selectorButton}>{viewDate.getFullYear()}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
+                                <Text style={styles.calendarTitle}>{pickerMode === 'month' ? 'Choose month' : 'Choose year'}</Text>
+                            )}
+                            {pickerMode === 'calendar' && (
+                                <TouchableOpacity onPress={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}>
+                                    <Text style={styles.navButton}>›</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
+
+                        {pickerMode === 'calendar' && (
+                            <>
+                                <View style={styles.weekdayRow}>
+                                    {weekdayNames.map((weekday) => (
+                                        <Text key={weekday} style={styles.weekdayText}>{weekday}</Text>
+                                    ))}
+                                </View>
+                                <View style={styles.calendarGrid}>
+                                    {calendarDays.map((item, index) => {
+                                        const isSelected = item.date.getDate() === selectedDate.getDate() && item.date.getMonth() === selectedDate.getMonth() && item.date.getFullYear() === selectedDate.getFullYear();
+                                        return (
+                                            <TouchableOpacity key={`${item.date.toISOString()}-${index}`} style={[styles.dayCell, !item.isCurrentMonth && styles.dayCellMuted, isSelected && styles.dayCellSelected]} onPress={() => handleDateSelect(item.date)}>
+                                                <Text style={[styles.dayText, !item.isCurrentMonth && styles.dayTextMuted, isSelected && styles.dayTextSelected]}>{item.day}</Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                            </>
+                        )}
+
+                        {pickerMode === 'month' && (
+                            <View style={styles.monthGrid}>
+                                {monthNames.map((monthName, monthIndex) => (
+                                    <TouchableOpacity key={monthName} style={[styles.monthButton, monthIndex === viewDate.getMonth() && styles.selectionActive]} onPress={() => { setViewDate(new Date(viewDate.getFullYear(), monthIndex, 1)); setPickerMode('calendar'); }}>
+                                        <Text style={[styles.monthButtonText, monthIndex === viewDate.getMonth() && styles.selectionActiveText]}>{monthName.slice(0, 3)}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
+
+                        {pickerMode === 'year' && (
+                            <ScrollView style={styles.yearList} contentContainerStyle={styles.yearGrid}>
+                                {years.map((yearValue) => (
+                                    <TouchableOpacity key={yearValue} style={[styles.yearButton, yearValue === viewDate.getFullYear() && styles.selectionActive]} onPress={() => { setViewDate(new Date(yearValue, viewDate.getMonth(), 1)); setPickerMode('calendar'); }}>
+                                        <Text style={[styles.yearButtonText, yearValue === viewDate.getFullYear() && styles.selectionActiveText]}>{yearValue}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        )}
 
                         <TouchableOpacity style={styles.doneButton} onPress={() => setIsCalendarVisible(false)}>
                             <Text style={styles.doneButtonText}>Done</Text>
@@ -179,8 +232,15 @@ const styles = StyleSheet.create({
     triggerButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        justifyContent: 'space-between',
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
     },
+    calendarIcon: { fontSize: 18, color: '#0056b3' },
     valueBox: {
         flex: 1,
         backgroundColor: '#fff',
@@ -216,6 +276,8 @@ const styles = StyleSheet.create({
     },
     navButton: { fontSize: 28, color: '#0056b3', fontWeight: '700' },
     calendarTitle: { fontSize: 18, fontWeight: '700', color: '#222' },
+    selectorHeader: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 12 },
+    selectorButton: { fontSize: 18, fontWeight: '700', color: '#0056b3' },
     weekdayRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -227,6 +289,15 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         justifyContent: 'space-between',
     },
+    monthGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 },
+    monthButton: { width: '30%', paddingVertical: 14, borderRadius: 8, alignItems: 'center', backgroundColor: '#eef4fb' },
+    monthButtonText: { color: '#22344d', fontWeight: '600' },
+    yearList: { maxHeight: 300 },
+    yearGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 },
+    yearButton: { width: '30%', paddingVertical: 12, borderRadius: 8, alignItems: 'center', backgroundColor: '#eef4fb' },
+    yearButtonText: { color: '#22344d', fontWeight: '600' },
+    selectionActive: { backgroundColor: '#0056b3' },
+    selectionActiveText: { color: '#fff' },
     dayCell: {
         width: '14.28%',
         aspectRatio: 1,

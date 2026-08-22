@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, BackHandler, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import SignatureScreen from 'react-native-signature-canvas';
 
 interface SignaturePadProps {
@@ -22,10 +22,32 @@ export default function SignaturePad({ title, visible, onClose, onSign }: Signat
         }
     }, [visible]);
 
+    useEffect(() => {
+        if (!visible) {
+            return;
+        }
+
+        const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+            onClose();
+            return true;
+        });
+
+        return () => subscription.remove();
+    }, [visible, onClose]);
+
     const handleSignature = (signature: string) => {
+        if (!signature) {
+            Alert.alert('Signature unavailable', 'Please sign inside the box, then try saving again.');
+            return;
+        }
+
         onSign(signature);
         onClose();
     };
+
+    if (!visible) {
+        return null;
+    }
 
     return (
         <Modal visible={visible} animationType="slide" transparent={true}>
@@ -35,20 +57,27 @@ export default function SignaturePad({ title, visible, onClose, onSign }: Signat
 
                     <View style={styles.canvasContainer}>
                         <SignatureScreen
-                            key={canvasKey} // FIX: Destroys the old canvas and mounts a fresh one dynamically
+                            key={canvasKey}
                             ref={signatureRef}
                             onOK={handleSignature}
+                            onEmpty={() => Alert.alert('Signature required', 'Please add a signature before saving.')}
+                            onError={(error) => {
+                                console.error('Signature pad error:', error);
+                                Alert.alert('Signature error', 'The signature pad could not save. Please try again.');
+                            }}
+                            androidLayerType="software"
+                            androidHardwareAccelerationDisabled={true}
                             webStyle={`.m-signature-pad--footer { display: none; margin: 0px; }`}
                         />
                     </View>
 
                     <View style={styles.buttonRow}>
-                        <TouchableOpacity
-                            style={[styles.button, styles.cancelButton]}
-                            onPress={onClose}
-                        >
-                            <Text style={styles.buttonText}>Cancel</Text>
-                        </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.button, styles.cancelButton]}
+                        onPress={onClose}
+                    >
+                        <Text style={styles.buttonText}>Cancel</Text>
+                    </TouchableOpacity>
 
                         <TouchableOpacity
                             style={[styles.button, styles.clearButton]}
@@ -57,14 +86,14 @@ export default function SignaturePad({ title, visible, onClose, onSign }: Signat
                             <Text style={styles.buttonText}>Clear</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity
-                            style={[styles.button, styles.saveButton]}
-                            onPress={() => signatureRef.current?.readSignature()}
-                        >
-                            <Text style={[styles.buttonText, { color: '#fff' }]}>Save</Text>
-                        </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.button, styles.saveButton]}
+                        onPress={() => signatureRef.current?.readSignature()}
+                    >
+                        <Text style={[styles.buttonText, { color: '#fff' }]}>Save</Text>
+                    </TouchableOpacity>
                     </View>
-                </View>
+                    </View>
             </View>
         </Modal>
     );
@@ -72,10 +101,16 @@ export default function SignaturePad({ title, visible, onClose, onSign }: Signat
 
 const styles = StyleSheet.create({
     modalOverlay: {
-        flex: 1,
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.6)',
         justifyContent: 'center',
         padding: 20,
+        zIndex: 100,
+        elevation: 100,
     },
     modalContent: {
         backgroundColor: '#fff',
@@ -85,7 +120,8 @@ const styles = StyleSheet.create({
     },
     title: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
     canvasContainer: { 
-        height: 300, 
+        height: 300,
+        width: '100%',
         backgroundColor: '#fff', 
         borderWidth: 1, 
         borderColor: '#ccc',
