@@ -184,9 +184,9 @@ export default function DateInputGroup({
                             <Text style={styles.doneButtonText}>Done</Text>
                         </TouchableOpacity>
                     </View>
-                </View>
-            </Modal>
-        </View>
+                    </View>
+                    </Modal>
+                    </View>
     );
 }
 

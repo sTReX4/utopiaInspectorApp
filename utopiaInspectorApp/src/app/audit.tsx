@@ -339,7 +339,7 @@ export default function AuditFormScreen() {
         console.log(JSON.stringify(payload, null, 2));
 
         try {
-            const API_URL = 'http://192.168.1.3:3000/api/audits';
+            const API_URL = 'https://utopia-inspector-app.vercel.app/api/audits';
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
