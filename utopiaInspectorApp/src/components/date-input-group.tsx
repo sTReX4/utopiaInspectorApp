@@ -116,6 +116,41 @@ export default function DateInputGroup({
                 <View style={styles.modalOverlay}>
                     <View style={styles.calendarCard}>
                         <View style={styles.calendarHeader}>
+<<<<<<< HEAD
+                            <TouchableOpacity onPress={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}>
+                                <Text style={styles.navButton}>‹</Text>
+                            </TouchableOpacity>
+                            <Text style={styles.calendarTitle}>{monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}</Text>
+                            <TouchableOpacity onPress={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}>
+                                <Text style={styles.navButton}>›</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.weekdayRow}>
+                        {weekdayNames.map((weekday, index) => (
+                            <Text key={index} style={styles.weekdayText}>
+                                {weekday}
+                            </Text>
+                        ))}
+                    </View>
+
+                        <View style={styles.calendarGrid}>
+                            {calendarDays.map((item, index) => {
+                                const isSelected =
+                                    item.date.getDate() === selectedDate.getDate() &&
+                                    item.date.getMonth() === selectedDate.getMonth() &&
+                                    item.date.getFullYear() === selectedDate.getFullYear();
+
+                                return (
+                                    <TouchableOpacity
+                                        key={`${item.date.toISOString()}-${index}`}
+                                        style={[styles.dayCell, !item.isCurrentMonth && styles.dayCellMuted, isSelected && styles.dayCellSelected]}
+                                        onPress={() => handleDateSelect(item.date)}
+                                    >
+                                        <Text style={[styles.dayText, !item.isCurrentMonth && styles.dayTextMuted, isSelected && styles.dayTextSelected]}>
+                                            {item.day}
+                                        </Text>
+=======
                             {pickerMode === 'calendar' && (
                                 <TouchableOpacity onPress={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}>
                                     <Text style={styles.navButton}>‹</Text>
@@ -125,6 +160,7 @@ export default function DateInputGroup({
                                 <View style={styles.selectorHeader}>
                                     <TouchableOpacity onPress={() => setPickerMode('month')}>
                                         <Text style={styles.selectorButton}>{monthNames[viewDate.getMonth()]}</Text>
+>>>>>>> origin/moxcorp
                                     </TouchableOpacity>
                                     <TouchableOpacity onPress={() => setPickerMode('year')}>
                                         <Text style={styles.selectorButton}>{viewDate.getFullYear()}</Text>
