@@ -3,6 +3,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import Checkbox from 'expo-checkbox';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Location from 'expo-location';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useNavigation } from 'expo-router';
 import { Alert, Button, Keyboard, Platform, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
@@ -257,7 +258,13 @@ export default function AuditFormScreen() {
     const submitAuditPayload = async () => {
         let base64Photo = null;
         try {
-            base64Photo = await FileSystem.readAsStringAsync(livePhotoUri!, { encoding: FileSystem.EncodingType.Base64 });
+            const compressedImage = await ImageManipulator.manipulateAsync(
+                livePhotoUri!,
+                [{ resize: { width: 800 } }],
+                { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
+            );
+
+            base64Photo = await FileSystem.readAsStringAsync(compressedImage.uri, { encoding: FileSystem.EncodingType.Base64 });
         } catch (error) {
             console.error('Error reading live photo file:', error);
             Alert.alert('File Read Error', 'Failed to process the captured photo.');
@@ -340,32 +347,40 @@ export default function AuditFormScreen() {
 
         try {
             const API_URL = 'https://utopia-inspector-app.vercel.app/api/audits';
+            
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
-            const result = await response.json();
-
-            if (response.ok) {
-                if (isGuardPresent) {
-                    const guardName = `${firstName}${middleInitial ? ' ' + middleInitial : ''} ${lastName}`.trim();
-                    await addNameToHistory(guardName);
-                }
-                clearAuditInputs();
-                Alert.alert('Audit Submitted', 'The audit has been successfully submitted and logged.', [
-                    {
-                        text: 'View Receipt',
-                        onPress: () => setSubmittedPayload(payload),
-                    },
-                    {
-                        text: 'OK',
-                        style: 'cancel',
-                    },
-                ]);
-            } else {
-                Alert.alert('Submission Failed', `Error: ${result.error || 'Unknown error occurred.'}`);
+            
+            // Read the raw text first to prevent the JSON crash
+            const responseText = await response.text();
+            
+            if (!response.ok) {
+                console.error('Vercel Error Text:', responseText);
+                Alert.alert('Vercel Server Error', `Response: ${responseText.substring(0, 100)}`);
+                return;
             }
+
+            const result = JSON.parse(responseText);
+
+            if (isGuardPresent) {
+                const guardName = `${firstName}${middleInitial ? ' ' + middleInitial : ''} ${lastName}`.trim();
+                await addNameToHistory(guardName);
+            }
+            clearAuditInputs();
+            Alert.alert('Audit Submitted', 'The audit has been successfully submitted and logged.', [
+                {
+                    text: 'View Receipt',
+                    onPress: () => setSubmittedPayload(payload),
+                },
+                {
+                    text: 'OK',
+                    style: 'cancel',
+                },
+            ]);
+            
         } catch (error) {
             console.error('Submission Error:', error);
             Alert.alert('Submission Error', 'An error occurred while submitting the audit. Please check your network connection and try again.');
@@ -1012,11 +1027,6 @@ export default function AuditFormScreen() {
                 />
             )}
 
-            <SubmissionReceiptModal
-                visible={!!submittedPayload}
-                payload={submittedPayload}
-                onClose={() => setSubmittedPayload(null)}
-            />
         </View>
     </>
     );
