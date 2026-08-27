@@ -59,7 +59,7 @@ export default function ProvisionScreen() {
             await AsyncStorage.setItem('inspector_name', result.inspectorName);
             
             Alert.alert('Device Authorized', `Identity linked! Welcome, ${result.inspectorName}.`, [
-                { text: 'Proceed', onPress: () => router.replace('/audit') }
+                { text: 'Proceed', onPress: () => router.replace('/homepage' as any) }
             ]);
             
         } catch (error) {
