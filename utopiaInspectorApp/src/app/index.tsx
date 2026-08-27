@@ -22,7 +22,7 @@ export default function IndexScreen() {
                 const isProvisioned = await AsyncStorage.getItem('device_provisioned');
                 
                 if (isProvisioned === 'true') {
-                    router.replace('/audit');
+                    router.replace('/homepage' as any);
                 } else {
                     router.replace('/provision');
                 }
