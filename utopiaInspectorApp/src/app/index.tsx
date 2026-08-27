@@ -1,121 +1,81 @@
-import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
+import { ActivityIndicator, Image, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '@/lib/supabase';
 
-export default function DeviceProvisioningScreen() {
+export default function IndexScreen() {
     const router = useRouter();
-    const [accessKey, setAccessKey] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const checkProvisioningStatus = async () => {
+        const checkRoutingState = async () => {
             try {
-                const isProvisioned = await AsyncStorage.getItem('device_provisioned');
-                if (isProvisioned === 'true') {
+                // 1. Check if the user is currently logged in via Supabase Auth
+                const { data: { session } } = await supabase.auth.getSession();
+                
+                if (!session) {
                     router.replace('/login');
+                    return;
+                }
+
+                // 2. Check if the device is securely provisioned
+                const isProvisioned = await AsyncStorage.getItem('device_provisioned');
+                
+                if (isProvisioned === 'true') {
+                    router.replace('/audit');
                 } else {
-                    setIsLoading(false);
+                    router.replace('/provision');
                 }
             } catch (error) {
-                setIsLoading(false);
+                console.error("Routing Error", error);
+                router.replace('/login');
             }
         };
-        checkProvisioningStatus();
+
+        // Add a slight delay so the user actually sees the beautiful splash screen
+        setTimeout(checkRoutingState, 1500);
     }, []);
 
-    const handleProvisionDevice = async () => {
-        if (!accessKey.trim()) {
-            Alert.alert('Required', 'Please enter your Access Key.');
-            return;
-        }
-
-        setIsLoading(true);
-
-        try {
-            // IMPORTANT: Ensure this matches your actual Vercel URL
-            const API_URL = 'https://utopia-inspector-app.vercel.app/api/provision';
-            
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    accessKey: accessKey.trim().toUpperCase()
-                }),
-            });
-
-            const responseText = await response.text();
-            
-            if (!response.ok) {
-                Alert.alert('Authorization Failed', responseText);
-                setIsLoading(false);
-                return;
-            }
-
-            const result = JSON.parse(responseText);
-
-            await AsyncStorage.setItem('device_provisioned', 'true');
-            await AsyncStorage.setItem('inspector_name', result.inspectorName);
-            
-            Alert.alert('Device Authorized', `Welcome, ${result.inspectorName}.`, [
-                { text: 'Proceed', onPress: () => router.replace('/login') }
-            ]);
-            
-        } catch (error) {
-            Alert.alert('Network Error', 'Could not connect to Utopia servers. Please verify your connection.');
-            setIsLoading(false);
-        }
-    };
-
-    if (isLoading) {
-        return (
-            <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color="#0056b3" />
-                <Text style={{ marginTop: 20, color: '#666' }}>Verifying Device...</Text>
-            </View>
-        );
-    }
-
     return (
-        <View style={styles.container}>
-            <View style={styles.card}>
-                <Text style={styles.title}>Utopia Security</Text>
-                <Text style={styles.subtitle}>Device Provisioning</Text>
+        <SafeAreaView style={styles.safeArea}>
+            <View style={styles.flex}>
+                <View style={styles.outerShell}>
+                    <View style={styles.card}>
+                        <Image source={require('../../imgfolder/download-removebg-preview.png')} style={styles.logo} resizeMode="contain" />
+                        
+                        <View style={styles.securityBadge}>
+                            <View style={styles.securityDot} />
+                            <Text style={styles.securityBadgeText}>SECURE BOOT</Text>
+                        </View>
 
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Access Key</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="UTP-XXXXXX"
-                        placeholderTextColor="#9ca3af"
-                        value={accessKey}
-                        onChangeText={setAccessKey}
-                        autoCapitalize="characters"
-                        autoCorrect={false}
-                    />
+                        <View style={styles.content}>
+                            <Text style={styles.eyebrow}>UTOPIA OPERATIONS</Text>
+                            <Text style={styles.title}>System Init</Text>
+                            <Text style={styles.subtitle}>Verifying cryptographic identity...</Text>
+                            
+                            <ActivityIndicator size="large" color="#3f73c4" style={{ marginTop: 20 }} />
+                        </View>
+
+                        <Text style={styles.footer}>Utopia Security And Safety Solutions Inc.  |  Inspector Portal</Text>
+                    </View>
                 </View>
-
-                <TouchableOpacity 
-                    style={styles.button} 
-                    onPress={handleProvisionDevice}
-                    disabled={isLoading}
-                >
-                    <Text style={styles.buttonText}>Authorize Device</Text>
-                </TouchableOpacity>
             </View>
-        </View>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f3f4f6', justifyContent: 'center', padding: 20 },
-    centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' },
-    card: { backgroundColor: '#ffffff', padding: 30, borderRadius: 16, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 },
-    title: { fontSize: 28, fontWeight: '900', color: '#111827', textAlign: 'center', textTransform: 'uppercase' },
-    subtitle: { fontSize: 14, fontWeight: 'bold', color: '#6b7280', textAlign: 'center', marginBottom: 30, textTransform: 'uppercase', letterSpacing: 1 },
-    inputGroup: { marginBottom: 20 },
-    label: { fontSize: 12, fontWeight: 'bold', color: '#4b5563', marginBottom: 8, textTransform: 'uppercase' },
-    input: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 15, fontSize: 16, color: '#111827', fontWeight: '500' },
-    button: { backgroundColor: '#111827', padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 10 },
-    buttonText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' }
+    safeArea: { flex: 1, backgroundColor: '#0b1d31' },
+    flex: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    outerShell: { width: '92%', maxWidth: 430, alignSelf: 'center' },
+    card: { minHeight: 670, borderWidth: 1, borderColor: '#d8e3ef', borderRadius: 18, backgroundColor: '#fff', paddingHorizontal: 42, paddingTop: 42, paddingBottom: 24, alignItems: 'stretch', justifyContent: 'space-between', shadowColor: '#020b17', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 8 },
+    logo: { width: 120, height: 135, alignSelf: 'center', marginBottom: 20 },
+    securityBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', marginBottom: 16, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#eaf7f5' },
+    securityDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#159a83', marginRight: 7 },
+    securityBadgeText: { color: '#147866', fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
+    content: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    eyebrow: { color: '#3f73c4', fontSize: 11, fontWeight: '800', letterSpacing: 1.8, textAlign: 'center', marginBottom: 8 },
+    title: { color: '#16213b', fontSize: 32, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
+    subtitle: { color: '#68788d', fontSize: 14, lineHeight: 20, textAlign: 'center', marginBottom: 22 },
+    footer: { marginTop: 'auto', paddingTop: 56, paddingBottom: 12, color: '#718198', fontSize: 11, textAlign: 'center' },
 });

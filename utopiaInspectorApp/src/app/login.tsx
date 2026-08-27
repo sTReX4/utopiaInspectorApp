@@ -2,8 +2,8 @@ import Checkbox from 'expo-checkbox';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, BackHandler, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
-import { saveAccount, signInAccount, startSession } from '../lib/account';
 import DateInputGroup from '../components/date-input-group';
+import { supabase } from '@/lib/supabase';
 
 type Screen = 'login' | 'name' | 'birthday' | 'credentials';
 
@@ -21,6 +21,7 @@ export default function LoginScreen() {
   const [birthMonth, setBirthMonth] = useState('');
   const [birthYear, setBirthYear] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -28,24 +29,22 @@ export default function LoginScreen() {
         setScreen('birthday');
         return true;
       }
-
       if (screen === 'birthday') {
         setScreen('name');
         return true;
       }
-
       if (screen === 'name') {
         setScreen('login');
         return true;
       }
-
       return false;
     });
 
     return () => subscription.remove();
   }, [screen]);
 
-  const goToDashboard = () => router.replace('/homepage');
+  // NEW FLOW: Redirects to the Provisioning Gatekeeper instead of homepage
+  const goToProvisioning = () => router.replace('/provision');
 
   const signIn = async () => {
     if (!email.trim() || !password) {
@@ -53,13 +52,19 @@ export default function LoginScreen() {
       return;
     }
 
-    const isValid = await signInAccount(email, password);
-    if (!isValid) {
-      Alert.alert('Login failed', 'The email or password is incorrect. Create an account first if you are new here.');
+    setIsLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password
+    });
+
+    if (error) {
+      Alert.alert('Login failed', error.message);
+      setIsLoading(false);
       return;
     }
 
-    goToDashboard();
+    goToProvisioning();
   };
 
   const nextFromName = () => {
@@ -84,18 +89,30 @@ export default function LoginScreen() {
       return;
     }
 
-    await saveAccount({
+    setIsLoading(true);
+    
+    // Create the account and inject the custom UI data into Supabase's user_metadata
+    const { error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      middleInitial: middleInitial.trim(),
-      birthDay,
-      birthMonth,
-      birthYear,
+      options: {
+        data: {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          middle_initial: middleInitial.trim(),
+          birthday: `${birthYear}-${birthMonth}-${birthDay}`
+        }
+      }
     });
-    await startSession();
-    goToDashboard();
+
+    if (error) {
+      Alert.alert('Registration Failed', error.message);
+      setIsLoading(false);
+      return;
+    }
+
+    Alert.alert('Account Created', 'Your credentials are secure. Proceed to device linking.');
+    goToProvisioning();
   };
 
   const content = () => {
@@ -116,9 +133,10 @@ export default function LoginScreen() {
             <Checkbox value={rememberMe} onValueChange={setRememberMe} color={rememberMe ? primaryColor : undefined} />
             <Text style={styles.rememberText}>Remember me</Text>
           </View>
-          <PrimaryButton label="Log in" onPress={signIn} />
-          <Pressable style={styles.devPassButton} onPress={goToDashboard}>
-            <Text style={styles.devPassText}>Dev Pass</Text>
+          <PrimaryButton label={isLoading ? "Authenticating..." : "Log in"} onPress={signIn} disabled={isLoading} />
+          
+          <Pressable style={styles.devPassButton} onPress={goToProvisioning}>
+            <Text style={styles.devPassText}>Dev Pass (Skip to Provision)</Text>
           </Pressable>
         </>
       );
@@ -171,7 +189,7 @@ export default function LoginScreen() {
         <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email address" keyboardType="email-address" autoCapitalize="none" autoComplete="email" textContentType="emailAddress" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
         <Text style={styles.inputLabel}>Password</Text>
         <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry autoComplete="password" textContentType="password" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
-        <PrimaryButton label="Register" onPress={register} />
+        <PrimaryButton label={isLoading ? "Registering..." : "Register"} onPress={register} disabled={isLoading} />
       </>
     );
   };
@@ -203,8 +221,15 @@ export default function LoginScreen() {
   );
 }
 
-function PrimaryButton({ label, onPress }: { label: string; onPress: () => void }) {
-  return <Pressable style={styles.primaryButton} onPress={onPress}><Text style={styles.primaryButtonText}>{label}</Text></Pressable>;
+function PrimaryButton({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
+  return (
+    <Pressable 
+      style={[styles.primaryButton, disabled && { opacity: 0.7 }]} 
+      onPress={disabled ? undefined : onPress}
+    >
+      <Text style={styles.primaryButtonText}>{label}</Text>
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
