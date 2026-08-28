@@ -14,6 +14,7 @@ import SignaturePad from '../components/signature-pad';
 import SubmissionReceiptModal from '../components/submission-receipt-modal';
 import ViolationItemCard from '../components/violation-item-card';
 import DateInputGroup from '../components/date-input-group';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const NAME_HISTORY_FILE = FileSystem.documentDirectory + 'nameHistory.json';
 
@@ -110,6 +111,22 @@ export default function AuditFormScreen() {
     const [isAtmOnline, setIsAtmOnline] = useState<boolean>(false);
     const [isAtmOffline, setIsAtmOffline] = useState<boolean>(false);
     const [isDoorSecure, setIsDoorSecure] = useState<boolean>(false);
+
+    const [inspectorName, setInspectorName] = useState<string>('Unknown Inspector');
+
+    useEffect(() => {
+        const fetchIdentity = async () => {
+            try {
+                const storedName = await AsyncStorage.getItem('inspector_name');
+                if (storedName) {
+                    setInspectorName(storedName);
+                }
+            } catch (error) {
+                console.error("Failed to load inspector identity", error);
+            }
+        };
+        fetchIdentity();
+    }, []);
 
     useEffect(() => {
         const loadNameHistory = async () => {
@@ -277,6 +294,7 @@ export default function AuditFormScreen() {
             branch_code: branchCode,
             branch_name: branchName,
             branch_location: branchLocation,
+            inspector_name: inspectorName,
             inspector_in_time: timeIn,
             inspector_out_time: new Date().toISOString(),
             gps_coordinates: location
