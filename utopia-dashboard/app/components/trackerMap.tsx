@@ -56,14 +56,13 @@ function MapController({ routes, selectedRouteId }: TrackerMapProps) {
   return null; // This component doesn't render HTML, it only controls the map math
 }
 
-
 export default function TrackerMap({ routes, selectedRouteId }: TrackerMapProps) {
   // Safe center fallback for Manila if there are no routes today
   const centerLat = routes.length > 0 ? routes[0].gps_latitude : 14.5995;
   const centerLng = routes.length > 0 ? routes[0].gps_longitude : 120.9842;
 
   return (
-    <MapContainer center={[centerLat, centerLng]} zoom={12} className="w-full h-full z-0">
+    <MapContainer center={[centerLat, centerLng]} zoom={12} className="w-full h-full z-0 font-sans">
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -75,9 +74,14 @@ export default function TrackerMap({ routes, selectedRouteId }: TrackerMapProps)
       {routes.map((route) => (
         <Marker key={route.id} position={[route.gps_latitude, route.gps_longitude]}>
           <Popup>
-            <div className="text-sm">
-              <p className="font-bold text-gray-900 mb-1">{route.inspector_name}</p>
-              <p className="text-blue-600 font-medium">{route.branch_name}</p>
+            <div className="min-w-[150px] pb-1 font-sans">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Inspector</p>
+              <p className="text-sm font-semibold text-slate-900 mb-3">{route.inspector_name}</p>
+              
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Assigned Location</p>
+              <span className="inline-flex text-[10px] font-mono font-bold bg-blue-50 text-blue-700 px-2 py-1 rounded-md ring-1 ring-blue-200/60 uppercase tracking-wider">
+                {route.branch_name}
+              </span>
             </div>
           </Popup>
         </Marker>

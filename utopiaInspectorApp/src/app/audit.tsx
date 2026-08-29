@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Location from 'expo-location';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { useNavigation } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 import { Alert, Button, Keyboard, Platform, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import CustomTextInput from '../components/custom-text-input';
@@ -14,12 +14,15 @@ import SignaturePad from '../components/signature-pad';
 import SubmissionReceiptModal from '../components/submission-receipt-modal';
 import ViolationItemCard from '../components/violation-item-card';
 import DateInputGroup from '../components/date-input-group';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 const NAME_HISTORY_FILE = FileSystem.documentDirectory + 'nameHistory.json';
 
 export default function AuditFormScreen() {
 
     const navigation = useNavigation();
+    const router = useRouter();
 
     // Modal State for Submission Receipt
     const [submittedPayload, setSubmittedPayload] = useState<any>(null);
@@ -110,6 +113,22 @@ export default function AuditFormScreen() {
     const [isAtmOnline, setIsAtmOnline] = useState<boolean>(false);
     const [isAtmOffline, setIsAtmOffline] = useState<boolean>(false);
     const [isDoorSecure, setIsDoorSecure] = useState<boolean>(false);
+
+    const [inspectorName, setInspectorName] = useState<string>('Unknown Inspector');
+
+    useEffect(() => {
+        const fetchIdentity = async () => {
+            try {
+                const storedName = await AsyncStorage.getItem('inspector_name');
+                if (storedName) {
+                    setInspectorName(storedName);
+                }
+            } catch (error) {
+                console.error("Failed to load inspector identity", error);
+            }
+        };
+        fetchIdentity();
+    }, []);
 
     useEffect(() => {
         const loadNameHistory = async () => {
@@ -239,17 +258,21 @@ export default function AuditFormScreen() {
 
     const handleClearAll = () => {
         Alert.alert(
-            'Clear Form',
-            'Are you sure you want to clear all fields?',
+            'System Flush',
+            'Wipe local device memory and clear the corrupted Inspector identity?',
             [
                 {
                     text: 'Cancel',
                     style: 'cancel',
                 },
                 {
-                    text: 'Clear',
+                    text: 'Wipe Memory',
                     style: 'destructive',
-                    onPress: clearAuditInputs,
+                    onPress: async () => {
+                        clearAuditInputs();
+                        await AsyncStorage.clear(); // <-- Destroys 'Inspector Alpha'
+                        router.replace('/login');   // <-- Kicks you back to the start
+                    },
                 },
             ]
         );
@@ -277,6 +300,7 @@ export default function AuditFormScreen() {
             branch_code: branchCode,
             branch_name: branchName,
             branch_location: branchLocation,
+            inspector_name: inspectorName,
             inspector_in_time: timeIn,
             inspector_out_time: new Date().toISOString(),
             gps_coordinates: location

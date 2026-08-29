@@ -14,16 +14,17 @@ interface AuditPhoto {
 
 interface LivePhotoGridProps {
     activeFilter: string | null;
+    globalDate: string;
 }
 
-export default function LivePhotoGrid({ activeFilter }: LivePhotoGridProps) {
+export default function LivePhotoGrid({ activeFilter, globalDate }: LivePhotoGridProps) {
     const [selectedAuditId, setSelectedAuditId] = useState<string | null>(null);
     const [photos, setPhotos] = useState<AuditPhoto[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
     useEffect(() => {
-        fetchRecentPhotos();
-    }, [activeFilter]);
+        if (globalDate) fetchRecentPhotos();
+    }, [activeFilter, globalDate]);
 
     const fetchRecentPhotos = async () => {
         setIsLoading(true);
@@ -32,6 +33,8 @@ export default function LivePhotoGrid({ activeFilter }: LivePhotoGridProps) {
                 .from('audits')
                 .select('id, live_photo_url, inspector_name, created_at, branch_name')
                 .not('live_photo_url', 'is', null)
+                .gte('time_in', `${globalDate}T00:00:00Z`)
+                .lte('time_in', `${globalDate}T23:59:59Z`)
                 .order('created_at', { ascending: false })
                 .limit(12);
 
@@ -44,7 +47,6 @@ export default function LivePhotoGrid({ activeFilter }: LivePhotoGridProps) {
             } else if (activeFilter === 'missing-sigs') {
                 query = query.is('inspector_signature', null);
             } else if (activeFilter === 'documents') {
-                // Check if ANY of the license fields inside the JSON contain "Expired" or "Missing"
                 const docFilter = 'documents_checklist->>lto_license.eq.Expired,documents_checklist->>lto_license.eq.Missing,documents_checklist->>ddo_license.eq.Expired,documents_checklist->>ddo_license.eq.Missing,documents_checklist->>ltofp_license.eq.Expired,documents_checklist->>ltofp_license.eq.Missing,documents_checklist->>fa_license.eq.Expired,documents_checklist->>fa_license.eq.Missing,documents_checklist->>id_license.eq.Expired,documents_checklist->>id_license.eq.Missing,documents_checklist->>rlm_license.eq.Expired,documents_checklist->>rlm_license.eq.Missing';
                 query = query.or(docFilter);
             }
@@ -80,21 +82,23 @@ export default function LivePhotoGrid({ activeFilter }: LivePhotoGridProps) {
     };
 
     return (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 min-h-[400px]">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">{getGridTitle()}</h2>
+        <div className="enterprise-card p-6 min-h-[400px]">
+            <h2 className="text-lg font-semibold tracking-tight text-slate-900 mb-5 pb-3 border-b micro-border">
+                {getGridTitle()}
+            </h2>
 
             {isLoading ? (
-                <div className="text-center text-gray-500 py-12">Applying filters and querying database...</div>
+                <div className="text-center text-slate-500 py-12 font-medium">Applying filters and querying database...</div>
             ) : (
                 <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                         {photos.map((photo) => (
                             <div 
                                 key={photo.id} 
                                 onClick={() => setSelectedAuditId(photo.id)}
-                                className="flex flex-col border border-gray-200 rounded-lg overflow-hidden bg-gray-50 hover:shadow-md transition-shadow cursor-pointer transform hover:-translate-y-1 duration-200"
+                                className="flex flex-col bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-blue-600 hover:ring-1 hover:ring-blue-600 transition-all cursor-pointer shadow-sm hover:shadow-md"
                             >
-                                <div className="h-48 w-full bg-gray-200 relative">
+                                <div className="h-48 w-full bg-slate-100 relative border-b border-slate-100">
                                     <img
                                         src={photo.live_photo_url}
                                         alt={`Guard at ${photo.branch_name}`}
@@ -102,15 +106,15 @@ export default function LivePhotoGrid({ activeFilter }: LivePhotoGridProps) {
                                     />
                                 </div>
 
-                                <div className="p-3">
-                                    <p className="text-sm font-semibold text-gray-800 truncate">
+                                <div className="p-4">
+                                    <p className="text-sm font-bold text-slate-900 truncate">
                                         {photo.branch_name}
                                     </p>
-                                    <p className="text-xs text-gray-600 mt-1">
-                                        <span className="font-medium">Inspector:</span> {photo.inspector_name}
+                                    <p className="text-xs text-slate-500 mt-1.5">
+                                        <span className="font-medium text-slate-700">Inspector:</span> {photo.inspector_name}
                                     </p>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        <span className="font-medium">Time:</span> {formatTime(photo.created_at)}
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                        <span className="font-medium text-slate-700">Time:</span> {formatTime(photo.created_at)}
                                     </p>
                                 </div>
                             </div>
@@ -118,7 +122,7 @@ export default function LivePhotoGrid({ activeFilter }: LivePhotoGridProps) {
                     </div>
 
                     {photos.length === 0 && (
-                        <div className="col-span-full text-center text-gray-500 py-12 bg-gray-50 rounded-lg border border-dashed border-gray-300 mt-4">
+                        <div className="col-span-full text-center text-slate-500 py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200 mt-2 font-medium">
                             No live photos match the current filter.
                         </div>
                     )}

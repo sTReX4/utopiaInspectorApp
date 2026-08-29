@@ -5,11 +5,12 @@ import { AuthProvider } from '@/app/context/AuthContext';
 import Sidebar from "@/app/components/sidebar"; 
 import "./globals.css";
 
+// Inter is the industry standard for clean, legible enterprise UI (used by Stripe, Vercel, etc.)
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Utopia Operations Dashboard",
-  description: "Security Operations Center",
+  title: "Utopia Operations | SOC Dashboard",
+  description: "Enterprise Security Operations Center and Audit Management",
 };
 
 export default function RootLayout({
@@ -21,10 +22,19 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          <div className="flex min-h-screen bg-gray-50">
+          {/* Enterprise Shell: Slate background automatically inherits from globals.css */}
+          <div className="flex min-h-screen">
             <Sidebar />
-            <main className="flex-1 ml-64 p-8">
-              {children}
+            
+            {/* 
+              * Main Content Area 
+              * ml-64 pushes content past the fixed 16rem sidebar.
+              * We use flex-col to ensure all sub-pages stretch and align perfectly.
+              */}
+            <main className="flex-1 ml-64 flex flex-col">
+              <div className="flex-1 p-8 lg:p-10 max-w-[1600px] mx-auto w-full">
+                {children}
+              </div>
             </main>
           </div>
         </AuthProvider>

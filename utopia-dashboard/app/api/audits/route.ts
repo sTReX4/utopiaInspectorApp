@@ -64,7 +64,7 @@ export async function POST(request: Request) {
                 branch_name: body.branch_name,
                 branch_location: body.branch_location,
 
-                inspector_name: "Inspector Alpha",
+                inspector_name: body.inspector_name || "Unknown Inspector",
 
                 time_in: body.inspector_in_time,
                 time_out: body.inspector_out_time,
