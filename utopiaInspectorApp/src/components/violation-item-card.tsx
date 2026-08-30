@@ -1,47 +1,59 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 
-interface ViolationItemCardProps {
-    itemName: string;
-    status: 'Yes' | 'No';
-    onUpdate: (newStatus: 'Yes' | 'No') => void;
+interface AuditCardProps {
+  guardName: string;
+  inspectorName: string;
+  guardPhotoUrl?: string; 
+  date: string;
+  onPress: () => void;
 }
 
-export default function ViolationItemCard({ itemName, status, onUpdate }: ViolationItemCardProps) {
-    return (
-        <View style={styles.cardContainer}>
-            <Text style={styles.itemName}>{itemName}</Text>
-            <View style={styles.radioGroup}>
-                <TouchableOpacity
-                    style={[styles.radioButton, status === 'Yes' && styles.radioButtonActive]}
-                    onPress={() => onUpdate('Yes')}
-                >
-                    <Text style={[styles.radioText, status === 'Yes' && styles.radioTextActive]}>Yes</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.radioButton, status === 'No' && styles.radioButtonActive]}
-                    onPress={() => onUpdate('No')}
-                >
-                    <Text style={[styles.radioText, status === 'No' && styles.radioTextActive]}>No</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
+export default function ViolationItemCard({ guardName, inspectorName, guardPhotoUrl, date, onPress }: AuditCardProps) {
+  return (
+    <TouchableOpacity style={styles.card} onPress={onPress}>
+      <View style={styles.imageContainer}>
+        {guardPhotoUrl ? (
+          <Image source={{ uri: guardPhotoUrl }} style={styles.image} />
+        ) : (
+          <View style={styles.placeholderImage}>
+            <Text style={styles.placeholderText}>No Photo</Text>
+          </View>
+        )}
+      </View>
+      
+      <View style={styles.detailsContainer}>
+        <Text style={styles.guardName}>Guard: {guardName}</Text>
+        <Text style={styles.inspectorName}>Inspector: {inspectorName}</Text>
+        <Text style={styles.date}>{date}</Text>
+      </View>
+    </TouchableOpacity>
+  );
 }
 
 const styles = StyleSheet.create({
-    cardContainer: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
+  card: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: '#ffffff',
     marginBottom: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  itemName: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 15 },
-  radioGroup: { flexDirection: 'row', justifyContent: 'space-between' },
-  radioButton: { flex: 1, paddingVertical: 10, marginHorizontal: 5, backgroundColor: '#f0f0f0', borderRadius: 5, alignItems: 'center' },
-  radioButtonActive: { backgroundColor: '#0056b3' },
-  radioButtonActiveRed: { backgroundColor: '#dc3545' }, // Red for 'No' violations
-  radioText: { fontSize: 14, fontWeight: 'bold', color: '#555' },
-  radioTextActive: { color: '#fff' }
+  imageContainer: { marginRight: 16, justifyContent: 'center' },
+  image: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#e2e8f0' },
+  placeholderImage: { 
+    width: 60, height: 60, borderRadius: 30, 
+    backgroundColor: '#cbd5e1', 
+    justifyContent: 'center', alignItems: 'center' 
+  },
+  placeholderText: { fontSize: 10, color: '#475569' },
+  detailsContainer: { flex: 1, justifyContent: 'center' },
+  guardName: { fontSize: 16, fontWeight: 'bold', color: '#1e293b' },
+  inspectorName: { fontSize: 14, color: '#475569', marginTop: 4 },
+  date: { fontSize: 12, color: '#94a3b8', marginTop: 4 },
 });

@@ -1,145 +1,248 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
-
-const API_URL = 'http://192.168.1.3:3000/api/audits';
-const HISTORY_FILE = FileSystem.documentDirectory + 'auditHistory.json';
-
-type AuditRecord = {
-  id: string;
-  inspector_name: string | null;
-  guard_name: string | null;
-  branch_name: string | null;
-  branch_location: string | null;
-  time_in: string | null;
-  time_out: string | null;
-  lesp_expiry: string | null;
-  uniform_status: boolean | null;
-  remarks: string | null;
-};
+import React, { useEffect, useState } from 'react';
+import { View, Text, FlatList, RefreshControl, StyleSheet, TextInput, TouchableOpacity, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { supabase } from '../lib/supabase';
+import ViolationItemCard from '../components/violation-item-card';
+import SubmissionReceiptModal from '../components/submission-receipt-modal';
 
 export default function HistoryScreen() {
-  const [records, setRecords] = useState<AuditRecord[]>([]);
+  const [audits, setAudits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-  const [selectedRecord, setSelectedRecord] = useState<AuditRecord | null>(null);
+  const [selectedAudit, setSelectedAudit] = useState<any>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  
+  // Search and Filter State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
 
-  const loadRecords = async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+  // Date Picker State
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerType, setPickerType] = useState<'start' | 'end'>('start');
 
-    try {
-      const response = await fetch(API_URL);
-      if (!response.ok) throw new Error('Unable to load audit records.');
-      const json = await response.json();
-      setRecords(Array.isArray(json) ? json : []);
-      setError('');
-    } catch {
-      try {
-        const info = await FileSystem.getInfoAsync(HISTORY_FILE);
-        if (!info.exists) throw new Error('No local history found.');
-        const content = await FileSystem.readAsStringAsync(HISTORY_FILE, { encoding: FileSystem.EncodingType.UTF8 });
-        const json = JSON.parse(content);
-        setRecords(Array.isArray(json) ? json : []);
-        setError('');
-      } catch {
-        setError('Could not load audit records. Pull down to try again.');
-      }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+  const loadOperationsData = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('audits')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setAudits(data);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
-    loadRecords();
+    loadOperationsData();
   }, []);
+
+  const filteredAudits = audits.filter((audit) => {
+    const auditDate = new Date(audit.created_at);
+    const query = searchQuery.toLowerCase();
+    
+    const matchesSearch = 
+      (audit.guard_name || '').toLowerCase().includes(query) ||
+      (audit.inspector_name || '').toLowerCase().includes(query) ||
+      (audit.site_name || '').toLowerCase().includes(query);
+
+    let matchesDate = true;
+    if (startDate) matchesDate = matchesDate && auditDate >= startDate;
+    if (endDate) {
+      const endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      matchesDate = matchesDate && auditDate <= endOfDay;
+    }
+
+    return matchesSearch && matchesDate;
+  });
+
+  const clearFilters = () => {
+    setStartDate(null);
+    setEndDate(null);
+    setShowCalendar(false);
+  };
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    // Hide picker automatically on Android after selection
+    if (Platform.OS === 'android') {
+      setShowPicker(false);
+    }
+    
+    if (selectedDate) {
+      if (pickerType === 'start') {
+        setStartDate(selectedDate);
+      } else {
+        setEndDate(selectedDate);
+      }
+    }
+  };
+
+  const openPicker = (type: 'start' | 'end') => {
+    setPickerType(type);
+    setShowPicker(true);
+  };
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyText}>
+        {searchQuery || startDate || endDate 
+          ? 'No reports match your search.' 
+          : 'No recent inspection activity.'}
+      </Text>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
-      {loading ? (
-        <View style={styles.centered}><ActivityIndicator size="large" color="#0056b3" /></View>
-      ) : (
-        <FlatList
-          data={records}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={records.length ? styles.list : styles.emptyList}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadRecords(true)} colors={['#0056b3']} />}
-          ListHeaderComponent={error ? <Text style={styles.error}>{error}</Text> : null}
-          ListEmptyComponent={<Text style={styles.emptyText}>No audit records yet.</Text>}
-          renderItem={({ item }) => <AuditBar record={item} onPress={() => setSelectedRecord(item)} />}
+      <Text style={styles.sectionHeader}>Recent Inspection Activity</Text>
+      
+      {/* Search and Filter Row */}
+      <View style={styles.searchRow}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by guard, inspector..."
+          placeholderTextColor="#94a3b8"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        <TouchableOpacity 
+          style={[styles.filterButton, showCalendar && styles.filterButtonActive]} 
+          onPress={() => setShowCalendar(!showCalendar)}
+        >
+          <Text style={[styles.filterButtonText, showCalendar && styles.filterButtonTextActive]}>
+            Filter Date
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Pop-down Calendar Section */}
+      {showCalendar && (
+        <View style={styles.calendarDropdown}>
+          <Text style={styles.calendarTitle}>Select Date Range</Text>
+          <View style={styles.dateRow}>
+            <TouchableOpacity style={styles.dateBox} onPress={() => openPicker('start')}>
+              <Text style={styles.dateLabel}>Start Date</Text>
+              <Text style={styles.dateValue}>{startDate ? startDate.toLocaleDateString() : 'Select...'}</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.dateBox} onPress={() => openPicker('end')}>
+              <Text style={styles.dateLabel}>End Date</Text>
+              <Text style={styles.dateValue}>{endDate ? endDate.toLocaleDateString() : 'Select...'}</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {(startDate || endDate) && (
+            <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
+              <Text style={styles.clearButtonText}>Clear Dates</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* The Native Date Picker */}
+      {showPicker && (
+        <DateTimePicker
+          value={
+            pickerType === 'start'
+              ? startDate || new Date()
+              : endDate || new Date()
+          }
+          mode="date"
+          display="default"
+          onChange={handleDateChange}
         />
       )}
 
-      <AuditDetails record={selectedRecord} onClose={() => setSelectedRecord(null)} />
+      <FlatList
+        data={filteredAudits}
+        keyExtractor={(item) => item.id.toString()}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadOperationsData} />}
+        ListEmptyComponent={renderEmptyState}
+        contentContainerStyle={{ paddingTop: 8 }}
+        renderItem={({ item }) => (
+          <ViolationItemCard
+            guardName={item.guard_name || 'Unknown Guard'}
+            inspectorName={item.inspector_name || 'Unknown Inspector'}
+            guardPhotoUrl={item.guard_photo_url}
+            date={new Date(item.created_at).toLocaleDateString()}
+            onPress={() => {
+              setSelectedAudit(item);
+              setModalVisible(true);
+            }}
+          />
+        )}
+      />
+
+      <SubmissionReceiptModal 
+        visible={modalVisible} 
+        onClose={() => setModalVisible(false)} 
+        audit={selectedAudit} 
+      />
     </View>
   );
 }
 
-function AuditBar({ record, onPress }: { record: AuditRecord; onPress: () => void }) {
-  return (
-    <Pressable style={styles.auditBar} onPress={onPress}>
-      <View style={styles.auditText}>
-        <Text style={styles.guardName}>{record.guard_name || 'Guard not present'}</Text>
-        <Text style={styles.recordDetail}>Inspector: {record.inspector_name || 'Not recorded'}</Text>
-        <Text style={styles.recordDetail}>{record.branch_name || record.branch_location || 'Branch not recorded'}</Text>
-      </View>
-      <Text style={styles.date}>{formatDate(record.time_in)}</Text>
-    </Pressable>
-  );
-}
-
-function AuditDetails({ record, onClose }: { record: AuditRecord | null; onClose: () => void }) {
-  if (!record) return null;
-
-  return (
-    <Modal transparent animationType="fade" visible onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>Audit Record</Text>
-          <Detail label="Guard" value={record.guard_name || 'Guard not present'} />
-          <Detail label="Inspector" value={record.inspector_name || 'Not recorded'} />
-          <Detail label="Branch" value={record.branch_name || 'Not recorded'} />
-          <Detail label="Location" value={record.branch_location || 'Not recorded'} />
-          <Detail label="Audit date" value={formatDate(record.time_in)} />
-          <Detail label="LESP expiry" value={record.lesp_expiry || 'Not recorded'} />
-          <Detail label="Uniform" value={record.uniform_status === null ? 'Not recorded' : record.uniform_status ? 'Compliant' : 'Not compliant'} />
-          <Detail label="Remarks" value={record.remarks || 'None'} />
-          <Pressable style={styles.closeButton} onPress={onClose}><Text style={styles.closeButtonText}>Close</Text></Pressable>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-function Detail({ label, value }: { label: string; value: string }) {
-  return <Text style={styles.modalDetail}><Text style={styles.modalLabel}>{label}: </Text>{value}</Text>;
-}
-
-function formatDate(value: string | null) {
-  if (!value) return 'No date';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  list: { padding: 12, gap: 10 },
-  emptyList: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-  error: { color: '#b3261e', textAlign: 'center', marginBottom: 12 },
-  emptyText: { color: '#666', textAlign: 'center', fontSize: 16 },
-  auditBar: { minHeight: 86, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderWidth: 1, borderColor: '#d4dce5', borderRadius: 7, padding: 14 },
-  auditText: { flex: 1, gap: 3 },
-  guardName: { color: '#222', fontSize: 17, fontWeight: '700' },
-  recordDetail: { color: '#555', fontSize: 13 },
-  date: { color: '#0056b3', fontSize: 13, marginLeft: 10 },
-  modalBackdrop: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.45)' },
-  modalCard: { backgroundColor: '#fff', borderRadius: 10, padding: 22 },
-  modalTitle: { color: '#0056b3', fontSize: 22, fontWeight: '700', marginBottom: 16 },
-  modalDetail: { color: '#333', fontSize: 15, lineHeight: 22, marginBottom: 6 },
-  modalLabel: { fontWeight: '700' },
-  closeButton: { alignSelf: 'flex-end', marginTop: 12, backgroundColor: '#0056b3', borderRadius: 5, paddingVertical: 9, paddingHorizontal: 22 },
-  closeButtonText: { color: '#fff', fontWeight: '700' },
+  container: { flex: 1, padding: 16, backgroundColor: '#f8fafc' },
+  sectionHeader: { fontSize: 18, fontWeight: 'bold', color: '#1e293b', marginBottom: 12 },
+  
+  searchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    fontSize: 15,
+    color: '#1e293b',
+  },
+  filterButton: {
+    marginLeft: 8,
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    justifyContent: 'center',
+  },
+  filterButtonActive: { backgroundColor: '#eff6ff', borderColor: '#3b82f6' },
+  filterButtonText: { color: '#475569', fontWeight: '600', fontSize: 14 },
+  filterButtonTextActive: { color: '#3b82f6' },
+
+  calendarDropdown: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  calendarTitle: { fontSize: 14, fontWeight: '600', color: '#1e293b', marginBottom: 12 },
+  dateRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  dateBox: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    padding: 12,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  dateLabel: { fontSize: 11, color: '#64748b', textTransform: 'uppercase', marginBottom: 4 },
+  dateValue: { fontSize: 14, fontWeight: '600', color: '#0f172a' },
+  clearButton: { marginTop: 12, alignItems: 'center', paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
+  clearButtonText: { color: '#ef4444', fontWeight: '600', fontSize: 13 },
+
+  emptyState: { alignItems: 'center', marginTop: 40 },
+  emptyText: { fontSize: 16, color: '#475569', fontWeight: '600' },
 });
