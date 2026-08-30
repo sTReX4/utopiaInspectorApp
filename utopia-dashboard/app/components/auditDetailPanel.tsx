@@ -170,9 +170,17 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
         detachmentGps?.lat, detachmentGps?.lng
     );
     
+    // --- ESCALATION LOGIC ENGINE ---
     const isGpsMismatch = distance !== null && distance > 100;
     const hasViolations = !!auditData?.violations_checklist;
-    const needsEscalation = isGpsMismatch || hasViolations;
+    
+    // NEW: Scans the JSON object to see if ANY license is missing or expired
+    const hasDocumentIssues = auditData?.documents_checklist 
+        ? Object.values(auditData.documents_checklist).some(status => status === 'Expired' || status === 'Missing')
+        : false;
+
+    // Trigger escalation if any of the three thresholds are breached
+    const needsEscalation = isGpsMismatch || hasViolations || hasDocumentIssues;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
@@ -209,11 +217,14 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
                       ? '✓ Escalation Resolved by Superadmin' 
                       : '⚠️ QC/TBD Manager Review Required'}
                   </h3>
-                  <ul className={`text-xs mt-2 space-y-1 ${
+                  <ul className={`text-xs mt-2 space-y-1.5 ${
                     auditData?.escalation_status === 'Resolved' ? 'text-emerald-700' : 'text-red-700'
                   }`}>
                     {isGpsMismatch && <li className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-current opacity-60"></span> <span className="font-semibold">Tier 2 Location Mismatch:</span> Inspector was {distance} meters away.</li>}
                     {hasViolations && <li className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-current opacity-60"></span> <span className="font-semibold">Guard Violations:</span> Inspector logged active uniform/equipment violations.</li>}
+                    
+                    {/* NEW: Document issue render logic */}
+                    {hasDocumentIssues && <li className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-current opacity-60"></span> <span className="font-semibold">Document Compliance:</span> Inspector logged missing or expired operational licenses.</li>}
                   </ul>
                 </div>
 
