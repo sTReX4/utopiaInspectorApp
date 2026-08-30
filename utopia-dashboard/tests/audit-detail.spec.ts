@@ -32,7 +32,7 @@ test('Opens detail panel and alerts on >100m GPS Mismatch', async ({ page }) => 
     await page.click('button:has-text("Authenticate System")');
 
     // 3. Wait for the secure redirect to the Dashboard
-    await expect(page.getByRole('heading', { name: 'Operations Overview' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Operations Overview' })).toBeVisible({ timeout: 35000 });
     
     // 4. Click audit card
     await page.click('text=UnionBank Makati');

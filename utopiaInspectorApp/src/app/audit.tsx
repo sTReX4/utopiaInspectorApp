@@ -524,6 +524,7 @@ export default function AuditFormScreen() {
                                 setBranchCode("DEV-001");
                                 setBranchName("Development Branch");
                                 setBranchLocation("Localhost");
+                                setTimeIn(new Date().toISOString());
                                 setIsVerified(true);
                             }}
                     />
