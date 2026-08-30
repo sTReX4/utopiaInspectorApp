@@ -6,7 +6,7 @@ import * as Location from 'expo-location';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useNavigation, useRouter } from 'expo-router';
-import { Alert, Button, Keyboard, Platform, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Alert, Button, Keyboard, Platform, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View, ActivityIndicator } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import CustomTextInput from '../components/custom-text-input';
 import LiveCameraModal from '../components/live-camera-modal';
@@ -27,6 +27,9 @@ export default function AuditFormScreen() {
     // Modal State for Submission Receipt
     const [submittedPayload, setSubmittedPayload] = useState<any>(null);
     const [savedNames, setSavedNames] = useState<string[]>([]);
+    
+    // Loading State
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Camera Permissions
     const [permission, requestPermission] = useCameraPermissions();
@@ -279,6 +282,7 @@ export default function AuditFormScreen() {
     };
 
     const submitAuditPayload = async () => {
+        setIsSubmitting(true);
         let base64Photo = null;
         try {
             const compressedImage = await ImageManipulator.manipulateAsync(
@@ -291,6 +295,7 @@ export default function AuditFormScreen() {
         } catch (error) {
             console.error('Error reading live photo file:', error);
             Alert.alert('File Read Error', 'Failed to process the captured photo.');
+            setIsSubmitting(false);
             return;
         }
 
@@ -384,6 +389,7 @@ export default function AuditFormScreen() {
             if (!response.ok) {
                 console.error('Vercel Error Text:', responseText);
                 Alert.alert('Vercel Server Error', `Response: ${responseText.substring(0, 100)}`);
+                setIsSubmitting(false);
                 return;
             }
 
@@ -408,6 +414,8 @@ export default function AuditFormScreen() {
         } catch (error) {
             console.error('Submission Error:', error);
             Alert.alert('Submission Error', 'An error occurred while submitting the audit. Please check your network connection and try again.');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -1036,7 +1044,20 @@ export default function AuditFormScreen() {
                 )}
 
             <View style={styles.buttonContainer}>
-                <Button title="Submit" onPress={handleSubmit} color="#0056b3"/>
+                <TouchableOpacity 
+                    style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]} 
+                    onPress={handleSubmit}
+                    disabled={isSubmitting}
+                >
+                    {isSubmitting ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                            <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 10 }} />
+                            <Text style={styles.submitButtonText}>Submitting...</Text>
+                        </View>
+                    ) : (
+                        <Text style={styles.submitButtonText}>Submit</Text>
+                    )}
+                </TouchableOpacity>
             </View>
         </KeyboardAwareScrollView>
         </TouchableWithoutFeedback>
@@ -1285,5 +1306,20 @@ const styles = StyleSheet.create({
   suggestionText: {
     color: '#222',
     fontSize: 15,
+  },
+  submitButton: {
+    backgroundColor: '#0056b3',
+    paddingVertical: 12,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#a0c4e8',
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
