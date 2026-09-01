@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Plus, ShieldCheck, ShieldAlert, ShieldX, User, Lock, MapPin, Key, KeyRound, Copy, Trash2, AlertTriangle, Power, PowerOff } from 'lucide-react';
+import { Search, Plus, ShieldCheck, ShieldAlert, ShieldX, User, Lock, MapPin, Key, KeyRound, Copy, Trash2, AlertTriangle, Power, PowerOff, X, Edit } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
 
@@ -30,6 +30,14 @@ interface Inspector {
   contact_number: string | null;
   is_active: boolean;
   created_at: string;
+  detachments?: { branch_name: string }[];
+}
+
+interface BranchOption {
+  id: string;
+  branch_name: string;
+  assigned_inspector_id: string | null;
+  inspector?: { full_name: string } | null;
 }
 
 export default function PersonnelPage() {
@@ -43,13 +51,17 @@ export default function PersonnelPage() {
   const [guards, setGuards] = useState<Guard[]>([]);
   const [keys, setKeys] = useState<InspectorKey[]>([]);
   const [inspectors, setInspectors] = useState<Inspector[]>([]);
-  const [branchOptions, setBranchOptions] = useState<{branch_name: string}[]>([]);
+  const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
   // --- GUARD MODALS ---
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newGuard, setNewGuard] = useState({ guard_name: '', lesp_number: '', lesp_expiry_date: '', assigned_branch: '' });
+  
+  const [isEditGuardModalOpen, setIsEditGuardModalOpen] = useState(false);
+  const [editGuardData, setEditGuardData] = useState<Guard | null>(null);
+
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [guardToAssign, setGuardToAssign] = useState<Guard | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<string>('');
@@ -63,7 +75,14 @@ export default function PersonnelPage() {
   const [isAddInspectorModalOpen, setIsAddInspectorModalOpen] = useState(false);
   const [newInspector, setNewInspector] = useState({ full_name: '', contact_number: '' });
 
-  // UPGRADED: Added 'key' to the allowed types
+  const [isEditInspectorModalOpen, setIsEditInspectorModalOpen] = useState(false);
+  const [editInspectorData, setEditInspectorData] = useState<Inspector | null>(null);
+
+  const [isAssignInspectorModalOpen, setIsAssignInspectorModalOpen] = useState(false);
+  const [inspectorToAssign, setInspectorToAssign] = useState<Inspector | null>(null);
+  const [selectedDetachments, setSelectedDetachments] = useState<BranchOption[]>([]);
+  const [detachmentSearch, setDetachmentSearch] = useState('');
+
   const [entityToDelete, setEntityToDelete] = useState<{ id: string, name: string, type: 'guard' | 'inspector' | 'key' } | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
@@ -83,7 +102,10 @@ export default function PersonnelPage() {
   };
 
   const fetchBranches = async () => {
-    const { data } = await supabase.from('detachments').select('branch_name').order('branch_name');
+    const { data } = await supabase
+      .from('detachments')
+      .select('id, branch_name, assigned_inspector_id, inspector:inspectors(full_name)')
+      .order('branch_name');
     if (data) setBranchOptions(data);
   };
 
@@ -93,10 +115,14 @@ export default function PersonnelPage() {
   };
 
   const fetchInspectors = async () => {
-    const { data } = await supabase.from('inspectors').select('*').order('full_name', { ascending: true });
+    const { data } = await supabase
+      .from('inspectors')
+      .select('*, detachments(branch_name)')
+      .order('full_name', { ascending: true });
     if (data) setInspectors(data);
   };
 
+  // --- GUARD LOGIC ---
   const handleAddGuard = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSuperadmin) return;
@@ -120,6 +146,30 @@ export default function PersonnelPage() {
     setNewGuard({ guard_name: '', lesp_number: '', lesp_expiry_date: '', assigned_branch: '' }); 
   };
 
+  const handleUpdateGuard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isSuperadmin || !editGuardData) return;
+
+    const { error } = await supabase
+      .from('guards')
+      .update({
+        guard_name: editGuardData.guard_name,
+        lesp_number: editGuardData.lesp_number,
+        lesp_expiry_date: editGuardData.lesp_expiry_date,
+      })
+      .eq('id', editGuardData.id);
+
+    if (error) {
+      alert("Error updating guard information.");
+      console.error(error);
+      return;
+    }
+
+    setGuards(guards.map(g => g.id === editGuardData.id ? { ...g, ...editGuardData } : g));
+    setIsEditGuardModalOpen(false);
+    setEditGuardData(null);
+  };
+
   const handleAssignBranch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSuperadmin || !guardToAssign) return;
@@ -132,6 +182,7 @@ export default function PersonnelPage() {
     setIsAssignModalOpen(false);
   };
 
+  // --- INSPECTOR LOGIC ---
   const handleAddInspector = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSuperadmin) return;
@@ -153,6 +204,29 @@ export default function PersonnelPage() {
     setNewInspector({ full_name: '', contact_number: '' }); 
   };
 
+  const handleUpdateInspector = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isSuperadmin || !editInspectorData) return;
+
+    const { error } = await supabase
+      .from('inspectors')
+      .update({
+        full_name: editInspectorData.full_name,
+        contact_number: editInspectorData.contact_number,
+      })
+      .eq('id', editInspectorData.id);
+
+    if (error) {
+      alert("Error updating inspector information.");
+      console.error(error);
+      return;
+    }
+
+    setInspectors(inspectors.map(i => i.id === editInspectorData.id ? { ...i, ...editInspectorData } : i));
+    setIsEditInspectorModalOpen(false);
+    setEditInspectorData(null);
+  };
+
   const toggleInspectorStatus = async (id: string, currentStatus: boolean) => {
     if (!isSuperadmin) return;
     const { error } = await supabase.from('inspectors').update({ is_active: !currentStatus }).eq('id', id);
@@ -161,7 +235,96 @@ export default function PersonnelPage() {
     }
   };
 
-  // UPGRADED: Handles specific table routing for all 3 entities
+  const handleAddDetachmentToSelection = (branch: BranchOption) => {
+    if (selectedDetachments.find(b => b.id === branch.id)) return;
+
+    if (branch.assigned_inspector_id && branch.assigned_inspector_id !== inspectorToAssign?.id) {
+        const confirmed = window.confirm(`WARNING: "${branch.branch_name}" is currently monitored by "${branch.inspector?.full_name}".\n\nDo you want to reassign this detachment to "${inspectorToAssign?.full_name}"?`);
+        if (!confirmed) return;
+    }
+
+    setSelectedDetachments([...selectedDetachments, branch]);
+    setDetachmentSearch('');
+  };
+
+  const handleRemoveDetachmentFromSelection = (branchId: string) => {
+    setSelectedDetachments(selectedDetachments.filter(b => b.id !== branchId));
+  };
+
+  const handleAssignInspectorToDetachments = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isSuperadmin || !inspectorToAssign) return;
+
+    const originalBranches = branchOptions.filter(b => b.assigned_inspector_id === inspectorToAssign.id);
+    const originalBranchIds = originalBranches.map(b => b.id);
+    const newBranchIds = selectedDetachments.map(b => b.id);
+
+    const branchesToAdd = selectedDetachments.filter(b => !originalBranchIds.includes(b.id));
+    const branchesToRemove = originalBranches.filter(b => !newBranchIds.includes(b.id));
+
+    for (const b of branchesToAdd) {
+        await supabase.from('detachments').update({ assigned_inspector_id: inspectorToAssign.id }).eq('id', b.id);
+    }
+    for (const b of branchesToRemove) {
+        await supabase.from('detachments').update({ assigned_inspector_id: null }).eq('id', b.id);
+    }
+
+    const updatedBranchOptions = branchOptions.map(b => {
+        if (branchesToAdd.some(add => add.id === b.id)) return { ...b, assigned_inspector_id: inspectorToAssign.id, inspector: { full_name: inspectorToAssign.full_name } };
+        if (branchesToRemove.some(rem => rem.id === b.id)) return { ...b, assigned_inspector_id: null, inspector: null };
+        return b;
+    });
+    setBranchOptions(updatedBranchOptions);
+
+    const updatedInspectors = inspectors.map(ins => {
+        if (ins.id === inspectorToAssign.id) {
+            return {
+                ...ins,
+                detachments: selectedDetachments.map(d => ({ branch_name: d.branch_name }))
+            };
+        }
+        if (branchesToAdd.length > 0) {
+            return {
+                ...ins,
+                detachments: ins.detachments?.filter(d => !branchesToAdd.some(add => add.branch_name === d.branch_name))
+            };
+        }
+        return ins;
+    });
+    setInspectors(updatedInspectors);
+    setIsAssignInspectorModalOpen(false);
+  };
+
+  // --- KEY GENERATOR LOGIC ---
+  const handleGenerateKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isSuperadmin || !newKeyAssignee.trim()) return;
+
+    const uniqueCode = `UTP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+    const { data, error } = await supabase.from('inspector_keys').insert([{
+        access_key: uniqueCode,
+        assigned_to: newKeyAssignee,
+        created_by: user?.email || 'System Admin',
+        is_used: false
+    }]).select().single();
+
+    if (error) {
+      alert("Error generating key.");
+      console.error(error);
+      return;
+    }
+
+    setKeys([data, ...keys]);
+    setNewlyGeneratedKey(uniqueCode);
+  };
+
+  const closeKeyModal = () => {
+    setIsKeyModalOpen(false);
+    setNewlyGeneratedKey(null);
+    setNewKeyAssignee('');
+  };
+
   const handleDeleteEntity = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSuperadmin || !entityToDelete || deleteConfirmText !== 'DELETE') return;
@@ -191,35 +354,6 @@ export default function PersonnelPage() {
 
     setEntityToDelete(null);
     setDeleteConfirmText('');
-  };
-
-  const handleGenerateKey = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isSuperadmin || !newKeyAssignee.trim()) return;
-
-    const uniqueCode = `UTP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-
-    const { data, error } = await supabase.from('inspector_keys').insert([{
-        access_key: uniqueCode,
-        assigned_to: newKeyAssignee,
-        created_by: user?.email || 'System Admin',
-        is_used: false
-    }]).select().single();
-
-    if (error) {
-      alert("Error generating key.");
-      console.error(error);
-      return;
-    }
-
-    setKeys([data, ...keys]);
-    setNewlyGeneratedKey(uniqueCode);
-  };
-
-  const closeKeyModal = () => {
-    setIsKeyModalOpen(false);
-    setNewlyGeneratedKey(null);
-    setNewKeyAssignee('');
   };
 
   const getExpiryStatus = (dateString: string) => {
@@ -366,6 +500,13 @@ export default function PersonnelPage() {
                       <td className="p-4 text-right flex justify-end space-x-1">
                         {isSuperadmin ? (
                           <>
+                            <button 
+                              onClick={() => { setEditGuardData(guard); setIsEditGuardModalOpen(true); }}
+                              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors"
+                              title="Edit Guard Details"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
                             <button onClick={() => { setGuardToAssign(guard); setSelectedBranch(guard.assigned_branch || 'UNASSIGNED'); setIsAssignModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Deploy to Detachment">
                               <MapPin className="w-4 h-4" />
                             </button>
@@ -385,12 +526,14 @@ export default function PersonnelPage() {
           </table>
         )}
 
+        {/* INSPECTORS TABLE */}
         {activeTab === 'inspectors' && (
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-widest text-slate-500">
                 <th className="p-4 font-bold">Inspector Name</th>
                 <th className="p-4 font-bold">Contact Number</th>
+                <th className="p-4 font-bold">Assigned Detachment(s)</th>
                 <th className="p-4 font-bold">Joined Date</th>
                 <th className="p-4 font-bold">Status</th>
                 <th className="p-4 font-bold text-right">Actions</th>
@@ -398,9 +541,9 @@ export default function PersonnelPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
-                <tr><td colSpan={5} className="p-12 text-center text-slate-400 text-sm font-medium">Loading Inspectors database...</td></tr>
+                <tr><td colSpan={6} className="p-12 text-center text-slate-400 text-sm font-medium">Loading Inspectors database...</td></tr>
               ) : filteredInspectors.length === 0 ? (
-                <tr><td colSpan={5} className="p-12 text-center text-slate-400 text-sm font-medium">No inspectors found.</td></tr>
+                <tr><td colSpan={6} className="p-12 text-center text-slate-400 text-sm font-medium">No inspectors found.</td></tr>
               ) : (
                 filteredInspectors.map((inspector) => (
                   <tr key={inspector.id} className={`transition-colors hover:bg-slate-50/50 ${!inspector.is_active && 'bg-slate-50/50 opacity-60'}`}>
@@ -408,6 +551,22 @@ export default function PersonnelPage() {
                       {inspector.full_name}
                     </td>
                     <td className="p-4 text-sm font-mono font-medium text-slate-500">{inspector.contact_number || 'N/A'}</td>
+                    
+                    <td className="p-4">
+                      {inspector.detachments && inspector.detachments.length > 0 ? (
+                        <div className="flex flex-col gap-1.5">
+                          {inspector.detachments.map((det, idx) => (
+                            <span key={idx} className="flex items-center text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md w-max ring-1 ring-blue-200/60 uppercase tracking-wider">
+                              <MapPin className="w-3 h-3 mr-1 text-blue-500" />
+                              {det.branch_name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs font-medium text-slate-400 italic">Unassigned</span>
+                      )}
+                    </td>
+
                     <td className="p-4 text-sm font-medium text-slate-700">{new Date(inspector.created_at).toLocaleDateString()}</td>
                     <td className="p-4">
                       <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${inspector.is_active ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60' : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200/60'}`}>
@@ -417,6 +576,25 @@ export default function PersonnelPage() {
                     <td className="p-4 text-right flex justify-end space-x-1">
                       {isSuperadmin ? (
                         <>
+                          <button 
+                            onClick={() => { setEditInspectorData(inspector); setIsEditInspectorModalOpen(true); }}
+                            className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors"
+                            title="Edit Inspector Details"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setInspectorToAssign(inspector);
+                              setSelectedDetachments(branchOptions.filter(b => b.assigned_inspector_id === inspector.id));
+                              setDetachmentSearch('');
+                              setIsAssignInspectorModalOpen(true);
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                            title="Assign to Detachments"
+                          >
+                            <MapPin className="w-4 h-4" />
+                          </button>
                           <button 
                             onClick={() => toggleInspectorStatus(inspector.id, inspector.is_active)}
                             className={`p-1.5 rounded-md transition-colors ${inspector.is_active ? 'text-slate-400 hover:text-red-600 hover:bg-red-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`} 
@@ -443,7 +621,7 @@ export default function PersonnelPage() {
           </table>
         )}
 
-        {/* UPGRADED KEYS TABLE: Added Action Column for manual deletion */}
+        {/* KEYS TABLE */}
         {activeTab === 'keys' && (
           <table className="w-full text-left border-collapse">
             <thead>
@@ -502,6 +680,64 @@ export default function PersonnelPage() {
 
       {/* === MODALS === */}
       
+      {/* EDIT GUARD MODAL */}
+      {isEditGuardModalOpen && editGuardData && isSuperadmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col ring-1 ring-slate-200">
+            <div className="bg-white border-b border-slate-200 p-5 flex justify-between items-center shrink-0">
+              <h3 className="text-base font-semibold text-slate-900 tracking-tight flex items-center">
+                <Edit className="w-4 h-4 mr-2 text-amber-600" /> Edit Guard Profile
+              </h3>
+              <button onClick={() => setIsEditGuardModalOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors text-2xl leading-none">&times;</button>
+            </div>
+            <form onSubmit={handleUpdateGuard} className="p-6 space-y-4 bg-slate-50/50">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Full Legal Name</label>
+                <input required type="text" className="w-full border border-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500/40 outline-none bg-white text-sm font-medium text-slate-900 shadow-sm" value={editGuardData.guard_name} onChange={e => setEditGuardData({...editGuardData, guard_name: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">LESP License Number</label>
+                <input required type="text" className="w-full border border-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500/40 outline-none bg-white text-sm font-mono font-medium text-slate-900 shadow-sm" value={editGuardData.lesp_number} onChange={e => setEditGuardData({...editGuardData, lesp_number: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">LESP Expiry Date</label>
+                <input required type="date" className="w-full border border-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500/40 outline-none bg-white text-sm font-medium text-slate-900 shadow-sm" value={editGuardData.lesp_expiry_date} onChange={e => setEditGuardData({...editGuardData, lesp_expiry_date: e.target.value})} />
+              </div>
+              <div className="pt-3">
+                <button type="submit" className="w-full bg-slate-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-slate-800 transition-all shadow-sm ring-1 ring-slate-900/50">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT INSPECTOR MODAL */}
+      {isEditInspectorModalOpen && editInspectorData && isSuperadmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col ring-1 ring-slate-200">
+            <div className="bg-white border-b border-slate-200 p-5 flex justify-between items-center shrink-0">
+              <h3 className="text-base font-semibold text-slate-900 tracking-tight flex items-center">
+                <Edit className="w-4 h-4 mr-2 text-amber-600" /> Edit Inspector Profile
+              </h3>
+              <button onClick={() => setIsEditInspectorModalOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors text-2xl leading-none">&times;</button>
+            </div>
+            <form onSubmit={handleUpdateInspector} className="p-6 space-y-4 bg-slate-50/50">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Full Legal Name</label>
+                <input required type="text" className="w-full border border-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500/40 outline-none bg-white text-sm font-medium text-slate-900 shadow-sm" value={editInspectorData.full_name} onChange={e => setEditInspectorData({...editInspectorData, full_name: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Contact Number</label>
+                <input required type="text" className="w-full border border-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500/40 outline-none bg-white text-sm font-mono font-medium text-slate-900 shadow-sm" value={editInspectorData.contact_number || ''} onChange={e => setEditInspectorData({...editInspectorData, contact_number: e.target.value})} />
+              </div>
+              <div className="pt-3">
+                <button type="submit" className="w-full bg-slate-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-slate-800 transition-all shadow-sm ring-1 ring-slate-900/50">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Deploy Guard Modal */}
       {isAssignModalOpen && guardToAssign && isSuperadmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
@@ -598,6 +834,90 @@ export default function PersonnelPage() {
               </div>
               <div className="pt-3">
                 <button type="submit" className="w-full bg-blue-600 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-blue-700 transition-all shadow-sm ring-1 ring-blue-700/50">Save Inspector Record</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* === MODAL: DISPATCH INSPECTOR TO DETACHMENTS === */}
+      {isAssignInspectorModalOpen && inspectorToAssign && isSuperadmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-visible flex flex-col ring-1 ring-slate-200">
+            <div className="bg-white border-b border-slate-200 p-5 flex justify-between items-center shrink-0">
+              <h3 className="text-base font-semibold text-slate-900 tracking-tight flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-blue-600" /> Dispatch Inspector
+              </h3>
+              <button onClick={() => setIsAssignInspectorModalOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors text-2xl leading-none">&times;</button>
+            </div>
+            
+            <form onSubmit={handleAssignInspectorToDetachments} className="p-6 space-y-6 bg-slate-50/50 overflow-visible">
+              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Target Personnel</p>
+                <p className="font-semibold text-slate-900 text-sm">{inspectorToAssign.full_name}</p>
+                <p className="text-[11px] font-mono text-slate-500 mt-0.5">{inspectorToAssign.contact_number || 'No contact number'}</p>
+              </div>
+
+              <div className="space-y-5">
+                <div className="border-t border-slate-200 pt-5">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Deploy to Detachments</label>
+                  
+                  {/* Selected Detachments Multi-Pill Container */}
+                  <div className="flex flex-wrap gap-2 mb-3 min-h-[42px] p-2 bg-white border border-slate-200 rounded-lg shadow-sm">
+                    {selectedDetachments.length === 0 && <span className="text-xs text-slate-400 italic py-1 px-1">No assigned detachments.</span>}
+                    {selectedDetachments.map(b => (
+                      <span key={b.id} className="flex items-center text-[11px] font-bold text-blue-700 bg-blue-50 pl-2 pr-1 py-1 rounded-md ring-1 ring-blue-200/60 uppercase tracking-wider">
+                        {b.branch_name}
+                        <button type="button" onClick={() => handleRemoveDetachmentFromSelection(b.id)} className="ml-1.5 text-blue-400 hover:text-red-500 p-0.5 rounded-full hover:bg-blue-100 transition-colors">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Multi-Select Detachment Combo-Box */}
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      placeholder="Search and assign detachments..."
+                      className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/40 outline-none text-sm font-medium text-slate-900 bg-white shadow-sm"
+                      value={detachmentSearch}
+                      onChange={(e) => setDetachmentSearch(e.target.value)}
+                    />
+                    {detachmentSearch && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto z-50">
+                        {branchOptions
+                          .filter(b => b.branch_name.toLowerCase().includes(detachmentSearch.toLowerCase()))
+                          .filter(b => !selectedDetachments.find(sd => sd.id === b.id))
+                          .map(b => (
+                            <button
+                              key={b.id}
+                              type="button"
+                              onClick={() => handleAddDetachmentToSelection(b)}
+                              className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-0 flex flex-col transition-colors"
+                            >
+                              <span className="text-sm font-semibold text-slate-900">{b.branch_name}</span>
+                              {b.assigned_inspector_id && (
+                                <span className="text-[10px] text-amber-600 font-bold uppercase tracking-wider mt-0.5">
+                                  Currently monitored by: {b.inspector?.full_name}
+                                </span>
+                              )}
+                            </button>
+                        ))}
+                        {branchOptions.filter(b => b.branch_name.toLowerCase().includes(detachmentSearch.toLowerCase()) && !selectedDetachments.find(sd => sd.id === b.id)).length === 0 && (
+                            <div className="p-3 text-xs text-slate-500 text-center italic">No matching detachments available.</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button type="submit" className="w-full bg-slate-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-slate-800 transition-all shadow-sm ring-1 ring-slate-900/50">
+                  Confirm Dispatch
+                </button>
               </div>
             </form>
           </div>

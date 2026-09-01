@@ -32,30 +32,12 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
     const [isLoading, setIsLoading] = useState(false);
     const [mapView, setMapView] = useState<'inspector' | 'detachment'>('inspector');
     
-    // --- E-Signature Request States ---
-    const [clientEmail, setClientEmail] = useState('');
-    const [isRequestingSig, setIsRequestingSig] = useState(false);
-    const [requestSuccess, setRequestSuccess] = useState(false);
-
     // --- QC/TBD Manager Escalation States ---
     const [isEscalating, setIsEscalating] = useState(false);
     const [escalationSuccess, setEscalationSuccess] = useState(false);
     const [escalationRemarks, setEscalationRemarks] = useState('');
 
     const [isResolving, setIsResolving] = useState(false);
-
-    const handleRequestSignature = async () => {
-        if (!clientEmail) return;
-        setIsRequestingSig(true);
-        try {
-            await new Promise(resolve => setTimeout(resolve, 1200));
-            setRequestSuccess(true);
-        } catch (error) {
-            console.error('Error sending request:', error);
-        } finally {
-            setIsRequestingSig(false);
-        }
-    };
 
     const handleEscalateReport = async () => {
         if (!escalationRemarks.trim()) return;
@@ -174,13 +156,15 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
     const isGpsMismatch = distance !== null && distance > 100;
     const hasViolations = !!auditData?.violations_checklist;
     
-    // NEW: Scans the JSON object to see if ANY license is missing or expired
     const hasDocumentIssues = auditData?.documents_checklist 
         ? Object.values(auditData.documents_checklist).some(status => status === 'Expired' || status === 'Missing')
         : false;
 
-    // Trigger escalation if any of the three thresholds are breached
-    const needsEscalation = isGpsMismatch || hasViolations || hasDocumentIssues;
+    // NEW: Scans to see if the guard was marked as non-compliant for uniform requirements
+    const isUniformNonCompliant = auditData?.uniform_compliance === false || auditData?.uniform_status === false || auditData?.uniform_status === 'Non-Compliant';
+
+    // Trigger escalation if any of the four thresholds are breached
+    const needsEscalation = isGpsMismatch || hasViolations || hasDocumentIssues || isUniformNonCompliant;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
@@ -222,9 +206,8 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
                   }`}>
                     {isGpsMismatch && <li className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-current opacity-60"></span> <span className="font-semibold">Tier 2 Location Mismatch:</span> Inspector was {distance} meters away.</li>}
                     {hasViolations && <li className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-current opacity-60"></span> <span className="font-semibold">Guard Violations:</span> Inspector logged active uniform/equipment violations.</li>}
-                    
-                    {/* NEW: Document issue render logic */}
                     {hasDocumentIssues && <li className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-current opacity-60"></span> <span className="font-semibold">Document Compliance:</span> Inspector logged missing or expired operational licenses.</li>}
+                    {isUniformNonCompliant && <li className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-current opacity-60"></span> <span className="font-semibold">Uniform Non-Compliance:</span> Inspector logged that the guard is not in proper uniform.</li>}
                   </ul>
                 </div>
 
@@ -403,7 +386,10 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
                       <>
                         <div>
                           <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider mb-1.5">Uniform Compliance</span>
-                          {renderStatusBadge(auditData.uniform_status === 'Compliant' || auditData.uniform_status === true, auditData.uniform_status === 'Compliant' || auditData.uniform_status === true ? 'Compliant' : 'Non-Compliant')}
+                          {renderStatusBadge(
+                              auditData.uniform_compliance === true || auditData.uniform_status === 'Compliant' || auditData.uniform_status === true, 
+                              (auditData.uniform_compliance === true || auditData.uniform_status === 'Compliant' || auditData.uniform_status === true) ? 'Compliant' : 'Non-Compliant'
+                          )}
                         </div>
                         <div>
                           <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider mb-1.5">LESP Expiry</span>
@@ -535,29 +521,6 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 ring-1 ring-amber-200/60 px-3 py-1 rounded-md uppercase tracking-wider">
                          Unavailable On Site
                        </span>
-                       
-                       {requestSuccess ? (
-                         <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 ring-1 ring-emerald-200/60 px-3 py-1 rounded-md uppercase tracking-wider">
-                           ✓ Link Sent
-                         </span>
-                       ) : (
-                         <div className="w-full flex space-x-2">
-                           <input 
-                             type="email" 
-                             placeholder="Client email..." 
-                             className="w-full text-xs p-1.5 border border-slate-200 rounded-md outline-none focus:ring-2 focus:ring-blue-500/40 shadow-sm"
-                             value={clientEmail}
-                             onChange={(e) => setClientEmail(e.target.value)}
-                           />
-                           <button 
-                             onClick={handleRequestSignature}
-                             disabled={isRequestingSig || !clientEmail}
-                             className={`text-[10px] font-bold px-3 rounded-md transition-colors whitespace-nowrap uppercase tracking-wide ${isRequestingSig || !clientEmail ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm ring-1 ring-blue-700/50'}`}
-                           >
-                             {isRequestingSig ? 'Sending...' : 'Request'}
-                           </button>
-                         </div>
-                       )}
                      </div>
                   ) : auditData.inspector_signature.startsWith('data:image') ? (
                     <img src={auditData.inspector_signature} alt="Client Signature" className="h-20 mx-auto object-contain mix-blend-multiply" />
