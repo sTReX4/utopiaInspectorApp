@@ -53,7 +53,9 @@ export default function DateInputGroup({
     const [viewDate, setViewDate] = useState(() => getInitialDate(day, month, year));
     const [pickerMode, setPickerMode] = useState<'calendar' | 'month' | 'year'>('calendar');
     const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: currentYear - 1899 }, (_, index) => currentYear - index);
+    const startYear = currentYear - 1; // Anchors the dropdown to last year
+
+    const years = Array.from({ length: 15 }, (_, i) => (startYear + i).toString());
 
     const openCalendar = () => {
         setViewDate(getInitialDate(day, month, year));
@@ -143,8 +145,8 @@ export default function DateInputGroup({
                         {pickerMode === 'calendar' && (
                             <>
                                 <View style={styles.weekdayRow}>
-                                    {weekdayNames.map((weekday) => (
-                                        <Text key={weekday} style={styles.weekdayText}>{weekday}</Text>
+                                    {weekdayNames.map((weekday, index) => (
+                                        <Text key={index} style={styles.weekdayText}>{weekday}</Text>
                                     ))}
                                 </View>
                                 <View style={styles.calendarGrid}>
@@ -173,8 +175,14 @@ export default function DateInputGroup({
                         {pickerMode === 'year' && (
                             <ScrollView style={styles.yearList} contentContainerStyle={styles.yearGrid}>
                                 {years.map((yearValue) => (
-                                    <TouchableOpacity key={yearValue} style={[styles.yearButton, yearValue === viewDate.getFullYear() && styles.selectionActive]} onPress={() => { setViewDate(new Date(yearValue, viewDate.getMonth(), 1)); setPickerMode('calendar'); }}>
-                                        <Text style={[styles.yearButtonText, yearValue === viewDate.getFullYear() && styles.selectionActiveText]}>{yearValue}</Text>
+                                    <TouchableOpacity 
+                                        key={yearValue} 
+                                        style={[styles.yearButton, Number(yearValue) === viewDate.getFullYear() && styles.selectionActive]} 
+                                        onPress={() => { 
+                                            setViewDate(new Date(Number(yearValue), viewDate.getMonth(), 1)); 
+                                            setPickerMode('calendar'); 
+                                        }}>
+                                        <Text style={[styles.yearButtonText, Number(yearValue) === viewDate.getFullYear() && styles.selectionActiveText]}>{yearValue}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </ScrollView>

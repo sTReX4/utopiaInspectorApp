@@ -44,9 +44,9 @@ export default function Sidebar() {
     <div className="w-64 bg-white border-r border-slate-200 min-h-screen flex flex-col fixed left-0 top-0 bottom-0 z-40">
       
       {/* Brand Logo Area */}
-      <div className="h-20 flex items-center px-6 border-b border-slate-200/70">
-        <div className="w-8 h-8 bg-blue-600 rounded mr-3 shadow-sm"></div>
-        <span className="text-xl font-black tracking-wide text-slate-900 uppercase">UTOPIA</span>
+      <div className="h-20 flex items-center px-6 border-b border-gray-800 shrink-0">
+        <img src="/images/utopia_logo.png" alt="Utopia Logo" className="w-8 h-8 object-contain mr-3" />
+        <span className="text-xl font-bold tracking-wider">UTOPIA</span>
       </div>
 
       {/* Navigation Links */}

@@ -15,9 +15,8 @@ import SubmissionReceiptModal from '../components/submission-receipt-modal';
 import ViolationItemCard from '../components/violation-item-card';
 import DateInputGroup from '../components/date-input-group';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../lib/supabase';
 
-
-const NAME_HISTORY_FILE = FileSystem.documentDirectory + 'nameHistory.json';
 
 export default function AuditFormScreen() {
 
@@ -26,10 +25,13 @@ export default function AuditFormScreen() {
 
     // Modal State for Submission Receipt
     const [submittedPayload, setSubmittedPayload] = useState<any>(null);
+<<<<<<< HEAD
     const [savedNames, setSavedNames] = useState<string[]>([]);
     
     // Loading State
     const [isSubmitting, setIsSubmitting] = useState(false);
+=======
+>>>>>>> 13ae56aa94388915f8ce01d23724577801055ae7
 
     // Camera Permissions
     const [permission, requestPermission] = useCameraPermissions();
@@ -41,9 +43,14 @@ export default function AuditFormScreen() {
     const [branchName, setBranchName] = useState<string>('');
     const [branchLocation, setBranchLocation] = useState<string>('');
 
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [middleInitial, setMiddleInitial] = useState('');
+    interface GuardRosterData {
+        guard_name: string;
+        lesp_expiry_date: string;
+    }
+
+    const [guardName, setGuardName] = useState<string>('');
+    const [assignedGuards, setAssignedGuards] = useState<GuardRosterData[]>([]);
+    const [isGuardDropdownOpen, setIsGuardDropdownOpen] = useState<boolean>(false);
 
     const [firearmSerial, setFirearmSerial] = useState<string>('');
     const [firearmMake, setFirearmMake] = useState<string>('');
@@ -134,70 +141,35 @@ export default function AuditFormScreen() {
     }, []);
 
     useEffect(() => {
-        const loadNameHistory = async () => {
-            try {
-                const info = await FileSystem.getInfoAsync(NAME_HISTORY_FILE);
-                if (!info.exists) {
-                    setSavedNames([]);
-                    return;
-                }
+        const fetchAssignedGuards = async () => {
+            // Only fetch if the detachment has been successfully scanned/verified
+            if (!isVerified || !branchName) return;
 
-                const content = await FileSystem.readAsStringAsync(NAME_HISTORY_FILE, { encoding: FileSystem.EncodingType.UTF8 });
-                const parsed = JSON.parse(content) as string[];
-                setSavedNames(Array.from(new Set(parsed.filter(Boolean))));
+            try {
+                const { data, error } = await supabase
+                    .from('guards')
+                    .select('guard_name, lesp_expiry_date')
+                    .eq('assigned_branch', branchName)
+                    .eq('is_active', true)
+                    .order('guard_name', { ascending: true });
+
+                if (error) throw error;
+
+                if (data) {
+                    // Store the full object so we can access the date upon selection
+                    setAssignedGuards(data as GuardRosterData[]);
+                }
             } catch (error) {
-                console.error('Failed to load saved guard names:', error);
+                console.error("Failed to fetch assigned guards", error);
             }
         };
 
-        loadNameHistory();
-    }, []);
-
-    const addNameToHistory = async (name: string) => {
-        if (!name.trim()) return;
-
-        const normalized = name.trim();
-        const nextNames = [normalized, ...savedNames.filter((item) => item.toLowerCase() !== normalized.toLowerCase())].slice(0, 20);
-        setSavedNames(nextNames);
-
-        try {
-            await FileSystem.writeAsStringAsync(NAME_HISTORY_FILE, JSON.stringify(nextNames), { encoding: FileSystem.EncodingType.UTF8 });
-        } catch (error) {
-            console.error('Failed to save guard name history:', error);
-        }
-    };
-
-    const nameQuery = useMemo(() => {
-        return [firstName, middleInitial, lastName].filter(Boolean).join(' ').trim();
-    }, [firstName, middleInitial, lastName]);
-
-    const nameSuggestions = useMemo(() => {
-        if (!nameQuery) return [];
-        const lowerQuery = nameQuery.toLowerCase();
-        return savedNames
-            .filter((name) => name.toLowerCase().includes(lowerQuery))
-            .slice(0, 5);
-    }, [nameQuery, savedNames]);
-
-    const applyNameSuggestion = (name: string) => {
-        const parts = name.split(' ').filter(Boolean);
-        setFirstName(parts[0] ?? '');
-        if (parts.length === 1) {
-            setMiddleInitial('');
-            setLastName('');
-        } else if (parts.length === 2) {
-            setMiddleInitial('');
-            setLastName(parts[1]);
-        } else {
-            setMiddleInitial(parts.slice(1, parts.length - 1).join(' '));
-            setLastName(parts[parts.length - 1]);
-        }
-    };
+        fetchAssignedGuards();
+    }, [isVerified, branchName]);
 
     const clearAuditInputs = () => {
-        setFirstName('');
-        setLastName('');
-        setMiddleInitial('');
+        setGuardName('');
+        setIsGuardDropdownOpen(false);
 
         setFirearmSerial('');
         setFirearmMake('');
@@ -322,7 +294,7 @@ export default function AuditFormScreen() {
                       door_secure: isDoorSecure,
                   }
                 : null,
-            guard_name: isGuardPresent ? `${firstName}${middleInitial ? ' ' + middleInitial : ''} ${lastName}`.trim() : null,
+            guard_name: isGuardPresent ? guardName : null,
             lesp_expiry: isGuardPresent ? formattedLespExpiry : null,
             uniform_compliance: isGuardPresent ? isUniformCompliant : null,
             firearm_serial: isGuardPresent ? firearmSerial : null,
@@ -395,10 +367,6 @@ export default function AuditFormScreen() {
 
             const result = JSON.parse(responseText);
 
-            if (isGuardPresent) {
-                const guardName = `${firstName}${middleInitial ? ' ' + middleInitial : ''} ${lastName}`.trim();
-                await addNameToHistory(guardName);
-            }
             clearAuditInputs();
             Alert.alert('Audit Submitted', 'The audit has been successfully submitted and logged.', [
                 {
@@ -532,6 +500,7 @@ export default function AuditFormScreen() {
                                 setBranchCode("DEV-001");
                                 setBranchName("Development Branch");
                                 setBranchLocation("Localhost");
+                                setTimeIn(new Date().toISOString());
                                 setIsVerified(true);
                             }}
                     />
@@ -598,70 +567,73 @@ export default function AuditFormScreen() {
                 <View>
                 <Text style={styles.header}>Audit Form</Text>
 
-                <View style={styles.nameGroup}>
+                {/* STRICT DATABASE DROPDOWN */}
+                <View style={{ marginBottom: 20 }}>
+                    <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>Guard on Post</Text>
+                    
+                    <TouchableOpacity
+                        style={{
+                            backgroundColor: '#fff',
+                            borderWidth: 1,
+                            borderColor: '#ccc',
+                            borderRadius: 8,
+                            padding: 15,
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}
+                        onPress={() => setIsGuardDropdownOpen(!isGuardDropdownOpen)}
+                    >
+                        <Text style={{ fontSize: 16, color: guardName ? '#0f172a' : '#94a3b8', fontWeight: guardName ? '600' : 'normal' }}>
+                            {guardName ? guardName : 'Tap to select guard from roster...'}
+                        </Text>
+                        <Text style={{ color: '#64748b', fontSize: 18, fontWeight: 'bold' }}>
+                            {isGuardDropdownOpen ? '▲' : '▼'}
+                        </Text>
+                    </TouchableOpacity>
 
-    <Text style={styles.nameLabel}>Guard Name</Text>
-
-    {/* First Name */}
-    <CustomTextInput
-        label="First Name"
-        value={firstName}
-        onChangeText={setFirstName}
-        hint="Type the guard's first name"
-    />
-
-        <View style={styles.nameRow}>   
-
-        <View style={{ flex: 3 }}>
-            <CustomTextInput
-                label="Last Name"
-                value={lastName}
-                onChangeText={setLastName}
-                hint="Type the guard's last name"
-            />
-        </View>
-
-        <View style={{ flex: 1 }}>
-            <CustomTextInput
-                label="M.I"
-                value={middleInitial}
-                onChangeText={setMiddleInitial}
-                hint="Optional middle initial"
-            />
-        </View>
-
-        </View>
-
-        </View>
-
-                <CustomTextInput
-                    label="Firearm Serial No."
-                    value={firearmSerial}
-                    onChangeText={setFirearmSerial}
-                    hint="Example: GLK-123456"
-                />
-
-                <CustomTextInput
-                    label="Firearm Make"
-                    value={firearmMake}
-                    onChangeText={setFirearmMake}
-                    hint="Example: Glock, Sig Sauer, etc."
-                />
-
-                {nameSuggestions.length > 0 && (
-                    <View style={styles.suggestionList}>
-                        <Text style={styles.suggestionLabel}>Suggested Guard Names</Text>
-                        {nameSuggestions.map((suggestion) => (
-                            <TouchableOpacity
-                                key={suggestion}
-                                style={styles.suggestionItem}
-                                onPress={() => applyNameSuggestion(suggestion)}
-                            >
-                                <Text style={styles.suggestionText}>{suggestion}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                )}
+                    {isGuardDropdownOpen && (
+                        <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, marginTop: 5, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}>
+                            {assignedGuards.length === 0 ? (
+                                <Text style={{ padding: 15, color: '#ef4444', fontStyle: 'italic', fontWeight: '500' }}>
+                                    No guards officially deployed to this detachment in the system.
+                                </Text>
+                            ) : (
+                                assignedGuards.map((guard, index) => (
+                                    <TouchableOpacity
+                                        key={index}
+                                        style={{
+                                            padding: 16,
+                                            borderBottomWidth: index === assignedGuards.length - 1 ? 0 : 1,
+                                            borderBottomColor: '#f1f5f9',
+                                            backgroundColor: guardName === guard.guard_name ? '#f8fafc' : '#fff'
+                                        }}
+                                        onPress={() => {
+                                            setGuardName(guard.guard_name);
+                                            setIsGuardDropdownOpen(false);
+                                            
+                                            // Auto-fill the Date Inputs
+                                            if (guard.lesp_expiry_date) {
+                                                const [year, month, day] = guard.lesp_expiry_date.split('-');
+                                                setLespExpYear(year);
+                                                setLespExpMonth(month);
+                                                setLespExpDay(day);
+                                            } else {
+                                                setLespExpYear('');
+                                                setLespExpMonth('');
+                                                setLespExpDay('');
+                                            }
+                                        }}
+                                    >
+                                        <Text style={{ fontSize: 15, color: guardName === guard.guard_name ? '#0ea5e9' : '#334155', fontWeight: guardName === guard.guard_name ? 'bold' : '500' }}>
+                                            {guard.guard_name}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))
+                            )}
+                        </View>
+                    )}
+                </View>
 
                 <DateInputGroup 
                 label="LESP Expiry Date"

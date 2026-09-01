@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Enterprise RBAC & Authentication Gates', () => {
 
+  test.setTimeout(60000);
+
   test('Superadmin Authentication: Full CRUD Unlocked', async ({ page }) => {
     // 1. Execute Real Login Workflow (Network Mocks Removed)
     await page.goto('/login');
@@ -10,7 +12,7 @@ test.describe('Enterprise RBAC & Authentication Gates', () => {
     await page.click('button:has-text("Authenticate System")');
 
     // 2. Wait for Supabase to establish the real session and redirect
-    await expect(page.getByRole('heading', { name: 'Operations Overview' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Operations Overview' })).toBeVisible({ timeout: 35000 });
     await page.goto('/sites');
 
     // 3. Verify Superadmin UI Rendering
@@ -30,7 +32,7 @@ test.describe('Enterprise RBAC & Authentication Gates', () => {
     await page.click('button:has-text("Authenticate System")');
 
     // 2. Wait for Supabase to establish the real session and redirect
-    await expect(page.getByRole('heading', { name: 'Operations Overview' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Operations Overview' })).toBeVisible({ timeout: 35000 });
     await page.goto('/sites');
 
     // 3. Verify Admin UI Constraints
