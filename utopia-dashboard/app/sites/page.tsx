@@ -3,7 +3,7 @@
 import { useAuth } from '@/app/context/AuthContext';
 import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Plus, Search, MapPin, QrCode, Power, PowerOff, Printer, Map, Lock, Eye, UserPlus, User, ShieldCheck, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Search, MapPin, QrCode, Power, PowerOff, Printer, Map, Lock, Eye, UserPlus, User, ShieldCheck, Trash2, AlertTriangle, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 
@@ -15,6 +15,13 @@ const LocationPicker = dynamic(() => import('../components/locationPicker'), {
 interface Inspector {
   id: string;
   full_name: string;
+}
+
+// NEW: Added Guard interface for memory fetching
+interface Guard {
+  id: string;
+  guard_name: string;
+  assigned_branch: string | null;
 }
 
 interface Detachment {
@@ -34,6 +41,12 @@ export default function SitesPage() {
   const { role, isLoading: authLoading } = useAuth();
   const [sites, setSites] = useState<Detachment[]>([]);
   const [inspectors, setInspectors] = useState<Inspector[]>([]);
+  
+  // NEW: State for multi-guard deployment
+  const [allGuards, setAllGuards] = useState<Guard[]>([]);
+  const [selectedGuards, setSelectedGuards] = useState<Guard[]>([]);
+  const [guardSearch, setGuardSearch] = useState('');
+
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -73,10 +86,13 @@ export default function SitesPage() {
       `)
       .order('created_at', { ascending: false });
 
+    // Modified to fetch Guard ID as well for relational updates
     const { data: guardsData } = await supabase
       .from('guards')
-      .select('guard_name, assigned_branch')
+      .select('id, guard_name, assigned_branch')
       .eq('is_active', true);
+
+    if (guardsData) setAllGuards(guardsData);
 
     if (error) {
       console.error('Error fetching sites:', error);
@@ -158,22 +174,77 @@ export default function SitesPage() {
     setDeleteConfirmText('');
   };
 
-  const handleAssignInspector = async (e: React.FormEvent) => {
+  // --- NEW: ADVANCED PERSONNEL DISPATCH ENGINE ---
+  const handleAddGuardToSelection = (guard: Guard) => {
+    // Prevent duplicate entries in memory
+    if (selectedGuards.find(g => g.id === guard.id)) return;
+
+    // Poaching Warning: If guard belongs to another branch, throw native confirmation prompt
+    if (guard.assigned_branch && guard.assigned_branch !== siteToAssign?.branch_name) {
+        const confirmed = window.confirm(`WARNING: ${guard.guard_name} is currently deployed at "${guard.assigned_branch}".\n\nDo you want to reassign them to "${siteToAssign?.branch_name}"?`);
+        if (!confirmed) return;
+    }
+
+    setSelectedGuards([...selectedGuards, guard]);
+    setGuardSearch(''); // Reset search
+  };
+
+  const handleRemoveGuardFromSelection = (guardId: string) => {
+    setSelectedGuards(selectedGuards.filter(g => g.id !== guardId));
+  };
+
+  const handleAssignPersonnel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!siteToAssign) return;
 
     const inspectorIdToSave = selectedInspectorId === 'UNASSIGNED' ? null : selectedInspectorId;
-    const { error } = await supabase.from('detachments').update({ assigned_inspector_id: inspectorIdToSave } as any).eq('id', siteToAssign.id);
 
-    if (!error) {
-      const assignedInspectorData = inspectors.find(i => i.id === selectedInspectorId);
-      setSites(sites.map(site => site.id === siteToAssign.id ? { 
-          ...site, 
-          assigned_inspector_id: inspectorIdToSave,
-          inspector: assignedInspectorData ? { full_name: assignedInspectorData.full_name } : null
-      } : site));
-      setIsAssignModalOpen(false);
+    // 1. Update Inspector Assignment in Detachments Table
+    const { error: detachmentError } = await supabase
+      .from('detachments')
+      .update({ assigned_inspector_id: inspectorIdToSave } as any)
+      .eq('id', siteToAssign.id);
+
+    if (detachmentError) {
+      alert("Error assigning inspector.");
+      return;
     }
+
+    // 2. Cross-reference Guard Assignments
+    const originalGuards = allGuards.filter(g => g.assigned_branch === siteToAssign.branch_name);
+    const originalGuardIds = originalGuards.map(g => g.id);
+    const newGuardIds = selectedGuards.map(g => g.id);
+
+    // Calculate the mathematical difference to minimize DB requests
+    const guardsToAdd = selectedGuards.filter(g => !originalGuardIds.includes(g.id));
+    const guardsToRemove = originalGuards.filter(g => !newGuardIds.includes(g.id));
+
+    // Execute relational updates for additions
+    for (const g of guardsToAdd) {
+        await supabase.from('guards').update({ assigned_branch: siteToAssign.branch_name }).eq('id', g.id);
+    }
+    // Execute relational updates for removals (Set back to Floating/Null)
+    for (const g of guardsToRemove) {
+        await supabase.from('guards').update({ assigned_branch: null }).eq('id', g.id);
+    }
+
+    // 3. Update Global UI State Seamlessly
+    const updatedAllGuards = allGuards.map(g => {
+        if (guardsToAdd.some(add => add.id === g.id)) return { ...g, assigned_branch: siteToAssign.branch_name };
+        if (guardsToRemove.some(rem => rem.id === g.id)) return { ...g, assigned_branch: null };
+        return g;
+    });
+    setAllGuards(updatedAllGuards);
+
+    const assignedInspectorData = inspectors.find(i => i.id === selectedInspectorId);
+    setSites(sites.map(site => site.id === siteToAssign.id ? { 
+        ...site, 
+        assigned_inspector_id: inspectorIdToSave,
+        inspector: assignedInspectorData ? { full_name: assignedInspectorData.full_name } : null,
+        assigned_guards: selectedGuards.map(g => g.guard_name)
+    } : site));
+    
+    setIsAssignModalOpen(false);
   };
 
   const filteredSites = sites.filter(site => 
@@ -284,14 +355,18 @@ export default function SitesPage() {
                   </td>
 
                   <td className="p-4 text-right space-x-1 flex justify-end">
+                    {/* CHANGED TOOLTIP to 'Assign Inspector/Guards' */}
                     <button 
                       onClick={() => {
                         setSiteToAssign(site);
                         setSelectedInspectorId(site.assigned_inspector_id || 'UNASSIGNED');
+                        // Pre-populate the modal's active memory with current guards
+                        setSelectedGuards(allGuards.filter(g => g.assigned_branch === site.branch_name));
+                        setGuardSearch('');
                         setIsAssignModalOpen(true);
                       }}
                       className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                      title="Assign Inspector"
+                      title="Assign Inspector/Guards"
                     >
                       <UserPlus className="w-4 h-4" />
                     </button>
@@ -351,43 +426,100 @@ export default function SitesPage() {
 
       {/* === MODALS === */}
 
-      {/* 1. Assign Inspector Modal */}
+      {/* 1. UPGRADED: Assign Inspector & Guards Modal */}
       {isAssignModalOpen && siteToAssign && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col ring-1 ring-slate-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-visible flex flex-col ring-1 ring-slate-200">
             <div className="bg-white border-b border-slate-200 p-5 flex justify-between items-center shrink-0">
               <h3 className="text-base font-semibold text-slate-900 tracking-tight flex items-center gap-2">
-                <UserPlus className="w-4 h-4 text-blue-600" /> Dispatch Inspector
+                <UserPlus className="w-4 h-4 text-blue-600" /> Dispatch Personnel
               </h3>
               <button onClick={() => setIsAssignModalOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors text-2xl leading-none">&times;</button>
             </div>
             
-            <form onSubmit={handleAssignInspector} className="p-6 space-y-5 bg-slate-50/50">
+            <form onSubmit={handleAssignPersonnel} className="p-6 space-y-6 bg-slate-50/50 overflow-visible">
               <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Target Detachment</p>
                 <p className="font-semibold text-slate-900 text-sm">{siteToAssign.branch_name}</p>
                 <p className="text-[11px] font-mono text-slate-500 mt-0.5">{siteToAssign.branch_code}</p>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Select Roving Inspector</label>
-                <select 
-                  className="w-full border border-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500/40 outline-none text-sm font-medium text-slate-900 bg-white cursor-pointer shadow-sm"
-                  value={selectedInspectorId}
-                  onChange={(e) => setSelectedInspectorId(e.target.value)}
-                >
-                  <option value="UNASSIGNED">-- Leave Unassigned --</option>
-                  {inspectors.map((inspector) => (
-                    <option key={inspector.id} value={inspector.id}>
-                      {inspector.full_name}
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-5">
+                {/* Single Inspector Assignment */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Select Roving Inspector</label>
+                  <select 
+                    className="w-full border border-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500/40 outline-none text-sm font-medium text-slate-900 bg-white cursor-pointer shadow-sm"
+                    value={selectedInspectorId}
+                    onChange={(e) => setSelectedInspectorId(e.target.value)}
+                  >
+                    <option value="UNASSIGNED">-- Leave Unassigned --</option>
+                    {inspectors.map((inspector) => (
+                      <option key={inspector.id} value={inspector.id}>
+                        {inspector.full_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="border-t border-slate-200 pt-5">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Deploy Guards to Detachment</label>
+                  
+                  {/* Selected Guards Multi-Pill Container */}
+                  <div className="flex flex-wrap gap-2 mb-3 min-h-[42px] p-2 bg-white border border-slate-200 rounded-lg shadow-sm">
+                    {selectedGuards.length === 0 && <span className="text-xs text-slate-400 italic py-1 px-1">No guards deployed yet.</span>}
+                    {selectedGuards.map(g => (
+                      <span key={g.id} className="flex items-center text-[11px] font-bold text-slate-700 bg-slate-100 pl-2 pr-1 py-1 rounded-md ring-1 ring-slate-200/60 uppercase tracking-wider">
+                        {g.guard_name}
+                        <button type="button" onClick={() => handleRemoveGuardFromSelection(g.id)} className="ml-1.5 text-slate-400 hover:text-red-500 p-0.5 rounded-full hover:bg-slate-200 transition-colors">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Multi-Select Guard Combo-Box */}
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      placeholder="Search and add guards..."
+                      className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/40 outline-none text-sm font-medium text-slate-900 bg-white shadow-sm"
+                      value={guardSearch}
+                      onChange={(e) => setGuardSearch(e.target.value)}
+                    />
+                    {guardSearch && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto z-50">
+                        {allGuards
+                          .filter(g => g.guard_name.toLowerCase().includes(guardSearch.toLowerCase()) || (g.assigned_branch && g.assigned_branch.toLowerCase().includes(guardSearch.toLowerCase())))
+                          .filter(g => !selectedGuards.find(sg => sg.id === g.id))
+                          .map(g => (
+                            <button
+                              key={g.id}
+                              type="button"
+                              onClick={() => handleAddGuardToSelection(g)}
+                              className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-0 flex flex-col transition-colors"
+                            >
+                              <span className="text-sm font-semibold text-slate-900">{g.guard_name}</span>
+                              {g.assigned_branch && (
+                                <span className="text-[10px] text-amber-600 font-bold uppercase tracking-wider mt-0.5">
+                                  Currently at: {g.assigned_branch}
+                                </span>
+                              )}
+                            </button>
+                        ))}
+                        {allGuards.filter(g => g.guard_name.toLowerCase().includes(guardSearch.toLowerCase()) && !selectedGuards.find(sg => sg.id === g.id)).length === 0 && (
+                            <div className="p-3 text-xs text-slate-500 text-center italic">No matching guards available.</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="pt-2">
                 <button type="submit" className="w-full bg-slate-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-slate-800 transition-all shadow-sm ring-1 ring-slate-900/50">
-                  Confirm Assignment
+                  Confirm Personnel Assignment
                 </button>
               </div>
             </form>

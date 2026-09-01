@@ -6,7 +6,7 @@ import * as Location from 'expo-location';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useNavigation, useRouter } from 'expo-router';
-import { Alert, Button, Keyboard, Platform, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Alert, Button, Keyboard, Platform, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View, ActivityIndicator } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import CustomTextInput from '../components/custom-text-input';
 import LiveCameraModal from '../components/live-camera-modal';
@@ -25,6 +25,7 @@ export default function AuditFormScreen() {
 
     // Modal State for Submission Receipt
     const [submittedPayload, setSubmittedPayload] = useState<any>(null);
+    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
     // Camera Permissions
     const [permission, requestPermission] = useCameraPermissions();
@@ -247,6 +248,7 @@ export default function AuditFormScreen() {
     };
 
     const submitAuditPayload = async () => {
+        setIsSubmitting(true);
         let base64Photo = null;
         try {
             const compressedImage = await ImageManipulator.manipulateAsync(
@@ -259,6 +261,7 @@ export default function AuditFormScreen() {
         } catch (error) {
             console.error('Error reading live photo file:', error);
             Alert.alert('File Read Error', 'Failed to process the captured photo.');
+            setIsSubmitting(false);
             return;
         }
 
@@ -372,6 +375,8 @@ export default function AuditFormScreen() {
         } catch (error) {
             console.error('Submission Error:', error);
             Alert.alert('Submission Error', 'An error occurred while submitting the audit. Please check your network connection and try again.');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -1004,10 +1009,31 @@ export default function AuditFormScreen() {
                 )}
 
             <View style={styles.buttonContainer}>
-                <Button title="Submit" onPress={handleSubmit} color="#0056b3"/>
+                <TouchableOpacity 
+                    style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+                    onPress={handleSubmit}
+                    disabled={isSubmitting}
+                >
+                    {isSubmitting ? (
+                        <ActivityIndicator color="#fff" />
+                    ) : (
+                        <Text style={styles.submitButtonText}>Submit Audit</Text>
+                    )}
+                </TouchableOpacity>
             </View>
         </KeyboardAwareScrollView>
         </TouchableWithoutFeedback>
+
+            {/* FULL-SCREEN LOADING OVERLAY */}
+            {isSubmitting && (
+                <View style={styles.loadingOverlay}>
+                    <View style={styles.loadingBox}>
+                        <ActivityIndicator size="large" color="#0056b3" />
+                        <Text style={styles.loadingText}>Submitting Audit...</Text>
+                        <Text style={styles.loadingSubText}>Please do not close the app.</Text>
+                    </View>
+                </View>
+            )}
 
             {activeSigner !== null && (
                 <SignaturePad
@@ -1018,6 +1044,13 @@ export default function AuditFormScreen() {
                     onSign={activeSigner === 'guard' ? setGuardSignature : setClientSignature}
                 />
             )}
+
+            {/* SUBMISSION RECEIPT MODAL */}
+            <SubmissionReceiptModal
+                visible={!!submittedPayload}
+                payload={submittedPayload}
+                onClose={() => setSubmittedPayload(null)}
+            />
 
         </View>
     </>
@@ -1108,6 +1141,49 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginBottom: 60,
+  },
+  submitButton: {
+    backgroundColor: '#0056b3',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#9ca3af',
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  loadingBox: {
+    backgroundColor: '#fff',
+    padding: 30,
+    borderRadius: 12,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  loadingText: {
+    marginTop: 15,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  loadingSubText: {
+    marginTop: 5,
+    fontSize: 14,
+    color: '#666',
   },
   clearButtonContainer: {
     padding: 10,
