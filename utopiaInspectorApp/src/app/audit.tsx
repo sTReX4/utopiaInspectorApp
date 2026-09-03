@@ -25,17 +25,10 @@ export default function AuditFormScreen() {
 
     // Modal State for Submission Receipt
     const [submittedPayload, setSubmittedPayload] = useState<any>(null);
-<<<<<<< HEAD
-<<<<<<< HEAD
     const [savedNames, setSavedNames] = useState<string[]>([]);
-    
+
     // Loading State
-    const [isSubmitting, setIsSubmitting] = useState(false);
-=======
->>>>>>> 13ae56aa94388915f8ce01d23724577801055ae7
-=======
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
->>>>>>> a006f5de4db93f0cbb959adac6042748b0db2bef
 
     // Camera Permissions
     const [permission, requestPermission] = useCameraPermissions();
@@ -1020,8 +1013,8 @@ export default function AuditFormScreen() {
                 )}
 
             <View style={styles.buttonContainer}>
-                <TouchableOpacity 
-                    style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]} 
+                <TouchableOpacity
+                    style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
                     onPress={handleSubmit}
                     disabled={isSubmitting}
                 >
@@ -1062,7 +1055,7 @@ export default function AuditFormScreen() {
             {/* SUBMISSION RECEIPT MODAL */}
             <SubmissionReceiptModal
                 visible={!!submittedPayload}
-                payload={submittedPayload}
+                auditData={submittedPayload}
                 onClose={() => setSubmittedPayload(null)}
             />
 
@@ -1171,7 +1164,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1343,20 +1336,5 @@ const styles = StyleSheet.create({
   suggestionText: {
     color: '#222',
     fontSize: 15,
-  },
-  submitButton: {
-    backgroundColor: '#0056b3',
-    paddingVertical: 12,
-    borderRadius: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#a0c4e8',
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });

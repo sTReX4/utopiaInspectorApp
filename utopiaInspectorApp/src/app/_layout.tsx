@@ -32,7 +32,7 @@ function DashboardHeaderTitle() {
         <Pressable onPress={() => setMenuOpen(true)} style={styles.menuButton}>
           <Text style={styles.menuIcon}>☰</Text>
         </Pressable>
-        <Text style={styles.headerTitleText}>Home</Text>
+        <Text style={styles.headerTitleText}>Utopia</Text>
       </View>
 
       <Modal transparent visible={menuOpen} animationType="none" onRequestClose={() => setMenuOpen(false)}>
