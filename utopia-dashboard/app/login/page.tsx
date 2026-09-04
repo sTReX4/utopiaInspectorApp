@@ -36,36 +36,36 @@ export default function LoginPage() {
 
   return (
     // BREAKOUT WRAPPER: fixed inset-0 z-50 ignores the layout's ml-64 margin completely
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-50 overflow-y-auto w-full h-full">
+    <div className="fixed inset-0 z-50 flex flex-col bg-slate-50 overflow-y-auto w-full h-full transition-none">
       
       {/* TOP NAVIGATION HEADER */}
       <header className="bg-[#0f172a] h-16 flex items-center px-6 shrink-0 border-b border-slate-800">
-        <img src="/images/utopia_logo.png" alt="Utopia Logo" className="w-8 h-8 object-contain mr-3" />
-        <span className="text-xl font-bold text-white tracking-widest uppercase">Utopia</span>
+        <img src="/images/utopia_logo.png" alt="Utopia Logo" className="w-10 h-10 object-contain mr-3" />
+        <span className="text-xl font-bold tracking-widest text-slate-100 uppercase">Utopia</span>
       </header>
 
-      {/* MAIN LOGIN SECTION - Removed 'min-h-screen' so flex-1 perfectly fills space between header and footer */}
+      {/* MAIN LOGIN SECTION */}
       <div className="flex-1 flex flex-col items-center justify-center p-4">
 
-        {/* Login Card */}
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden mb-12">
+        {/* Sterile Login Card */}
+        <div className="max-w-md w-full bg-white border border-slate-300 rounded-none overflow-hidden mb-12">
           <div className="p-8">
             {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start">
-                <AlertCircle className="w-5 h-5 text-red-600 mr-2 shrink-0 mt-0.5" />
-                <p className="text-sm text-red-800 font-medium">{error}</p>
+              <div className="mb-6 p-4 border border-red-300 bg-red-50 flex items-start">
+                <AlertCircle className="w-4 h-4 text-red-600 mr-3 mt-0.5 shrink-0" />
+                <p className="text-xs font-mono font-bold text-red-800 uppercase tracking-widest leading-relaxed">{error}</p>
               </div>
             )}
 
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Official Email</label>
+                <label className="block text-xs font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Official Email</label>
                 <div className="relative">
-                  <Mail className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-4 top-3.5 pointer-events-none" />
                   <input
                     type="email"
                     required
-                    className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 outline-none transition-all text-slate-900 font-medium bg-slate-50 focus:bg-white"
+                    className="w-full pl-11 pr-4 py-3 border border-slate-300 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 text-sm font-medium text-slate-900 bg-white transition-none"
                     placeholder="admin@utopiasecurity.com.ph"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -75,14 +75,14 @@ export default function LoginPage() {
 
               <div>
                 <div className="flex justify-between items-end mb-2">
-                  <label className="block text-xs font-bold text-slate-500 uppercase">Password</label>
+                  <label className="block text-xs font-mono font-bold text-slate-500 uppercase tracking-widest">Password</label>
                 </div>
                 <div className="relative">
-                  <Lock className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-4 top-3.5 pointer-events-none" />
                   <input
                     type="password"
                     required
-                    className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900 focus:border-slate-900 outline-none transition-all text-slate-900 font-medium bg-slate-50 focus:bg-white"
+                    className="w-full pl-11 pr-4 py-3 border border-slate-300 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 text-sm font-medium text-slate-900 bg-white transition-none"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -93,16 +93,16 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full py-3.5 rounded-xl font-bold flex items-center justify-center transition-all shadow-sm ${
-                  isLoading ? 'bg-slate-400 cursor-not-allowed text-white' : 'bg-slate-900 hover:bg-slate-800 text-white ring-1 ring-slate-900/50'
+                className={`w-full py-3.5 rounded-none text-xs font-bold uppercase tracking-widest flex items-center justify-center transition-none mt-4 ${
+                  isLoading ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300' : 'bg-slate-900 hover:bg-slate-800 text-white'
                 }`}
               >
-                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Log In'}
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Authenticate System'}
               </button>
 
               {/* MANDATORY LEGAL MICRO-COPY */}
-              <p className="text-[11px] text-slate-500 text-center leading-relaxed mt-4 px-2">
-                By logging into this system, you acknowledge and agree to the <a href="#" className="text-blue-600 hover:underline font-semibold">Terms of Service</a> and <a href="#" className="text-blue-600 hover:underline font-semibold">Privacy Policy</a> in accordance with the Data Privacy Act of 2012.
+              <p className="text-[10px] font-mono text-slate-500 text-center leading-relaxed mt-6 px-2 uppercase tracking-widest">
+                By logging in, you acknowledge the <a href="#" className="text-slate-900 font-bold hover:underline">Terms of Service</a> and <a href="#" className="text-slate-900 font-bold hover:underline">Privacy Policy</a> per DPA 2012.
               </p>
             </form>
           </div>
@@ -110,54 +110,54 @@ export default function LoginPage() {
       </div>
 
       {/* DARK ENTERPRISE FOOTER */}
-      <footer className="bg-[#0f172a] text-slate-300 py-12 border-t border-slate-800 shrink-0">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
+      <footer className="bg-[#0f172a] text-slate-400 py-12 border-t border-slate-800 shrink-0">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-10">
           
           {/* Brand & Mission */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <img src="/images/utopia_logo.png" alt="Utopia Logo" className="w-7 h-7 object-contain" />
-              <span className="text-xl font-bold text-white tracking-widest uppercase">Utopia</span>
+              <img src="/images/utopia_logo.png" alt="Utopia Logo" className="w-6 h-6 object-contain" />
+              <span className="text-sm font-bold text-slate-100 tracking-widest uppercase">Utopia</span>
             </div>
-            <p className="text-sm leading-relaxed text-slate-400 pr-4">
-              Embodying professional confidence and reliable competence. Your 24/7 partner in asset protection and loss prevention since 2011.
+            <p className="text-xs font-mono tracking-widest leading-relaxed text-slate-500 pr-4 uppercase">
+              Professional confidence. Reliable competence. Asset protection & loss prevention since 2011.
             </p>
           </div>
 
           {/* Contact Information */}
           <div>
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-4">Contact Us</h3>
-            <ul className="space-y-3 text-sm text-slate-400">
+            <h3 className="text-[10px] font-mono font-bold text-slate-300 uppercase tracking-widest mb-5 border-b border-slate-700 pb-2 inline-block">Contact Data</h3>
+            <ul className="space-y-4 text-xs font-mono uppercase tracking-widest text-slate-500">
               <li className="flex items-start gap-3">
-                <MapPin className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
-                <span>4F PADAVELA Building 2011 G. Tuazon corner Samar Streets, Sampaloc, Manila, Philippines</span>
+                <MapPin className="w-4 h-4 text-slate-600 shrink-0" />
+                <span className="leading-relaxed">4F PADAVELA Bldg 2011 G. Tuazon cor Samar Sts, Sampaloc, Manila</span>
               </li>
               <li className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-slate-500 shrink-0" />
+                <Phone className="w-4 h-4 text-slate-600 shrink-0" />
                 <span>287427256</span>
               </li>
               <li className="flex items-center gap-3">
-                <MailIcon className="w-4 h-4 text-slate-500 shrink-0" />
-                <span>humanresource@utopiasecurity.com.ph</span>
+                <MailIcon className="w-4 h-4 text-slate-600 shrink-0" />
+                <span className="truncate">humanresource@utopiasecurity.com.ph</span>
               </li>
             </ul>
           </div>
 
           {/* Legal & Compliance */}
           <div>
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-4">Legal & Compliance</h3>
-            <ul className="space-y-2 text-sm text-slate-400">
-              <li><a href="#" className="hover:text-white transition-colors flex items-center gap-2"><span className="w-1 h-1 bg-slate-500 rounded-full"></span> Terms of Service</a></li>
-              <li><a href="#" className="hover:text-white transition-colors flex items-center gap-2"><span className="w-1 h-1 bg-slate-500 rounded-full"></span> Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-white transition-colors flex items-center gap-2"><span className="w-1 h-1 bg-slate-500 rounded-full"></span> Data Privacy Notice</a></li>
-              <li><a href="#" className="hover:text-white transition-colors flex items-center gap-2"><span className="w-1 h-1 bg-slate-500 rounded-full"></span> System Access Agreement</a></li>
+            <h3 className="text-[10px] font-mono font-bold text-slate-300 uppercase tracking-widest mb-5 border-b border-slate-700 pb-2 inline-block">Legal Directives</h3>
+            <ul className="space-y-3 text-xs font-mono uppercase tracking-widest text-slate-500">
+              <li><a href="#" className="hover:text-slate-200 transition-none flex items-center gap-2"><span className="text-slate-600 font-bold">{'>'}</span> Terms of Service</a></li>
+              <li><a href="#" className="hover:text-slate-200 transition-none flex items-center gap-2"><span className="text-slate-600 font-bold">{'>'}</span> Privacy Policy</a></li>
+              <li><a href="#" className="hover:text-slate-200 transition-none flex items-center gap-2"><span className="text-slate-600 font-bold">{'>'}</span> Data Privacy Notice</a></li>
+              <li><a href="#" className="hover:text-slate-200 transition-none flex items-center gap-2"><span className="text-slate-600 font-bold">{'>'}</span> Access Agreement</a></li>
             </ul>
           </div>
         </div>
 
         <div className="max-w-7xl mx-auto px-6 mt-12 pt-6 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-slate-500">
-            Copyright © {new Date().getFullYear()} Utopia Security Group of Companies. All rights reserved.
+          <p className="text-[10px] font-mono uppercase tracking-widest text-slate-600">
+            Copyright © {new Date().getFullYear()} Utopia Security Group. All rights reserved.
           </p>
         </div>
       </footer>

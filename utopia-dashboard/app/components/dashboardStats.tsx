@@ -31,7 +31,6 @@ export default function DashboardStats({ activeFilter, onFilterSelect, globalDat
     const fetchKpis = async () => {
         setIsLoading(true);
         try {
-            // Reusable base query locked to the selected date
             const getBaseQuery = () => supabase
                 .from('audits')
                 .select('id', { count: 'exact', head: true })
@@ -71,9 +70,9 @@ export default function DashboardStats({ activeFilter, onFilterSelect, globalDat
 
     if (isLoading) {
         return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-6 border border-slate-200 bg-slate-200 gap-px mb-6">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="h-24 bg-white rounded-xl border border-slate-200 animate-pulse"></div>
+                    <div key={i} className="h-24 bg-white animate-pulse"></div>
                 ))}
             </div>
         );
@@ -83,93 +82,106 @@ export default function DashboardStats({ activeFilter, onFilterSelect, globalDat
         onFilterSelect(activeFilter === filterName ? null : filterName);
     };
 
-    const getCardStyle = (filterName: string | null) => {
-        const isActive = activeFilter === filterName;
-        return `p-5 rounded-xl bg-white flex flex-col justify-center cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
-            isActive ? 'border border-blue-600 ring-1 ring-blue-600 shadow-sm' : 'border border-slate-200 shadow-sm'
-        }`;
+    // Helper to determine text color for numbers based on state and value
+    const getNumColor = (isActive: boolean, value: number) => {
+        if (isActive) return 'text-white';
+        if (value > 0) return 'text-red-600';
+        return 'text-slate-900';
     };
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-6 border border-slate-200 bg-slate-200 gap-px mb-6">
       
             {/* Card 1: Overall Progress */}
-            <div onClick={() => onFilterSelect(null)} className={getCardStyle(null)}>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <div 
+                onClick={() => onFilterSelect(null)} 
+                className={`p-4 flex flex-col justify-center cursor-pointer transition-none ${activeFilter === null ? 'bg-slate-900' : 'bg-white hover:bg-slate-50'}`}
+            >
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === null ? 'text-slate-400' : 'text-slate-500'}`}>
                     Inspection Progress
                 </p>
                 <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl font-black tracking-tight text-slate-900">
+                    <span className={`text-2xl font-mono tracking-tight ${activeFilter === null ? 'text-white' : 'text-slate-900'}`}>
                         {stats.totalAudits}
                     </span>
-                    <span className="text-sm font-medium text-slate-400">
-                        / {TOTAL_DETACHMENTS} sites
+                    <span className={`text-xs font-mono font-medium ${activeFilter === null ? 'text-slate-500' : 'text-slate-400'}`}>
+                        / {TOTAL_DETACHMENTS}
                     </span>
                 </div>
             </div>
 
             {/* Card 2: No-Shows */}
-            <div onClick={() => handleToggle('no-show')} className={getCardStyle('no-show')}>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <div 
+                onClick={() => handleToggle('no-show')} 
+                className={`p-4 flex flex-col justify-center cursor-pointer transition-none ${activeFilter === 'no-show' ? 'bg-slate-900' : 'bg-white hover:bg-slate-50'}`}
+            >
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === 'no-show' ? 'text-slate-400' : 'text-slate-500'}`}>
                     No-Show Guards
                 </p>
                 <div className="flex items-baseline gap-2 mt-1">
-                    <span className={`text-3xl font-black tracking-tight ${stats.noShowGuards > 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                    <span className={`text-2xl font-mono tracking-tight ${getNumColor(activeFilter === 'no-show', stats.noShowGuards)}`}>
                         {stats.noShowGuards}
                     </span>
-                    <span className="text-sm text-slate-400 font-medium">Absent</span>
                 </div>
             </div>
 
             {/* Card 3: Active Violations */}
-            <div onClick={() => handleToggle('violations')} className={getCardStyle('violations')}>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <div 
+                onClick={() => handleToggle('violations')} 
+                className={`p-4 flex flex-col justify-center cursor-pointer transition-none ${activeFilter === 'violations' ? 'bg-slate-900' : 'bg-white hover:bg-slate-50'}`}
+            >
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === 'violations' ? 'text-slate-400' : 'text-slate-500'}`}>
                     Violations Logged
                 </p>
                 <div className="flex items-baseline gap-2 mt-1">
-                    <span className={`text-3xl font-black tracking-tight ${stats.activeViolations > 0 ? 'text-orange-600' : 'text-slate-900'}`}>
+                    <span className={`text-2xl font-mono tracking-tight ${getNumColor(activeFilter === 'violations', stats.activeViolations)}`}>
                         {stats.activeViolations}
                     </span>
-                    <span className="text-sm text-slate-400 font-medium">Tickets</span>
                 </div>
             </div>
 
             {/* Card 4: Uniform Compliance */}
-            <div onClick={() => handleToggle('uniform')} className={getCardStyle('uniform')}>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <div 
+                onClick={() => handleToggle('uniform')} 
+                className={`p-4 flex flex-col justify-center cursor-pointer transition-none ${activeFilter === 'uniform' ? 'bg-slate-900' : 'bg-white hover:bg-slate-50'}`}
+            >
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === 'uniform' ? 'text-slate-400' : 'text-slate-500'}`}>
                     Uniform Failures
                 </p>
                 <div className="flex items-baseline gap-2 mt-1">
-                    <span className={`text-3xl font-black tracking-tight ${stats.uniformViolations > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+                    <span className={`text-2xl font-mono tracking-tight ${getNumColor(activeFilter === 'uniform', stats.uniformViolations)}`}>
                         {stats.uniformViolations}
                     </span>
-                    <span className="text-sm text-slate-400 font-medium">Non-Compliant</span>
                 </div>
             </div>
             
             {/* Card 5: Document Issues */}
-            <div onClick={() => handleToggle('documents')} className={getCardStyle('documents')}>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <div 
+                onClick={() => handleToggle('documents')} 
+                className={`p-4 flex flex-col justify-center cursor-pointer transition-none ${activeFilter === 'documents' ? 'bg-slate-900' : 'bg-white hover:bg-slate-50'}`}
+            >
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === 'documents' ? 'text-slate-400' : 'text-slate-500'}`}>
                     Document Issues
                 </p>
                 <div className="flex items-baseline gap-2 mt-1">
-                    <span className={`text-3xl font-black tracking-tight ${stats.documentIssues > 0 ? 'text-purple-600' : 'text-slate-900'}`}>
+                    <span className={`text-2xl font-mono tracking-tight ${getNumColor(activeFilter === 'documents', stats.documentIssues)}`}>
                         {stats.documentIssues}
                     </span>
-                    <span className="text-sm text-slate-400 font-medium">Expired/Missing</span>
                 </div>
             </div>
 
             {/* Card 6: Missing Signatures */}
-            <div onClick={() => handleToggle('missing-sigs')} className={getCardStyle('missing-sigs')}>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <div 
+                onClick={() => handleToggle('missing-sigs')} 
+                className={`p-4 flex flex-col justify-center cursor-pointer transition-none ${activeFilter === 'missing-sigs' ? 'bg-slate-900' : 'bg-white hover:bg-slate-50'}`}
+            >
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === 'missing-sigs' ? 'text-slate-400' : 'text-slate-500'}`}>
                     Missing Signatures
                 </p>
                 <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl font-black tracking-tight text-slate-900">
+                    <span className={`text-2xl font-mono tracking-tight ${getNumColor(activeFilter === 'missing-sigs', stats.missingSignatures)}`}>
                         {stats.missingSignatures}
                     </span>
-                    <span className="text-sm text-slate-400 font-medium">Clients Absent</span>
                 </div>
             </div>
 

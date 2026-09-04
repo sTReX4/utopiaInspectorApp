@@ -9,7 +9,7 @@ import dynamic from 'next/dynamic';
 
 const LocationPicker = dynamic(() => import('../components/locationPicker'), { 
   ssr: false,
-  loading: () => <div className="h-64 bg-slate-50 animate-pulse rounded-xl flex items-center justify-center text-slate-400 text-sm font-medium border border-slate-100">Loading Map...</div>
+  loading: () => <div className="h-64 bg-slate-50 flex items-center justify-center text-slate-400 font-mono text-xs uppercase tracking-widest border border-slate-200">Loading Map...</div>
 });
 
 interface Inspector {
@@ -17,7 +17,6 @@ interface Inspector {
   full_name: string;
 }
 
-// NEW: Added Guard interface for memory fetching
 interface Guard {
   id: string;
   guard_name: string;
@@ -42,7 +41,6 @@ export default function SitesPage() {
   const [sites, setSites] = useState<Detachment[]>([]);
   const [inspectors, setInspectors] = useState<Inspector[]>([]);
   
-  // NEW: State for multi-guard deployment
   const [allGuards, setAllGuards] = useState<Guard[]>([]);
   const [selectedGuards, setSelectedGuards] = useState<Guard[]>([]);
   const [guardSearch, setGuardSearch] = useState('');
@@ -86,7 +84,6 @@ export default function SitesPage() {
       `)
       .order('created_at', { ascending: false });
 
-    // Modified to fetch Guard ID as well for relational updates
     const { data: guardsData } = await supabase
       .from('guards')
       .select('id, guard_name, assigned_branch')
@@ -174,19 +171,16 @@ export default function SitesPage() {
     setDeleteConfirmText('');
   };
 
-  // --- NEW: ADVANCED PERSONNEL DISPATCH ENGINE ---
   const handleAddGuardToSelection = (guard: Guard) => {
-    // Prevent duplicate entries in memory
     if (selectedGuards.find(g => g.id === guard.id)) return;
 
-    // Poaching Warning: If guard belongs to another branch, throw native confirmation prompt
     if (guard.assigned_branch && guard.assigned_branch !== siteToAssign?.branch_name) {
         const confirmed = window.confirm(`WARNING: ${guard.guard_name} is currently deployed at "${guard.assigned_branch}".\n\nDo you want to reassign them to "${siteToAssign?.branch_name}"?`);
         if (!confirmed) return;
     }
 
     setSelectedGuards([...selectedGuards, guard]);
-    setGuardSearch(''); // Reset search
+    setGuardSearch('');
   };
 
   const handleRemoveGuardFromSelection = (guardId: string) => {
@@ -199,7 +193,6 @@ export default function SitesPage() {
 
     const inspectorIdToSave = selectedInspectorId === 'UNASSIGNED' ? null : selectedInspectorId;
 
-    // 1. Update Inspector Assignment in Detachments Table
     const { error: detachmentError } = await supabase
       .from('detachments')
       .update({ assigned_inspector_id: inspectorIdToSave } as any)
@@ -210,25 +203,20 @@ export default function SitesPage() {
       return;
     }
 
-    // 2. Cross-reference Guard Assignments
     const originalGuards = allGuards.filter(g => g.assigned_branch === siteToAssign.branch_name);
     const originalGuardIds = originalGuards.map(g => g.id);
     const newGuardIds = selectedGuards.map(g => g.id);
 
-    // Calculate the mathematical difference to minimize DB requests
     const guardsToAdd = selectedGuards.filter(g => !originalGuardIds.includes(g.id));
     const guardsToRemove = originalGuards.filter(g => !newGuardIds.includes(g.id));
 
-    // Execute relational updates for additions
     for (const g of guardsToAdd) {
         await supabase.from('guards').update({ assigned_branch: siteToAssign.branch_name }).eq('id', g.id);
     }
-    // Execute relational updates for removals (Set back to Floating/Null)
     for (const g of guardsToRemove) {
         await supabase.from('guards').update({ assigned_branch: null }).eq('id', g.id);
     }
 
-    // 3. Update Global UI State Seamlessly
     const updatedAllGuards = allGuards.map(g => {
         if (guardsToAdd.some(add => add.id === g.id)) return { ...g, assigned_branch: siteToAssign.branch_name };
         if (guardsToRemove.some(rem => rem.id === g.id)) return { ...g, assigned_branch: null };
@@ -254,7 +242,7 @@ export default function SitesPage() {
 
   if (authLoading) return (
     <div className="flex h-[50vh] items-center justify-center">
-      <div className="text-sm font-medium text-slate-500 animate-pulse">Verifying Security Clearance...</div>
+      <div className="text-xs font-mono uppercase tracking-widest text-slate-500">Verifying Security Clearance...</div>
     </div>
   );
 
@@ -262,32 +250,32 @@ export default function SitesPage() {
     <div className="space-y-6">
       
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b micro-border pb-5">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-5">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Detachment Roster</h1>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 uppercase">Detachment Roster</h1>
             {!isSuperadmin && (
-              <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ring-1 ring-slate-200/60 flex items-center">
+              <span className="bg-white text-slate-600 text-xs font-mono px-2 py-0.5 border border-slate-300 uppercase tracking-widest flex items-center">
                 <Eye className="w-3 h-3 mr-1" /> Partial Access
               </span>
             )}
           </div>
-          <p className="text-subdued mt-1">Manage client locations, verification codes, and assignments.</p>
+          <p className="text-sm text-slate-500 mt-1">Manage client locations, verification codes, and assignments.</p>
         </div>
 
         {isSuperadmin ? (
-          <button onClick={() => setIsAddModalOpen(true)} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center transition-all shadow-sm ring-1 ring-slate-900/50">
+          <button onClick={() => setIsAddModalOpen(true)} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-none text-sm font-semibold flex items-center transition-none">
             <Plus className="w-4 h-4 mr-2" /> Add Detachment
           </button>
         ) : (
-          <button disabled className="bg-white text-slate-400 px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center cursor-not-allowed border border-slate-200 shadow-sm">
+          <button disabled className="bg-slate-100 text-slate-400 px-5 py-2.5 rounded-none text-sm font-semibold flex items-center cursor-not-allowed border border-slate-200">
             <Lock className="w-4 h-4 mr-2" /> Add Detachment
           </button>
         )}
       </div>
 
       {/* Search Bar */}
-      <div className="enterprise-card p-3 flex items-center">
+      <div className="bg-white border border-slate-200 p-3 flex items-center">
         <Search className="w-4 h-4 text-slate-400 mr-3 ml-2" />
         <input 
           type="text" 
@@ -299,10 +287,10 @@ export default function SitesPage() {
       </div>
 
       {/* Main Table */}
-      <div className="enterprise-card overflow-hidden">
+      <div className="border border-slate-200 bg-white overflow-hidden">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-widest text-slate-500">
+            <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-widest text-slate-500 font-mono">
               <th className="p-4 font-bold">Branch Code</th>
               <th className="p-4 font-bold">Branch Name</th>
               <th className="p-4 font-bold">Location</th>
@@ -311,19 +299,19 @@ export default function SitesPage() {
               <th className="p-4 font-bold text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-200">
             {isLoading ? (
-              <tr><td colSpan={6} className="p-12 text-center text-slate-400 text-sm font-medium">Loading database...</td></tr>
+              <tr><td colSpan={6} className="p-12 text-center text-slate-500 font-mono text-xs uppercase tracking-widest">Loading database...</td></tr>
             ) : filteredSites.length === 0 ? (
-              <tr><td colSpan={6} className="p-12 text-center text-slate-400 text-sm font-medium">No detachments found. Add one above!</td></tr>
+              <tr><td colSpan={6} className="p-12 text-center text-slate-500 font-mono text-xs uppercase tracking-widest">No detachments found. Add one above.</td></tr>
             ) : (
               filteredSites.map((site) => (
-                <tr key={site.id} className={`transition-colors hover:bg-slate-50/50 ${!site.is_active && 'bg-slate-50/50 opacity-60'}`}>
-                  <td className="p-4 font-mono text-sm text-slate-500 font-medium">{site.branch_code}</td>
+                <tr key={site.id} className={`transition-none hover:bg-slate-50 ${!site.is_active && 'bg-slate-50 opacity-60'}`}>
+                  <td className="p-4 font-mono text-sm text-slate-500">{site.branch_code}</td>
                   <td className="p-4 text-sm font-bold text-slate-900">{site.branch_name}</td>
-                  <td className="p-4 text-sm text-slate-600 font-medium">
+                  <td className="p-4 text-sm text-slate-600">
                     <div className="flex items-center">
-                      <MapPin className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
+                      <MapPin className="w-3.5 h-3.5 mr-1.5 text-slate-400 shrink-0" />
                       {site.branch_location}
                     </div>
                   </td>
@@ -332,48 +320,46 @@ export default function SitesPage() {
                     {site.assigned_guards && site.assigned_guards.length > 0 ? (
                       <div className="flex flex-col gap-1.5">
                         {site.assigned_guards.map((gName, idx) => (
-                          <span key={idx} className="flex items-center text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-md w-max ring-1 ring-slate-200/60 uppercase tracking-wider">
-                            <ShieldCheck className="w-3 h-3 mr-1 text-slate-400" />
+                          <span key={idx} className="flex items-center text-xs font-mono font-bold text-slate-800 bg-white px-2 py-1 rounded-none w-max border border-slate-300 uppercase tracking-widest">
+                            <ShieldCheck className="w-3 h-3 mr-1.5 text-slate-400" />
                             {gName}
                           </span>
                         ))}
                       </div>
                     ) : (
-                      <span className="text-xs font-medium text-slate-400 italic">Unmanned Post</span>
+                      <span className="text-xs font-mono text-slate-400 uppercase tracking-widest">Unmanned Post</span>
                     )}
                   </td>
 
                   <td className="p-4">
                     {site.inspector ? (
-                      <span className="flex items-center text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-md w-max ring-1 ring-blue-200/60 uppercase tracking-wider">
-                        <User className="w-3 h-3 mr-1 text-blue-500" />
+                      <span className="flex items-center text-xs font-mono font-bold text-slate-900 bg-white px-2 py-1 rounded-none w-max border border-slate-300 uppercase tracking-widest">
+                        <User className="w-3 h-3 mr-1.5 text-slate-400" />
                         {site.inspector.full_name}
                       </span>
                     ) : (
-                      <span className="text-xs font-medium text-slate-400 italic">Unassigned</span>
+                      <span className="text-xs font-mono text-slate-400 uppercase tracking-widest">Unassigned</span>
                     )}
                   </td>
 
                   <td className="p-4 text-right space-x-1 flex justify-end">
-                    {/* CHANGED TOOLTIP to 'Assign Inspector/Guards' */}
                     <button 
                       onClick={() => {
                         setSiteToAssign(site);
                         setSelectedInspectorId(site.assigned_inspector_id || 'UNASSIGNED');
-                        // Pre-populate the modal's active memory with current guards
                         setSelectedGuards(allGuards.filter(g => g.assigned_branch === site.branch_name));
                         setGuardSearch('');
                         setIsAssignModalOpen(true);
                       }}
-                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                      title="Assign Inspector/Guards"
+                      className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-none transition-none"
+                      title="Dispatch Personnel"
                     >
                       <UserPlus className="w-4 h-4" />
                     </button>
 
                     <button 
                       onClick={() => setSelectedSiteForMap(site)}
-                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                      className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-none transition-none"
                       title="View Map Location"
                     >
                       <Map className="w-4 h-4" />
@@ -382,7 +368,7 @@ export default function SitesPage() {
                     {site.is_active && (
                       <button 
                         onClick={() => setSelectedSiteForQR(site)}
-                        className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
+                        className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-none transition-none"
                         title="Generate Verification QR"
                       >
                         <QrCode className="w-4 h-4" />
@@ -392,13 +378,13 @@ export default function SitesPage() {
                     {isSuperadmin ? (
                       <button 
                         onClick={() => toggleSiteStatus(site.id, site.is_active)}
-                        className={`p-1.5 rounded-md transition-colors ${site.is_active ? 'text-slate-400 hover:text-red-600 hover:bg-red-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`} 
+                        className={`p-2 rounded-none transition-none ${site.is_active ? 'text-slate-500 hover:text-red-600 hover:bg-red-50' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200'}`} 
                         title={site.is_active ? "Deactivate Site" : "Reactivate Site"}
                       >
                         {site.is_active ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
                       </button>
                     ) : (
-                      <button disabled className="p-1.5 text-slate-300 cursor-not-allowed" title="Requires Superadmin">
+                      <button disabled className="p-2 text-slate-300 cursor-not-allowed">
                         <Lock className="w-4 h-4" />
                       </button>
                     )}
@@ -406,13 +392,13 @@ export default function SitesPage() {
                     {isSuperadmin ? (
                       <button 
                         onClick={() => { setSiteToDelete(site); setDeleteConfirmText(''); }}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" 
+                        className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-none transition-none" 
                         title="Delete Detachment"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     ) : (
-                      <button disabled className="p-1.5 text-slate-300 cursor-not-allowed" title="Requires Superadmin">
+                      <button disabled className="p-2 text-slate-300 cursor-not-allowed">
                         <Lock className="w-4 h-4" />
                       </button>
                     )}
@@ -426,30 +412,29 @@ export default function SitesPage() {
 
       {/* === MODALS === */}
 
-      {/* 1. UPGRADED: Assign Inspector & Guards Modal */}
+      {/* 1. Assign Inspector & Guards Modal */}
       {isAssignModalOpen && siteToAssign && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-visible flex flex-col ring-1 ring-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-none">
+          <div className="bg-white rounded-none border border-slate-300 shadow-none w-full max-w-md overflow-visible flex flex-col">
             <div className="bg-white border-b border-slate-200 p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-semibold text-slate-900 tracking-tight flex items-center gap-2">
-                <UserPlus className="w-4 h-4 text-blue-600" /> Dispatch Personnel
+              <h3 className="text-base font-bold text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                <UserPlus className="w-4 h-4" /> Dispatch Personnel
               </h3>
-              <button onClick={() => setIsAssignModalOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors text-2xl leading-none">&times;</button>
+              <button onClick={() => setIsAssignModalOpen(false)} className="text-slate-400 hover:text-slate-900 transition-none text-xl leading-none">✕</button>
             </div>
             
-            <form onSubmit={handleAssignPersonnel} className="p-6 space-y-6 bg-slate-50/50 overflow-visible">
-              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Target Detachment</p>
-                <p className="font-semibold text-slate-900 text-sm">{siteToAssign.branch_name}</p>
-                <p className="text-[11px] font-mono text-slate-500 mt-0.5">{siteToAssign.branch_code}</p>
+            <form onSubmit={handleAssignPersonnel} className="p-6 space-y-6 overflow-visible bg-slate-50">
+              <div className="bg-white p-4 border border-slate-200">
+                <p className="text-xs text-slate-500 font-mono uppercase tracking-widest mb-1">Target Detachment</p>
+                <p className="font-bold text-slate-900 text-sm uppercase">{siteToAssign.branch_name}</p>
+                <p className="text-xs font-mono text-slate-500 mt-1">{siteToAssign.branch_code}</p>
               </div>
 
               <div className="space-y-5">
-                {/* Single Inspector Assignment */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Select Roving Inspector</label>
+                  <label className="block text-xs font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Select Roving Inspector</label>
                   <select 
-                    className="w-full border border-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500/40 outline-none text-sm font-medium text-slate-900 bg-white cursor-pointer shadow-sm"
+                    className="w-full border border-slate-300 p-2.5 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 text-sm font-medium text-slate-900 bg-white cursor-pointer"
                     value={selectedInspectorId}
                     onChange={(e) => setSelectedInspectorId(e.target.value)}
                   >
@@ -463,33 +448,31 @@ export default function SitesPage() {
                 </div>
 
                 <div className="border-t border-slate-200 pt-5">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Deploy Guards to Detachment</label>
+                  <label className="block text-xs font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Deploy Guards to Detachment</label>
                   
-                  {/* Selected Guards Multi-Pill Container */}
-                  <div className="flex flex-wrap gap-2 mb-3 min-h-[42px] p-2 bg-white border border-slate-200 rounded-lg shadow-sm">
-                    {selectedGuards.length === 0 && <span className="text-xs text-slate-400 italic py-1 px-1">No guards deployed yet.</span>}
+                  <div className="flex flex-wrap gap-2 mb-3 min-h-[42px] p-2 bg-white border border-slate-300">
+                    {selectedGuards.length === 0 && <span className="text-xs font-mono text-slate-400 py-1 px-1 uppercase tracking-widest">No guards deployed.</span>}
                     {selectedGuards.map(g => (
-                      <span key={g.id} className="flex items-center text-[11px] font-bold text-slate-700 bg-slate-100 pl-2 pr-1 py-1 rounded-md ring-1 ring-slate-200/60 uppercase tracking-wider">
+                      <span key={g.id} className="flex items-center text-xs font-mono font-bold text-slate-900 bg-slate-100 pl-2 pr-1 py-1 rounded-none border border-slate-300 uppercase tracking-widest">
                         {g.guard_name}
-                        <button type="button" onClick={() => handleRemoveGuardFromSelection(g.id)} className="ml-1.5 text-slate-400 hover:text-red-500 p-0.5 rounded-full hover:bg-slate-200 transition-colors">
+                        <button type="button" onClick={() => handleRemoveGuardFromSelection(g.id)} className="ml-2 text-slate-400 hover:text-slate-900 hover:bg-slate-200 p-0.5 transition-none">
                           <X className="w-3 h-3" />
                         </button>
                       </span>
                     ))}
                   </div>
 
-                  {/* Multi-Select Guard Combo-Box */}
                   <div className="relative">
                     <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type="text"
                       placeholder="Search and add guards..."
-                      className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/40 outline-none text-sm font-medium text-slate-900 bg-white shadow-sm"
+                      className="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 text-sm font-medium text-slate-900 bg-white"
                       value={guardSearch}
                       onChange={(e) => setGuardSearch(e.target.value)}
                     />
                     {guardSearch && (
-                      <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto z-50">
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 max-h-48 overflow-y-auto z-50">
                         {allGuards
                           .filter(g => g.guard_name.toLowerCase().includes(guardSearch.toLowerCase()) || (g.assigned_branch && g.assigned_branch.toLowerCase().includes(guardSearch.toLowerCase())))
                           .filter(g => !selectedGuards.find(sg => sg.id === g.id))
@@ -498,18 +481,18 @@ export default function SitesPage() {
                               key={g.id}
                               type="button"
                               onClick={() => handleAddGuardToSelection(g)}
-                              className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-0 flex flex-col transition-colors"
+                              className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-200 last:border-0 flex flex-col transition-none"
                             >
-                              <span className="text-sm font-semibold text-slate-900">{g.guard_name}</span>
+                              <span className="text-sm font-bold text-slate-900">{g.guard_name}</span>
                               {g.assigned_branch && (
-                                <span className="text-[10px] text-amber-600 font-bold uppercase tracking-wider mt-0.5">
+                                <span className="text-xs text-slate-500 font-mono uppercase tracking-widest mt-1">
                                   Currently at: {g.assigned_branch}
                                 </span>
                               )}
                             </button>
                         ))}
                         {allGuards.filter(g => g.guard_name.toLowerCase().includes(guardSearch.toLowerCase()) && !selectedGuards.find(sg => sg.id === g.id)).length === 0 && (
-                            <div className="p-3 text-xs text-slate-500 text-center italic">No matching guards available.</div>
+                            <div className="p-3 text-xs font-mono uppercase tracking-widest text-slate-500 text-center">No matching guards available.</div>
                         )}
                       </div>
                     )}
@@ -518,8 +501,8 @@ export default function SitesPage() {
               </div>
 
               <div className="pt-2">
-                <button type="submit" className="w-full bg-slate-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-slate-800 transition-all shadow-sm ring-1 ring-slate-900/50">
-                  Confirm Personnel Assignment
+                <button type="submit" className="w-full bg-slate-900 text-white text-sm font-bold uppercase tracking-widest py-3 rounded-none hover:bg-slate-800 transition-none">
+                  Confirm Assignment
                 </button>
               </div>
             </form>
@@ -529,39 +512,38 @@ export default function SitesPage() {
 
       {/* 2. Add New Site Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] ring-1 ring-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-none">
+          <div className="bg-white rounded-none border border-slate-300 shadow-none w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="bg-white border-b border-slate-200 p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-semibold text-slate-900 tracking-tight">Register New Detachment</h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors text-2xl leading-none">&times;</button>
+              <h3 className="text-base font-bold text-slate-900 uppercase tracking-tight">Register New Detachment</h3>
+              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-900 transition-none text-xl leading-none">✕</button>
             </div>
             
-            <form onSubmit={handleAddSite} className="p-6 flex flex-col md:flex-row gap-6 overflow-y-auto bg-slate-50/50">
+            <form onSubmit={handleAddSite} className="p-6 flex flex-col md:flex-row gap-6 overflow-y-auto bg-slate-50">
               <div className="w-full md:w-1/2 space-y-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Branch Code (Unique)</label>
-                  <input required type="text" placeholder="e.g. BDO-001" className="w-full border border-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500/40 outline-none bg-white text-sm font-medium text-slate-900 shadow-sm" value={newSite.code} onChange={e => setNewSite({...newSite, code: e.target.value})} />
+                  <label className="block text-xs font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Branch Code (Unique)</label>
+                  <input required type="text" placeholder="e.g. BDO-001" className="w-full border border-slate-300 p-2.5 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 bg-white text-sm font-medium text-slate-900" value={newSite.code} onChange={e => setNewSite({...newSite, code: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Branch Name</label>
-                  <input required type="text" placeholder="e.g. BDO Makati Ave" className="w-full border border-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500/40 outline-none bg-white text-sm font-medium text-slate-900 shadow-sm" value={newSite.name} onChange={e => setNewSite({...newSite, name: e.target.value})} />
+                  <label className="block text-xs font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Branch Name</label>
+                  <input required type="text" placeholder="e.g. BDO Makati Ave" className="w-full border border-slate-300 p-2.5 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 bg-white text-sm font-medium text-slate-900" value={newSite.name} onChange={e => setNewSite({...newSite, name: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Full Address / Location</label>
-                  <input required type="text" placeholder="e.g. Makati City, Metro Manila" className="w-full border border-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500/40 outline-none bg-white text-sm font-medium text-slate-900 shadow-sm" value={newSite.location} onChange={e => setNewSite({...newSite, location: e.target.value})} />
+                  <label className="block text-xs font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Full Address / Location</label>
+                  <input required type="text" placeholder="e.g. Makati City, Metro Manila" className="w-full border border-slate-300 p-2.5 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 bg-white text-sm font-medium text-slate-900" value={newSite.location} onChange={e => setNewSite({...newSite, location: e.target.value})} />
                 </div>
               </div>
 
               <div className="w-full md:w-1/2 flex flex-col">
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Pinpoint Detachment Location</label>
-                <p className="text-[11px] text-slate-400 mb-3">Click map to assign the official location.</p>
-                <div className="flex-1 min-h-[250px] rounded-lg overflow-hidden ring-1 ring-slate-200 shadow-sm">
+                <label className="block text-xs font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Pinpoint Location</label>
+                <div className="flex-1 min-h-[250px] border border-slate-300 bg-white">
                   <LocationPicker 
                     position={newSite.coordinates} 
                     setPosition={(pos) => setNewSite({...newSite, coordinates: pos})} 
                   />
                 </div>
-                <div className="mt-3 p-2 bg-white border border-slate-200 rounded-lg text-[11px] font-mono text-center text-slate-500 shadow-sm">
+                <div className="mt-3 p-3 bg-white border border-slate-300 text-xs font-mono text-center text-slate-900">
                   {newSite.coordinates 
                     ? `Lat: ${newSite.coordinates.lat.toFixed(5)}, Lng: ${newSite.coordinates.lng.toFixed(5)}` 
                     : "No location selected"}
@@ -570,7 +552,7 @@ export default function SitesPage() {
             </form>
 
             <div className="p-5 border-t border-slate-200 bg-white shrink-0">
-              <button onClick={handleAddSite} type="submit" className="w-full bg-slate-900 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-slate-800 transition-all shadow-sm ring-1 ring-slate-900/50">
+              <button onClick={handleAddSite} type="submit" className="w-full bg-slate-900 text-white text-sm font-bold uppercase tracking-widest py-3 rounded-none hover:bg-slate-800 transition-none">
                 Save & Register Detachment
               </button>
             </div>
@@ -578,11 +560,9 @@ export default function SitesPage() {
         </div>
       )}
 
-      {/* 3. PRINT-OPTIMIZED QR CODE GENERATOR MODAL */}
+      {/* 3. QR Code Generator Modal */}
       {selectedSiteForQR && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          
-          {/* CSS injected specifically to isolate the QR container when printing */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-none">
           <style media="print">
             {`
               @page { size: auto; margin: 0; }
@@ -605,22 +585,20 @@ export default function SitesPage() {
             `}
           </style>
 
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col ring-1 ring-slate-200 print:shadow-none print:ring-0">
+          <div className="bg-white border border-slate-300 rounded-none w-full max-w-sm flex flex-col print:border-none">
             
             <div className="bg-white border-b border-slate-200 p-5 flex justify-between items-center shrink-0 print:hidden">
-              <h3 className="text-base font-semibold text-slate-900 tracking-tight">Verification QR Code</h3>
-              <button onClick={() => setSelectedSiteForQR(null)} className="text-slate-400 hover:text-slate-700 transition-colors text-2xl leading-none">&times;</button>
+              <h3 className="text-base font-bold text-slate-900 uppercase tracking-tight">Verification QR Code</h3>
+              <button onClick={() => setSelectedSiteForQR(null)} className="text-slate-400 hover:text-slate-900 transition-none text-xl leading-none">✕</button>
             </div>
 
-            {/* This specific div becomes the sole focus of the physical printout */}
-            <div id="qr-print-area" className="p-6 flex flex-col items-center justify-center space-y-4 bg-slate-50/50 print:bg-white">
-              
+            <div id="qr-print-area" className="p-8 flex flex-col items-center justify-center space-y-6 bg-slate-50 print:bg-white">
               <div className="text-center">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">{selectedSiteForQR.branch_name}</h2>
-                <p className="text-sm font-mono text-slate-500 mt-1">{selectedSiteForQR.branch_code}</p>
+                <h2 className="text-xl font-bold text-slate-900 uppercase tracking-tight">{selectedSiteForQR.branch_name}</h2>
+                <p className="text-sm font-mono text-slate-500 mt-2">{selectedSiteForQR.branch_code}</p>
               </div>
               
-              <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 ring-1 ring-slate-100 print:border-none print:shadow-none print:ring-0">
+              <div className="bg-white p-6 border border-slate-300 print:border-none">
                 <QRCodeSVG 
                   value={JSON.stringify({
                     code: selectedSiteForQR.branch_code,
@@ -633,13 +611,13 @@ export default function SitesPage() {
                 />
               </div>
 
-              <p className="text-xs text-slate-500 text-center leading-relaxed print:mt-4 print:text-black max-w-xs">
-                Scan this code using the Utopia Inspector App to verify physical arrival at <span className="font-mono text-slate-700 font-bold print:text-black">{selectedSiteForQR.branch_code}</span>.
+              <p className="text-xs font-mono text-slate-500 text-center leading-relaxed print:mt-4 print:text-black max-w-xs uppercase tracking-widest">
+                Scan via Inspector App to verify arrival at <span className="font-bold print:text-black">{selectedSiteForQR.branch_code}</span>.
               </p>
 
               <button 
                 onClick={() => window.print()}
-                className="w-full mt-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold py-2.5 rounded-lg flex items-center justify-center transition-all shadow-sm ring-1 ring-slate-900/50 print:hidden"
+                className="w-full mt-4 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold uppercase tracking-widest py-3 rounded-none flex items-center justify-center transition-none print:hidden"
               >
                 <Printer className="w-4 h-4 mr-2" />
                 Print Document
@@ -651,32 +629,32 @@ export default function SitesPage() {
 
       {/* 4. View Map Location Modal */}
       {selectedSiteForMap && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col ring-1 ring-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-none">
+          <div className="bg-white rounded-none border border-slate-300 w-full max-w-2xl overflow-hidden flex flex-col">
             <div className="bg-white border-b border-slate-200 p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-semibold text-slate-900 tracking-tight">Detachment GPS Location</h3>
-              <button onClick={() => setSelectedSiteForMap(null)} className="text-slate-400 hover:text-slate-700 transition-colors text-2xl leading-none">&times;</button>
+              <h3 className="text-base font-bold text-slate-900 uppercase tracking-tight">GPS Location</h3>
+              <button onClick={() => setSelectedSiteForMap(null)} className="text-slate-400 hover:text-slate-900 transition-none text-xl leading-none">✕</button>
             </div>
-            <div className="p-6 flex flex-col space-y-4 bg-slate-50/50">
-              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                <h2 className="text-sm font-semibold text-slate-900 mb-1">{selectedSiteForMap.branch_name}</h2>
-                <p className="text-xs text-slate-500">{selectedSiteForMap.branch_location}</p>
+            <div className="p-6 flex flex-col space-y-4 bg-slate-50">
+              <div className="bg-white p-4 border border-slate-200">
+                <h2 className="text-sm font-bold uppercase text-slate-900">{selectedSiteForMap.branch_name}</h2>
+                <p className="text-xs font-mono text-slate-500 mt-1">{selectedSiteForMap.branch_location}</p>
               </div>
-              <div className="h-72 w-full bg-slate-100 rounded-xl overflow-hidden border border-slate-200 shadow-sm ring-1 ring-slate-100">
+              <div className="h-72 w-full bg-white border border-slate-300">
                 {selectedSiteForMap.latitude && selectedSiteForMap.longitude ? (
                   <LocationPicker 
                     position={{ lat: selectedSiteForMap.latitude, lng: selectedSiteForMap.longitude }} 
                     setPosition={() => {}} 
                   />
                 ) : (
-                  <div className="h-full w-full flex flex-col items-center justify-center text-slate-400">
+                  <div className="h-full w-full flex flex-col items-center justify-center text-slate-400 font-mono text-xs uppercase tracking-widest">
                     <MapPin className="w-6 h-6 text-slate-300 mb-2" />
-                    <span className="text-sm font-medium">No GPS coordinates recorded for this detachment.</span>
+                    <span>No Coordinates Recorded</span>
                   </div>
                 )}
               </div>
               {selectedSiteForMap.latitude && (
-                <div className="bg-white p-3 rounded-lg border border-slate-200 text-[11px] font-mono text-slate-500 text-center shadow-sm">
+                <div className="bg-white p-3 border border-slate-200 text-xs font-mono text-slate-900 text-center uppercase tracking-widest">
                   Lat: {selectedSiteForMap.latitude} | Lng: {selectedSiteForMap.longitude}
                 </div>
               )}
@@ -687,38 +665,38 @@ export default function SitesPage() {
 
       {/* 5. Delete Detachment Modal */}
       {siteToDelete && isSuperadmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col ring-1 ring-slate-200">
-            <div className="bg-white border-b border-red-100 p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-semibold text-red-600 tracking-tight flex items-center">
-                <AlertTriangle className="w-4 h-4 mr-2" /> Danger: Permanent Deletion
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-none">
+          <div className="bg-white border border-slate-300 rounded-none w-full max-w-md overflow-hidden flex flex-col">
+            <div className="bg-white border-b border-slate-200 p-5 flex justify-between items-center shrink-0">
+              <h3 className="text-base font-bold text-red-600 uppercase tracking-tight flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-2" /> Permanent Deletion
               </h3>
-              <button onClick={() => { setSiteToDelete(null); setDeleteConfirmText(''); }} className="text-slate-400 hover:text-slate-700 transition-colors text-2xl leading-none">&times;</button>
+              <button onClick={() => { setSiteToDelete(null); setDeleteConfirmText(''); }} className="text-slate-400 hover:text-slate-900 transition-none text-xl leading-none">✕</button>
             </div>
             
-            <form onSubmit={handleDeleteSite} className="p-6 space-y-5 bg-slate-50/50">
-              <p className="text-slate-600 text-sm leading-relaxed">
-                You are about to permanently delete the <strong className="text-slate-900">{siteToDelete.branch_name}</strong> detachment. This will completely remove it from the system.
+            <form onSubmit={handleDeleteSite} className="p-6 space-y-5 bg-slate-50">
+              <p className="text-slate-700 text-sm leading-relaxed">
+                You are about to permanently delete <strong className="text-slate-900">{siteToDelete.branch_name}</strong>.
               </p>
               
-              <div className="bg-red-50/50 border border-red-100 p-3.5 rounded-lg text-xs text-red-800 shadow-sm font-medium">
-                Type <strong className="font-bold">DELETE</strong> below to execute.
+              <div className="bg-red-50 border border-red-300 p-4 text-xs font-mono text-red-900 uppercase tracking-widest text-center">
+                Type <strong className="font-bold">DELETE</strong> to execute.
               </div>
               
               <input 
                 type="text" 
                 required
-                className="w-full border border-slate-200 p-2.5 rounded-lg outline-none text-slate-900 bg-white placeholder-slate-300 focus:border-red-400 focus:ring-2 focus:ring-red-500/20 font-mono font-bold tracking-widest text-center shadow-sm text-sm" 
+                className="w-full border border-slate-300 p-3 outline-none text-slate-900 bg-white placeholder-slate-300 focus:border-red-600 focus:ring-1 focus:ring-red-600 font-mono font-bold tracking-widest text-center text-sm rounded-none" 
                 placeholder="DELETE"
                 value={deleteConfirmText}
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
               />
               
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => { setSiteToDelete(null); setDeleteConfirmText(''); }} className="flex-1 bg-white border border-slate-200 text-slate-700 text-sm font-semibold py-2.5 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => { setSiteToDelete(null); setDeleteConfirmText(''); }} className="flex-1 bg-white border border-slate-300 text-slate-900 text-xs font-bold uppercase tracking-widest py-3 rounded-none hover:bg-slate-100 transition-none">
                   Cancel
                 </button>
-                <button type="submit" disabled={deleteConfirmText !== 'DELETE'} className={`flex-1 text-sm font-semibold py-2.5 rounded-lg text-white transition-all shadow-sm ${deleteConfirmText === 'DELETE' ? 'bg-red-600 hover:bg-red-700 ring-1 ring-red-700/50' : 'bg-red-300 cursor-not-allowed'}`}>
+                <button type="submit" disabled={deleteConfirmText !== 'DELETE'} className={`flex-1 text-xs font-bold uppercase tracking-widest py-3 rounded-none transition-none text-white border ${deleteConfirmText === 'DELETE' ? 'bg-red-600 hover:bg-red-700 border-red-700' : 'bg-red-300 border-red-300 cursor-not-allowed'}`}>
                   Confirm Delete
                 </button>
               </div>
