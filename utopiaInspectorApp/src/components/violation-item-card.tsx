@@ -1,59 +1,73 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
-interface AuditCardProps {
-  guardName: string;
-  inspectorName: string;
-  guardPhotoUrl?: string; 
-  date: string;
-  onPress: () => void;
+interface ViolationItemCardProps {
+  itemName: string;
+  status: 'Yes' | 'No';
+  onUpdate: (value: 'Yes' | 'No') => void;
 }
 
-export default function ViolationItemCard({ guardName, inspectorName, guardPhotoUrl, date, onPress }: AuditCardProps) {
+export default function ViolationItemCard({ itemName, status, onUpdate }: ViolationItemCardProps) {
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress}>
-      <View style={styles.imageContainer}>
-        {guardPhotoUrl ? (
-          <Image source={{ uri: guardPhotoUrl }} style={styles.image} />
-        ) : (
-          <View style={styles.placeholderImage}>
-            <Text style={styles.placeholderText}>No Photo</Text>
-          </View>
-        )}
+    <View style={styles.card}>
+      <Text style={styles.title}>{itemName}</Text>
+      <View style={styles.optionsRow}>
+        <TouchableOpacity
+          style={[styles.option, status === 'Yes' && styles.optionSelected]}
+          onPress={() => onUpdate('Yes')}
+        >
+          <Text style={[styles.optionText, status === 'Yes' && styles.optionTextSelected]}>Yes</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.option, status === 'No' && styles.optionSelected]}
+          onPress={() => onUpdate('No')}
+        >
+          <Text style={[styles.optionText, status === 'No' && styles.optionTextSelected]}>No</Text>
+        </TouchableOpacity>
       </View>
-      
-      <View style={styles.detailsContainer}>
-        <Text style={styles.guardName}>Guard: {guardName}</Text>
-        <Text style={styles.inspectorName}>Inspector: {inspectorName}</Text>
-        <Text style={styles.date}>{date}</Text>
-      </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    padding: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 12,
     marginBottom: 12,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
-  imageContainer: { marginRight: 16, justifyContent: 'center' },
-  image: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#e2e8f0' },
-  placeholderImage: { 
-    width: 60, height: 60, borderRadius: 30, 
-    backgroundColor: '#cbd5e1', 
-    justifyContent: 'center', alignItems: 'center' 
+  title: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 10,
   },
-  placeholderText: { fontSize: 10, color: '#475569' },
-  detailsContainer: { flex: 1, justifyContent: 'center' },
-  guardName: { fontSize: 16, fontWeight: 'bold', color: '#1e293b' },
-  inspectorName: { fontSize: 14, color: '#475569', marginTop: 4 },
-  date: { fontSize: 12, color: '#94a3b8', marginTop: 4 },
+  optionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  option: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  optionSelected: {
+    backgroundColor: '#0056b3',
+    borderColor: '#0056b3',
+  },
+  optionText: {
+    color: '#374151',
+    fontWeight: '600',
+  },
+  optionTextSelected: {
+    color: '#fff',
+  },
 });

@@ -61,11 +61,12 @@ export default function HomepageScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.card} onPress={() => router.push('/profile')}>
-            <View style={styles.iconBox}><Text style={styles.iconText}>⚙️</Text></View>
+            <View style={styles.iconBox}>
+              <Text style={styles.iconText}>⚙️</Text>
+            </View>
             <Text style={styles.cardTitle}>Settings</Text>
             <Text style={styles.cardDesc}>Manage preferences</Text>
           </TouchableOpacity>
-
         </View>
       </ScrollView>
     </View>

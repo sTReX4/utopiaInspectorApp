@@ -25,6 +25,9 @@ export default function AuditFormScreen() {
 
     // Modal State for Submission Receipt
     const [submittedPayload, setSubmittedPayload] = useState<any>(null);
+    const [savedNames, setSavedNames] = useState<string[]>([]);
+
+    // Loading State
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
     // Camera Permissions
@@ -355,6 +358,7 @@ export default function AuditFormScreen() {
             if (!response.ok) {
                 console.error('Vercel Error Text:', responseText);
                 Alert.alert('Vercel Server Error', `Response: ${responseText.substring(0, 100)}`);
+                setIsSubmitting(false);
                 return;
             }
 
@@ -646,6 +650,18 @@ export default function AuditFormScreen() {
                     />
                     <Text style={styles.checkboxLabel}>Proper Uniform Authorized?</Text>
                 </View>
+
+                <CustomTextInput
+                    label="Firearm Serial Number"
+                    value={firearmSerial}
+                    onChangeText={setFirearmSerial}
+                />
+
+                <CustomTextInput
+                    label="Firearm Kind/Make"
+                    value={firearmMake}
+                    onChangeText={setFirearmMake}
+                />
 
                 <Text style={styles.subHeader}>Documents</Text>
                 <Text style={styles.labelTitle}>LTO</Text>
@@ -1009,15 +1025,18 @@ export default function AuditFormScreen() {
                 )}
 
             <View style={styles.buttonContainer}>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
                     onPress={handleSubmit}
                     disabled={isSubmitting}
                 >
                     {isSubmitting ? (
-                        <ActivityIndicator color="#fff" />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                            <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 10 }} />
+                            <Text style={styles.submitButtonText}>Submitting...</Text>
+                        </View>
                     ) : (
-                        <Text style={styles.submitButtonText}>Submit Audit</Text>
+                        <Text style={styles.submitButtonText}>Submit</Text>
                     )}
                 </TouchableOpacity>
             </View>
@@ -1048,7 +1067,7 @@ export default function AuditFormScreen() {
             {/* SUBMISSION RECEIPT MODAL */}
             <SubmissionReceiptModal
                 visible={!!submittedPayload}
-                payload={submittedPayload}
+                auditData={submittedPayload}
                 onClose={() => setSubmittedPayload(null)}
             />
 
@@ -1157,7 +1176,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',

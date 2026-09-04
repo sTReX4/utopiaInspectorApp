@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Alert, BackHandler, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
 import DateInputGroup from '../components/date-input-group';
 import { supabase } from '@/lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
 
 type Screen = 'login' | 'name' | 'birthday' | 'credentials';
 
@@ -14,6 +15,7 @@ export default function LoginScreen() {
   const [screen, setScreen] = useState<Screen>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [middleInitial, setMiddleInitial] = useState('');
@@ -127,8 +129,25 @@ export default function LoginScreen() {
           </Pressable>
           <Text style={styles.inputLabel}>Email address</Text>
           <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email Address" keyboardType="email-address" autoCapitalize="none" autoComplete="email" textContentType="emailAddress" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
+          
           <Text style={styles.inputLabel}>Password</Text>
-          <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry autoComplete="password" textContentType="password" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
+          <View style={styles.passwordContainer}>
+            <TextInput 
+              style={styles.passwordInput} 
+              value={password} 
+              onChangeText={setPassword} 
+              placeholder="Password" 
+              secureTextEntry={!showPassword} 
+              autoComplete="password" 
+              textContentType="password" 
+              importantForAutofill="yes" 
+              placeholderTextColor="#9aa0a6" 
+            />
+            <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+              <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#68788d" />
+            </Pressable>
+          </View>
+
           <View style={styles.rememberRow}>
             <Checkbox value={rememberMe} onValueChange={setRememberMe} color={rememberMe ? primaryColor : undefined} />
             <Text style={styles.rememberText}>Remember me</Text>
@@ -187,8 +206,25 @@ export default function LoginScreen() {
         <Text style={styles.subtitle}>Set up the credentials you will use to sign in.</Text>
         <Text style={styles.inputLabel}>Email address</Text>
         <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email address" keyboardType="email-address" autoCapitalize="none" autoComplete="email" textContentType="emailAddress" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
+        
         <Text style={styles.inputLabel}>Password</Text>
-        <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Password" secureTextEntry autoComplete="password" textContentType="password" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
+        <View style={styles.passwordContainer}>
+          <TextInput 
+            style={styles.passwordInput} 
+            value={password} 
+            onChangeText={setPassword} 
+            placeholder="Password" 
+            secureTextEntry={!showPassword} 
+            autoComplete="password" 
+            textContentType="password" 
+            importantForAutofill="yes" 
+            placeholderTextColor="#9aa0a6" 
+          />
+          <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+            <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#68788d" />
+          </Pressable>
+        </View>
+
         <PrimaryButton label={isLoading ? "Registering..." : "Register"} onPress={register} disabled={isLoading} />
       </>
     );
@@ -250,6 +286,9 @@ const styles = StyleSheet.create({
   instruction: { color: '#009ce0', fontSize: 14, textAlign: 'center', lineHeight: 19, marginBottom: 15 },
   inputLabel: { color: '#26384f', fontSize: 12, fontWeight: '700', marginBottom: 6 },
   input: { height: 46, borderWidth: 1, borderColor: '#c4d3e6', borderRadius: 9, paddingHorizontal: 12, fontSize: 15, color: '#24364d', backgroundColor: '#fbfdff', marginBottom: 14 },
+  passwordContainer: { flexDirection: 'row', alignItems: 'center', height: 46, borderWidth: 1, borderColor: '#c4d3e6', borderRadius: 9, backgroundColor: '#fbfdff', marginBottom: 14, paddingRight: 10 },
+  passwordInput: { flex: 1, height: '100%', paddingHorizontal: 12, fontSize: 15, color: '#24364d' },
+  eyeIcon: { padding: 8, justifyContent: 'center', alignItems: 'center' },
   rememberRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   rememberText: { marginLeft: 10, color: '#3c4d64', fontSize: 14 },
   nameRow: { flexDirection: 'row', gap: 16 },

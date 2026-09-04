@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, RefreshControl, StyleSheet, TextInput, TouchableOpacity, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../lib/supabase';
-import ViolationItemCard from '../components/violation-item-card';
+import HistoryItemCard from '../components/history-item-card';
 import SubmissionReceiptModal from '../components/submission-receipt-modal';
 
 export default function HistoryScreen() {
@@ -45,7 +45,7 @@ export default function HistoryScreen() {
     const matchesSearch = 
       (audit.guard_name || '').toLowerCase().includes(query) ||
       (audit.inspector_name || '').toLowerCase().includes(query) ||
-      (audit.site_name || '').toLowerCase().includes(query);
+      (audit.branch_name || '').toLowerCase().includes(query);
 
     let matchesDate = true;
     if (startDate) matchesDate = matchesDate && auditDate >= startDate;
@@ -162,11 +162,10 @@ export default function HistoryScreen() {
         ListEmptyComponent={renderEmptyState}
         contentContainerStyle={{ paddingTop: 8 }}
         renderItem={({ item }) => (
-          <ViolationItemCard
-            guardName={item.guard_name || 'Unknown Guard'}
+          <HistoryItemCard
+            guardName={item.guard_name || 'NO-SHOW GUARD'}
             inspectorName={item.inspector_name || 'Unknown Inspector'}
-            guardPhotoUrl={item.guard_photo_url}
-            date={new Date(item.created_at).toLocaleDateString()}
+            date={new Date(item.created_at).toLocaleString()}
             onPress={() => {
               setSelectedAudit(item);
               setModalVisible(true);
@@ -178,7 +177,7 @@ export default function HistoryScreen() {
       <SubmissionReceiptModal 
         visible={modalVisible} 
         onClose={() => setModalVisible(false)} 
-        audit={selectedAudit} 
+        payload={selectedAudit} 
       />
     </View>
   );
