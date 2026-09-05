@@ -66,7 +66,7 @@ export default function LoginPage() {
                     type="email"
                     required
                     className="w-full pl-10 pr-4 py-3 border border-slate-300 focus:ring-1 focus:ring-slate-900 focus:border-slate-900 outline-none transition-none text-slate-900 font-mono text-sm bg-slate-50 focus:bg-white rounded-none"
-                    placeholder="admin@utopiasecurity.com.ph"
+                    placeholder="EMAIL"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />

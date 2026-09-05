@@ -106,7 +106,7 @@ export default function PersonnelPage() {
       .from('detachments')
       .select('id, branch_name, assigned_inspector_id, inspector:inspectors(full_name)')
       .order('branch_name');
-    if (data) setBranchOptions(data);
+    if (data) setBranchOptions(data as any);
   };
 
   const fetchKeys = async () => {
