@@ -27,6 +27,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Define public routes that bypass the auth redirect
+  const publicRoutes = ['/login', '/terms', '/privacy'];
+
   useEffect(() => {
     // 1. Fetch current session
     const initializeAuth = async () => {
@@ -42,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
           setRole(null);
           setIsLoading(false);
-          if (pathname !== '/login') router.push('/login');
+          if (!publicRoutes.includes(pathname)) router.push('/login');
         }
       } catch (error) {
         console.error("Auth initialization error (Corrupted Session):", error);
@@ -50,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.clear();
         sessionStorage.clear();
         setIsLoading(false);
-        if (pathname !== '/login') router.push('/login');
+        if (!publicRoutes.includes(pathname)) router.push('/login');
       }
     };
 

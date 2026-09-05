@@ -15,16 +15,17 @@ interface AuditPhoto {
 interface LivePhotoGridProps {
     activeFilter: string | null;
     globalDate: string;
+    globalInspector: string;
 }
 
-export default function LivePhotoGrid({ activeFilter, globalDate }: LivePhotoGridProps) {
+export default function LivePhotoGrid({ activeFilter, globalDate, globalInspector }: LivePhotoGridProps) {
     const [selectedAuditId, setSelectedAuditId] = useState<string | null>(null);
     const [photos, setPhotos] = useState<AuditPhoto[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
     useEffect(() => {
         if (globalDate) fetchRecentPhotos();
-    }, [activeFilter, globalDate]);
+    }, [activeFilter, globalDate, globalInspector]);
 
     const fetchRecentPhotos = async () => {
         setIsLoading(true);
@@ -37,6 +38,11 @@ export default function LivePhotoGrid({ activeFilter, globalDate }: LivePhotoGri
                 .lte('time_in', `${globalDate}T23:59:59Z`)
                 .order('created_at', { ascending: false })
                 .limit(12);
+
+            // Apply Inspector Filter dynamically
+            if (globalInspector) {
+                query = query.eq('inspector_name', globalInspector);
+            }
 
             if (activeFilter === 'no-show') {
                 query = query.not('guard_present_status', 'is', null);
@@ -73,18 +79,19 @@ export default function LivePhotoGrid({ activeFilter, globalDate }: LivePhotoGri
     };
 
     const getGridTitle = () => {
-        if (activeFilter === 'no-show') return 'LIVE FEED: NO-SHOWS';
-        if (activeFilter === 'violations') return 'LIVE FEED: VIOLATIONS';
-        if (activeFilter === 'uniform') return 'LIVE FEED: UNIFORM FAILURES';
-        if (activeFilter === 'missing-sigs') return 'LIVE FEED: MISSING SIGNATURES';
-        if (activeFilter === 'documents') return 'LIVE FEED: DOCUMENT ISSUES';
-        return 'LIVE FEED: ALL RECORDS';
+        let baseTitle = 'LIVE FEED: ALL RECORDS';
+        if (activeFilter === 'no-show') baseTitle = 'LIVE FEED: NO-SHOWS';
+        else if (activeFilter === 'violations') baseTitle = 'LIVE FEED: VIOLATIONS';
+        else if (activeFilter === 'uniform') baseTitle = 'LIVE FEED: UNIFORM FAILURES';
+        else if (activeFilter === 'missing-sigs') baseTitle = 'LIVE FEED: MISSING SIGNATURES';
+        else if (activeFilter === 'documents') baseTitle = 'LIVE FEED: DOCUMENT ISSUES';
+        
+        return globalInspector ? `${baseTitle} (${globalInspector.toUpperCase()})` : baseTitle;
     };
 
     return (
         <div className="border border-slate-200 bg-white min-h-[400px] flex flex-col">
             <div className="p-6 border-b border-slate-200">
-                {/* Bumped title size to base */}
                 <h2 className="text-base font-bold tracking-widest text-slate-900 uppercase">
                     {getGridTitle()}
                 </h2>
@@ -96,7 +103,6 @@ export default function LivePhotoGrid({ activeFilter, globalDate }: LivePhotoGri
                 </div>
             ) : (
                 <div className="flex-1 bg-slate-200 p-px">
-                    {/* Adjusted breakpoints so cards don't shrink too early */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-px">
                         {photos.map((photo) => (
                             <div 
@@ -104,7 +110,6 @@ export default function LivePhotoGrid({ activeFilter, globalDate }: LivePhotoGri
                                 onClick={() => setSelectedAuditId(photo.id)}
                                 className="flex flex-col bg-white cursor-pointer transition-none hover:bg-slate-50 group relative"
                             >
-                                {/* Replaced fixed h-48 with fluid aspect-video */}
                                 <div className="aspect-video w-full bg-slate-100 relative border-b border-slate-200 overflow-hidden">
                                     <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-none z-10"></div>
                                     <img
@@ -114,7 +119,6 @@ export default function LivePhotoGrid({ activeFilter, globalDate }: LivePhotoGri
                                     />
                                 </div>
 
-                                {/* Bumped typographic scale from 10px/xs to xs/sm */}
                                 <div className="p-5 flex flex-col gap-3">
                                     <p className="text-sm font-bold text-slate-900 uppercase tracking-wider truncate">
                                         {photo.branch_name}

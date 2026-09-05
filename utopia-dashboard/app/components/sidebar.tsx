@@ -11,7 +11,8 @@ export default function Sidebar() {
   const { user, role } = useAuth();
 
   // HIDE SIDEBAR ON LOGIN PAGE
-  if (pathname === '/login') return null;
+  const publicRoutes = ['/login', '/terms', '/privacy'];
+  if (publicRoutes.includes(pathname)) return null;
 
   // Hardwired Nuclear Flush
   const handleForceSignOut = async () => {
