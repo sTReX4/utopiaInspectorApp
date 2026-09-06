@@ -17,6 +17,7 @@ import DateInputGroup from '../components/date-input-group';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 
+const NAME_HISTORY_FILE = FileSystem.documentDirectory + 'nameHistory.json';
 
 export default function AuditFormScreen() {
 
@@ -67,7 +68,6 @@ export default function AuditFormScreen() {
     const [faStatus, setFaStatus] = useState<string>('Valid');
     const [idStatus, setIdStatus] = useState<string>('Valid');
     const [rlmStatus, setRlmStatus] = useState<string>('Valid');
-
 
     // Violation Ticket States
     const [isTicketOpen, setIsTicketOpen] = useState<boolean>(false);
@@ -139,7 +139,6 @@ export default function AuditFormScreen() {
 
     useEffect(() => {
         const fetchAssignedGuards = async () => {
-            // Only fetch if the detachment has been successfully scanned/verified
             if (!isVerified || !branchName) return;
 
             try {
@@ -153,7 +152,6 @@ export default function AuditFormScreen() {
                 if (error) throw error;
 
                 if (data) {
-                    // Store the full object so we can access the date upon selection
                     setAssignedGuards(data as GuardRosterData[]);
                 }
             } catch (error) {
@@ -233,17 +231,14 @@ export default function AuditFormScreen() {
             'System Flush',
             'Wipe local device memory and clear the corrupted Inspector identity?',
             [
-                {
-                    text: 'Cancel',
-                    style: 'cancel',
-                },
+                { text: 'Cancel', style: 'cancel' },
                 {
                     text: 'Wipe Memory',
                     style: 'destructive',
                     onPress: async () => {
                         clearAuditInputs();
-                        await AsyncStorage.clear(); // <-- Destroys 'Inspector Alpha'
-                        router.replace('/login');   // <-- Kicks you back to the start
+                        await AsyncStorage.clear();
+                        router.replace('/login');
                     },
                 },
             ]
@@ -340,9 +335,6 @@ export default function AuditFormScreen() {
             client_signature: isClientAbsent ? 'UNAVAILABLE_ON_SITE' : clientSignature,
         };
 
-        console.log('SECURE PAYLOAD LOCKED');
-        console.log(JSON.stringify(payload, null, 2));
-
         try {
             const API_URL = 'https://utopia-inspector-app.vercel.app/api/audits';
             
@@ -352,7 +344,6 @@ export default function AuditFormScreen() {
                 body: JSON.stringify(payload),
             });
             
-            // Read the raw text first to prevent the JSON crash
             const responseText = await response.text();
             
             if (!response.ok) {
@@ -361,8 +352,6 @@ export default function AuditFormScreen() {
                 setIsSubmitting(false);
                 return;
             }
-
-            const result = JSON.parse(responseText);
 
             clearAuditInputs();
             Alert.alert('Audit Submitted', 'The audit has been successfully submitted and logged.', [
@@ -384,23 +373,18 @@ export default function AuditFormScreen() {
         }
     };
 
-    // Handle ATM Online/Offline Toggle Logic//
     const handleAtmOnlineToggle = (newValue: boolean) => {
         setIsAtmOnline(newValue);
-        if (newValue)
-            setIsAtmOffline(false);
-        };
+        if (newValue) setIsAtmOffline(false);
+    };
 
     const handleAtmOfflineToggle = (newValue: boolean) => {
         setIsAtmOffline(newValue);
-        if (newValue)
-            setIsAtmOnline(false);
-        };
+        if (newValue) setIsAtmOnline(false);
+    };
 
     const handleBarcodeScanned = async ({ data }: { data: string }) => {
-        if (isVerified || isProcessingScan) 
-            
-        return;
+        if (isVerified || isProcessingScan) return;
 
         setIsProcessingScan(true);
 
@@ -437,7 +421,7 @@ export default function AuditFormScreen() {
             Alert.alert("Scan Failed", "Unrecognized QR format. Please scan an official Utopia detachment code.", [{ text: "Try Again", onPress: () => setIsProcessingScan(false) }]);
         }
     };
-    // Handle Form Submission Logic //
+
     const handleSubmit = async () => {
         if (isGuardPresent && !guardSignature) {
             Alert.alert('Missing Signature', 'The Guard on duty MUST sign the audit.');
@@ -465,66 +449,55 @@ export default function AuditFormScreen() {
     }
 
     if (!permission.granted) {
-            return (
-                <View style={[styles.container, { justifyContent: 'center'}]}>
+        return (
+            <View style={[styles.container, { justifyContent: 'center'}]}>
                 <Text style={{ textAlign: 'center', marginBottom: 20 }}>Camera and GPS access are strictly required to conduct this audit.</Text>
                 <Button title="Grant Permissions" onPress={() => { requestPermission(); requestLocationPermission(); }} color="#0056b3"/>
-                </View>
-            );
-        }
+            </View>
+        );
+    }
 
-        if (!isVerified) {
-            return (
-                <View style={{flex: 1}}>
-                    <CameraView
-                        style={StyleSheet.absoluteFill}
-                        barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                        onBarcodeScanned={handleBarcodeScanned}
-                    />
-
-                    <View style={styles.overlay}>
+    if (!isVerified) {
+        return (
+            <View style={{flex: 1}}>
+                <CameraView
+                    style={StyleSheet.absoluteFill}
+                    barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                    onBarcodeScanned={handleBarcodeScanned}
+                />
+                <View style={styles.overlay}>
                     <View style={styles.unfocusedContainer} />
                     <View style={styles.middleContainer}>
-                    <View style={styles.unfocusedContainer} />
-                    <View style={styles.focusedContainer} />
-                    <View style={styles.unfocusedContainer} />
+                        <View style={styles.unfocusedContainer} />
+                        <View style={styles.focusedContainer} />
+                        <View style={styles.unfocusedContainer} />
                     </View>
                     <View style={styles.bottomContainer} />
                     <Button
-                            title="DEV BYPASS (FOR TESTING ONLY)"
-                            color="red"
-                            onPress={() => {
-                                setBranchCode("DEV-001");
-                                setBranchName("Development Branch");
-                                setBranchLocation("Localhost");
-                                setTimeIn(new Date().toISOString());
-                                setIsVerified(true);
-                            }}
+                        title="DEV BYPASS (FOR TESTING ONLY)"
+                        color="red"
+                        onPress={() => {
+                            setBranchCode("DEV-001");
+                            setBranchName("Development Branch");
+                            setBranchLocation("Localhost");
+                            setTimeIn(new Date().toISOString());
+                            setIsVerified(true);
+                        }}
                     />
-                        <Text style={styles.scannerText}>Scan Detachment QR Code to Begin Audit</Text>
-
-                    </View>
+                    <Text style={styles.scannerText}>Scan Detachment QR Code to Begin Audit</Text>
                 </View>
-            );
-        }
+            </View>
+        );
+    }
 
     return (
     <>
         <Stack.Screen
-                options={{
+            options={{
                 title: 'Digital Audit',
                 headerRight: () => (
-                <TouchableOpacity
-                onPress={handleClearAll}
-                style={{ marginRight: 15 }}
-                    >
-                        <Text
-                            style={{
-                                color: '#d32f2f',
-                                fontWeight: 'bold',
-                                fontSize: 12,
-                            }}
-                        >
+                    <TouchableOpacity onPress={handleClearAll} style={{ marginRight: 15 }}>
+                        <Text style={{ color: '#d32f2f', fontWeight: 'bold', fontSize: 12 }}>
                             Clear
                         </Text>
                     </TouchableOpacity>
@@ -561,10 +534,9 @@ export default function AuditFormScreen() {
 
         {isGuardPresent ? (
 
-                <View>
+            <View>
                 <Text style={styles.header}>Audit Form</Text>
 
-                {/* STRICT DATABASE DROPDOWN */}
                 <View style={{ marginBottom: 20 }}>
                     <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>Guard on Post</Text>
                     
@@ -609,7 +581,6 @@ export default function AuditFormScreen() {
                                             setGuardName(guard.guard_name);
                                             setIsGuardDropdownOpen(false);
                                             
-                                            // Auto-fill the Date Inputs
                                             if (guard.lesp_expiry_date) {
                                                 const [year, month, day] = guard.lesp_expiry_date.split('-');
                                                 setLespExpYear(year);
@@ -633,13 +604,13 @@ export default function AuditFormScreen() {
                 </View>
 
                 <DateInputGroup 
-                label="LESP Expiry Date"
-                day={lespExpDay}
-                month={lespExpMonth}
-                year={lespExpYear}
-                onDayChange={setLespExpDay}
-                onMonthChange={setLespExpMonth}
-                onYearChange={setLespExpYear}
+                    label="LESP Expiry Date"
+                    day={lespExpDay}
+                    month={lespExpMonth}
+                    year={lespExpYear}
+                    onDayChange={setLespExpDay}
+                    onMonthChange={setLespExpMonth}
+                    onYearChange={setLespExpYear}
                 />
 
                 <View style={styles.checkboxContainer}>
@@ -651,18 +622,6 @@ export default function AuditFormScreen() {
                     <Text style={styles.checkboxLabel}>Proper Uniform Authorized?</Text>
                 </View>
 
-                <CustomTextInput
-                    label="Firearm Serial Number"
-                    value={firearmSerial}
-                    onChangeText={setFirearmSerial}
-                />
-
-                <CustomTextInput
-                    label="Firearm Kind/Make"
-                    value={firearmMake}
-                    onChangeText={setFirearmMake}
-                />
-
                 <Text style={styles.subHeader}>Documents</Text>
                 <Text style={styles.labelTitle}>LTO</Text>
                 <View style={styles.radioGroup}>
@@ -672,9 +631,7 @@ export default function AuditFormScreen() {
                             style={[styles.radioButton, ltoStatus === status && styles.radioButtonActive]}
                             onPress={() => setLtoStatus(status)}
                         >
-                            <Text style={[styles.radioText, ltoStatus === status && styles.radioTextActive]}>
-                                {status}
-                            </Text>
+                            <Text style={[styles.radioText, ltoStatus === status && styles.radioTextActive]}>{status}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
@@ -687,9 +644,7 @@ export default function AuditFormScreen() {
                             style={[styles.radioButton, ddoStatus === status && styles.radioButtonActive]}
                             onPress={() => setDdoStatus(status)}
                         >
-                            <Text style={[styles.radioText, ddoStatus === status && styles.radioTextActive]}>
-                                {status}
-                            </Text>
+                            <Text style={[styles.radioText, ddoStatus === status && styles.radioTextActive]}>{status}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
@@ -702,9 +657,7 @@ export default function AuditFormScreen() {
                             style={[styles.radioButton, ltofpStatus === status && styles.radioButtonActive]}
                             onPress={() => setLtofpStatus(status)}
                         >
-                            <Text style={[styles.radioText, ltofpStatus === status && styles.radioTextActive]}>
-                                {status}
-                            </Text>
+                            <Text style={[styles.radioText, ltofpStatus === status && styles.radioTextActive]}>{status}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
@@ -717,9 +670,7 @@ export default function AuditFormScreen() {
                             style={[styles.radioButton, faStatus === status && styles.radioButtonActive]}
                             onPress={() => setFaStatus(status)}
                         >
-                            <Text style={[styles.radioText, faStatus === status && styles.radioTextActive]}>
-                                {status}
-                            </Text>
+                            <Text style={[styles.radioText, faStatus === status && styles.radioTextActive]}>{status}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
@@ -732,9 +683,7 @@ export default function AuditFormScreen() {
                             style={[styles.radioButton, idStatus === status && styles.radioButtonActive]}
                             onPress={() => setIdStatus(status)}
                         >
-                            <Text style={[styles.radioText, idStatus === status && styles.radioTextActive]}>
-                                {status}
-                            </Text>
+                            <Text style={[styles.radioText, idStatus === status && styles.radioTextActive]}>{status}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
@@ -747,9 +696,7 @@ export default function AuditFormScreen() {
                             style={[styles.radioButton, rlmStatus === status && styles.radioButtonActive]}
                             onPress={() => setRlmStatus(status)}
                         >
-                            <Text style={[styles.radioText, rlmStatus === status && styles.radioTextActive]}>
-                                {status}
-                            </Text>
+                            <Text style={[styles.radioText, rlmStatus === status && styles.radioTextActive]}>{status}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
@@ -788,138 +735,28 @@ export default function AuditFormScreen() {
 
                         <Text style={styles.subHeader}>Presentable/Operational/Applicable</Text>
 
-                        <ViolationItemCard 
-                            itemName="1. Valid Security License" 
-                            status={validSecurityLicense} 
-                            onUpdate={setValidSecurityLicense} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="2. Company ID" 
-                            status={companyId} 
-                            onUpdate={setCompanyId} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="3. Pershing Cap" 
-                            status={pershingCap} 
-                            onUpdate={setPershingCap} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="4. Authorized Hair Cut" 
-                            status={authorizedHairCut} 
-                            onUpdate={setAuthorizedHairCut} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="5. Properly Shaved" 
-                            status={properlyShaved} 
-                            onUpdate={setProperlyShaved} 
-                        />
-                        
-                        <ViolationItemCard 
-                            itemName="6. Authorized Uniform" 
-                            status={authorizedUniform} 
-                            onUpdate={setAuthorizedUniform} 
-                        />
-                        
-                        <ViolationItemCard 
-                            itemName="7. Authorized Name Cloth" 
-                            status={authorizedNameCloth} 
-                            onUpdate={setAuthorizedNameCloth} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="8. Authorized Agency Patch" 
-                            status={authorizedAgencyPatch} 
-                            onUpdate={setAuthorizedAgencyPatch} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="9. Necktie With Clip" 
-                            status={necktieWithClip} 
-                            onUpdate={setNecktieWithClip} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="10. Security Badge" 
-                            status={securityBadge} 
-                            onUpdate={setSecurityBadge} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="11. Collar Pin 2 pcs." 
-                            status={collarPin} 
-                            onUpdate={setCollarPin} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="12. Lanyard (Navy Blue)" 
-                            status={lanyard} 
-                            onUpdate={setLanyard} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="13. Whistle" 
-                            status={whistle} 
-                            onUpdate={setWhistle} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="14. Holster" 
-                            status={holster} 
-                            onUpdate={setHolster} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="15. Belt Clip 6 pcs." 
-                            status={beltClip} 
-                            onUpdate={setBeltClip} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="16. Belt with buckle" 
-                            status={beltWithBuckle} 
-                            onUpdate={setBeltWithBuckle} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="17. Garrison Belt" 
-                            status={garrisonBelt} 
-                            onUpdate={setGarrisonBelt} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="18. Authorized Shoes" 
-                            status={authorizedShoes} 
-                            onUpdate={setAuthorizedShoes} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="19. Hand Cuff" 
-                            status={handCuff} 
-                            onUpdate={setHandCuff} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="20. Short/Clean finger Nails" 
-                            status={shortCleanFingerNails} 
-                            onUpdate={setShortCleanFingerNails} 
-                        />
-
-                        <ViolationItemCard 
-                            itemName="21. Medicine Kit With Mediplus" 
-                            status={medicineKitWithMediplus} 
-                            onUpdate={setMedicineKitWithMediplus} 
-                        />
-
-
-                        <ViolationItemCard 
-                            itemName="22. Stun Gun With Flashlight" 
-                            status={stunGunWithFlashlight} 
-                            onUpdate={setStunGunWithFlashlight} 
-                        />
+                        <ViolationItemCard itemName="1. Valid Security License" status={validSecurityLicense} onUpdate={setValidSecurityLicense} />
+                        <ViolationItemCard itemName="2. Company ID" status={companyId} onUpdate={setCompanyId} />
+                        <ViolationItemCard itemName="3. Pershing Cap" status={pershingCap} onUpdate={setPershingCap} />
+                        <ViolationItemCard itemName="4. Authorized Hair Cut" status={authorizedHairCut} onUpdate={setAuthorizedHairCut} />
+                        <ViolationItemCard itemName="5. Properly Shaved" status={properlyShaved} onUpdate={setProperlyShaved} />
+                        <ViolationItemCard itemName="6. Authorized Uniform" status={authorizedUniform} onUpdate={setAuthorizedUniform} />
+                        <ViolationItemCard itemName="7. Authorized Name Cloth" status={authorizedNameCloth} onUpdate={setAuthorizedNameCloth} />
+                        <ViolationItemCard itemName="8. Authorized Agency Patch" status={authorizedAgencyPatch} onUpdate={setAuthorizedAgencyPatch} />
+                        <ViolationItemCard itemName="9. Necktie With Clip" status={necktieWithClip} onUpdate={setNecktieWithClip} />
+                        <ViolationItemCard itemName="10. Security Badge" status={securityBadge} onUpdate={setSecurityBadge} />
+                        <ViolationItemCard itemName="11. Collar Pin 2 pcs." status={collarPin} onUpdate={setCollarPin} />
+                        <ViolationItemCard itemName="12. Lanyard (Navy Blue)" status={lanyard} onUpdate={setLanyard} />
+                        <ViolationItemCard itemName="13. Whistle" status={whistle} onUpdate={setWhistle} />
+                        <ViolationItemCard itemName="14. Holster" status={holster} onUpdate={setHolster} />
+                        <ViolationItemCard itemName="15. Belt Clip 6 pcs." status={beltClip} onUpdate={setBeltClip} />
+                        <ViolationItemCard itemName="16. Belt with buckle" status={beltWithBuckle} onUpdate={setBeltWithBuckle} />
+                        <ViolationItemCard itemName="17. Garrison Belt" status={garrisonBelt} onUpdate={setGarrisonBelt} />
+                        <ViolationItemCard itemName="18. Authorized Shoes" status={authorizedShoes} onUpdate={setAuthorizedShoes} />
+                        <ViolationItemCard itemName="19. Hand Cuff" status={handCuff} onUpdate={setHandCuff} />
+                        <ViolationItemCard itemName="20. Short/Clean finger Nails" status={shortCleanFingerNails} onUpdate={setShortCleanFingerNails} />
+                        <ViolationItemCard itemName="21. Medicine Kit With Mediplus" status={medicineKitWithMediplus} onUpdate={setMedicineKitWithMediplus} />
+                        <ViolationItemCard itemName="22. Stun Gun With Flashlight" status={stunGunWithFlashlight} onUpdate={setStunGunWithFlashlight} />
 
                         <CustomTextInput
                             label="Violation"
@@ -1009,24 +846,26 @@ export default function AuditFormScreen() {
                 </View>
 
                 {!isClientAbsent && (
-                    <>
-                        <View style={styles.signatureTriggerRow}>
-                            <Text style={styles.triggerLabel}>Client Rep:</Text>
-                            <TouchableOpacity 
-                                style={[styles.triggerButton, clientSignature && styles.triggerButtonSuccess]} 
-                                onPress={() => setActiveSigner('client')}
-                            >
-                                <Text style={styles.triggerButtonText}>
-                                    {clientSignature ? "✅ Signature Captured" : "Tap to Sign"}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </>
+                    <View style={styles.signatureTriggerRow}>
+                        <Text style={styles.triggerLabel}>Client Rep:</Text>
+                        <TouchableOpacity 
+                            style={[styles.triggerButton, clientSignature && styles.triggerButtonSuccess]} 
+                            onPress={() => setActiveSigner('client')}
+                        >
+                            <Text style={styles.triggerButtonText}>
+                                {clientSignature ? "✅ Signature Captured" : "Tap to Sign"}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
                 )}
 
             <View style={styles.buttonContainer}>
+                {/* DYNAMIC RED BUTTON TO PREVENT SPAM CLICKING */}
                 <TouchableOpacity
-                    style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+                    style={[
+                        styles.submitButton,
+                        { backgroundColor: isSubmitting ? '#ef4444' : '#0f172a' } 
+                    ]}
                     onPress={handleSubmit}
                     disabled={isSubmitting}
                 >
@@ -1036,23 +875,12 @@ export default function AuditFormScreen() {
                             <Text style={styles.submitButtonText}>Submitting...</Text>
                         </View>
                     ) : (
-                        <Text style={styles.submitButtonText}>Submit</Text>
+                        <Text style={styles.submitButtonText}>Submit Audit Report</Text>
                     )}
                 </TouchableOpacity>
             </View>
         </KeyboardAwareScrollView>
         </TouchableWithoutFeedback>
-
-            {/* FULL-SCREEN LOADING OVERLAY */}
-            {isSubmitting && (
-                <View style={styles.loadingOverlay}>
-                    <View style={styles.loadingBox}>
-                        <ActivityIndicator size="large" color="#0056b3" />
-                        <Text style={styles.loadingText}>Submitting Audit...</Text>
-                        <Text style={styles.loadingSubText}>Please do not close the app.</Text>
-                    </View>
-                </View>
-            )}
 
             {activeSigner !== null && (
                 <SignaturePad
@@ -1063,13 +891,6 @@ export default function AuditFormScreen() {
                     onSign={activeSigner === 'guard' ? setGuardSignature : setClientSignature}
                 />
             )}
-
-            {/* SUBMISSION RECEIPT MODAL */}
-            <SubmissionReceiptModal
-                visible={!!submittedPayload}
-                auditData={submittedPayload}
-                onClose={() => setSubmittedPayload(null)}
-            />
 
         </View>
     </>
@@ -1104,8 +925,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 8,
     color: '#333',
-
-    // For documents
   },
   checkboxGroup: {
     backgroundColor: '#fff',
@@ -1162,47 +981,14 @@ const styles = StyleSheet.create({
     marginBottom: 60,
   },
   submitButton: {
-    backgroundColor: '#0056b3',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#9ca3af',
   },
   submitButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-  },
-  loadingBox: {
-    backgroundColor: '#fff',
-    padding: 30,
-    borderRadius: 12,
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  loadingText: {
-    marginTop: 15,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  loadingSubText: {
-    marginTop: 5,
-    fontSize: 14,
-    color: '#666',
   },
   clearButtonContainer: {
     padding: 10,
@@ -1219,8 +1005,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-
-  // Drop Down Selection
   dropdownButton: {
     backgroundColor: '#fff',
     padding: 15,
@@ -1237,15 +1021,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 20,
   },
-
-  //E-Signature Styles
   signatureTriggerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15, backgroundColor: '#fff', padding: 15, borderRadius: 5, borderWidth: 1, borderColor: '#ccc' },
   triggerLabel: { fontSize: 16, fontWeight: 'bold', color: '#333' },
   triggerButton: { paddingVertical: 10, paddingHorizontal: 15, backgroundColor: '#f0f0f0', borderRadius: 5, borderWidth: 1, borderColor: '#aaa' },
   triggerButtonSuccess: { backgroundColor: '#28a745' },
   triggerButtonText: { fontSize: 14, fontWeight: 'bold', color: '#333' },
-
-  //QR CODE THAT HOPEFULLY WORKS ON FIRST TRY GOD
   scannerOverlay: {
     position: 'absolute',
     bottom: 50,
@@ -1288,17 +1068,17 @@ const styles = StyleSheet.create({
   },
   unfocusedContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)', // Darkens the outside
+    backgroundColor: 'rgba(0,0,0,0.7)',
   },
   middleContainer: {
     flexDirection: 'row',
-    flex: 1.5, // Controls the height of the scanning box
+    flex: 1.5,
   },
   focusedContainer: {
-    flex: 2, // Controls the width of the scanning box
+    flex: 2,
     borderColor: '#fff',
     borderWidth: 2,
-    borderRadius: 12, // Gives it that modern rounded look from your reference
+    borderRadius: 12,
     backgroundColor: 'transparent',
   },
   bottomContainer: {
@@ -1306,20 +1086,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 100, // Lifts the text slightly
+    paddingTop: 100,
   },
-
   nameGroup: {
     marginBottom: 20,
   },
-
   nameLabel: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
     color: '#333',
   },
-
   nameRow: {
     flexDirection: 'row',
     gap: 8,
