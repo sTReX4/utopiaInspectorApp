@@ -6,7 +6,7 @@ import * as Location from 'expo-location';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useNavigation, useRouter } from 'expo-router';
-import { Alert, Button, Keyboard, Platform, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View, ActivityIndicator } from 'react-native';
+import { Alert, Button, Keyboard, Platform, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View, ActivityIndicator } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import CustomTextInput from '../components/custom-text-input';
 import LiveCameraModal from '../components/live-camera-modal';
@@ -120,6 +120,9 @@ export default function AuditFormScreen() {
     const [isAtmOnline, setIsAtmOnline] = useState<boolean>(false);
     const [isAtmOffline, setIsAtmOffline] = useState<boolean>(false);
     const [isDoorSecure, setIsDoorSecure] = useState<boolean>(false);
+
+    const [visitType, setVisitType] = useState<'Routine' | 'Alarm Response'>('Routine');
+    const [incidentRemarks, setIncidentRemarks] = useState('');
 
     const [inspectorName, setInspectorName] = useState<string>('Unknown Inspector');
 
@@ -333,6 +336,9 @@ export default function AuditFormScreen() {
             live_photo_uri: `data:image/jpeg;base64,${base64Photo}`,
             guard_signature: isGuardPresent ? guardSignature : null,
             client_signature: isClientAbsent ? 'UNAVAILABLE_ON_SITE' : clientSignature,
+
+            visit_type: visitType,
+        incident_remarks: incidentRemarks
         };
 
         try {
@@ -532,7 +538,37 @@ export default function AuditFormScreen() {
                 <Text style={styles.detachmentSubtitle}>{branchLocation}</Text>
             </View>
 
-        {isGuardPresent ? (
+            {/* --- NEW: ACTIVE DISPATCH SELECTOR --- */}
+            <View style={{ marginBottom: 20, borderWidth: 1, borderColor: '#e2e8f0', backgroundColor: '#f8fafc', padding: 15 }}>
+                <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', marginBottom: 10 }}>Visit Classification</Text>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity 
+                        style={{ flex: 1, padding: 12, borderWidth: 1, borderColor: visitType === 'Routine' ? '#0f172a' : '#cbd5e1', backgroundColor: visitType === 'Routine' ? '#0f172a' : '#ffffff', alignItems: 'center' }}
+                        onPress={() => setVisitType('Routine')}
+                    >
+                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: visitType === 'Routine' ? '#ffffff' : '#64748b' }}>ROUTINE</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={{ flex: 1, padding: 12, borderWidth: 1, borderColor: visitType === 'Alarm Response' ? '#dc2626' : '#cbd5e1', backgroundColor: visitType === 'Alarm Response' ? '#dc2626' : '#ffffff', alignItems: 'center' }}
+                        onPress={() => setVisitType('Alarm Response')}
+                    >
+                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: visitType === 'Alarm Response' ? '#ffffff' : '#64748b' }}>ALARM RESPONSE</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+        {visitType === 'Alarm Response' ? (
+            <View style={{ marginBottom: 20, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fef2f2', padding: 15 }}>
+                <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#991b1b', textTransform: 'uppercase', marginBottom: 10 }}>Incident Resolution Report</Text>
+                <TextInput
+                    style={{ borderWidth: 1, borderColor: '#f87171', backgroundColor: '#ffffff', padding: 12, fontSize: 14, minHeight: 100, textAlignVertical: 'top' }}
+                    placeholder="Detail the branch concern, findings, and resolution..."
+                    multiline
+                    value={incidentRemarks}
+                    onChangeText={setIncidentRemarks}
+                />
+            </View>
+        ) : isGuardPresent ? (
 
             <View>
                 <Text style={styles.header}>Audit Form</Text>
@@ -790,6 +826,7 @@ export default function AuditFormScreen() {
                 </View>
             </View>
         )}
+
             <Text style={styles.subHeader}>Live Photo Capture</Text>
 
             <Text style={{ fontStyle: 'italic', color: '#666', marginBottom: 15}}>
@@ -891,6 +928,8 @@ export default function AuditFormScreen() {
                     onSign={activeSigner === 'guard' ? setGuardSignature : setClientSignature}
                 />
             )}
+
+        
 
         </View>
     </>
