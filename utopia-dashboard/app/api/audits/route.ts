@@ -18,7 +18,7 @@ export async function POST(request: Request) {
         guard_present_status: body.guard_present_status,
         guard_name: body.guard_name,
         lesp_expiry: body.lesp_expiry,
-        uniform_compliance: body.uniform_compliance,
+        uniform_status: body.uniform_compliance,
         firearm_serial: body.firearm_serial,
         firearm_make: body.firearm_make,
         documents_checklist: body.metrics,
