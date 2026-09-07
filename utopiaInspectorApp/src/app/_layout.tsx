@@ -17,7 +17,7 @@ export default function Layout() {
       {/* Global Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>Security</Text>
+          <Text style={styles.eyebrow}>Security ⛉</Text>
           <Text style={styles.title}>Utopia</Text>
         </View>
         <View style={styles.headerRight}>
@@ -26,10 +26,7 @@ export default function Layout() {
             style={styles.avatar}
             activeOpacity={0.7}
           >
-            <Image 
-              source={require('../../imgfolder/download-removebg-preview.png')} 
-              style={styles.avatarImage} 
-            />
+
           </TouchableOpacity>
         </View>
       </View>
@@ -38,7 +35,6 @@ export default function Layout() {
       {menuOpen && (
         <>
           {/* Invisible overlay to catch outside taps and close menu */}
-          <Pressable style={styles.overlay} onPress={() => setMenuOpen(false)} />
           <View style={styles.menu}>
             {["Profile", "Security", "Notification", "Support", "Sign out"].map((item, i, arr) => (
               <TouchableOpacity 
@@ -67,7 +63,6 @@ export default function Layout() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#050505" },
   content: { flex: 1 },
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 90 },
   
   header: { 
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 

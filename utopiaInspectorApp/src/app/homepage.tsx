@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Animated } from "react-native";
 import { useRouter, Href } from "expo-router";
 
@@ -8,9 +8,18 @@ const HISTORY = [
   { date: "Sep 3", event: "Auth policy update deployed", result: "Applied", flag: false },
 ];
 
+const TUTORIAL_STEPS = [
+  { title: "Status & Alerts", text: "Monitor ongoing audits and system anomalies in real-time." },
+  { title: "Quick Actions", text: "Your main navigation hub. Start audits, check history, or manage units here." },
+  { title: "Recent Activity", text: "Track the latest system events and deployment syncs at a glance." }
+];
+
 export default function HomepageScreen() {
   const router = useRouter();
   const slideAnim = useRef(new Animated.Value(-100)).current;
+  
+  // Set to 1 to auto-start the tutorial on first load, or trigger via a button
+  const [tutorialStep, setTutorialStep] = useState(0); 
 
   useEffect(() => {
     Animated.sequence([
@@ -20,11 +29,23 @@ export default function HomepageScreen() {
     ]).start();
   }, [slideAnim]);
 
+  const handleNextStep = () => {
+    if (tutorialStep < TUTORIAL_STEPS.length) {
+      setTutorialStep(tutorialStep + 1);
+    } else {
+      setTutorialStep(0); // End tutorial
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Welcome Notification */}
       <Animated.View style={[styles.welcomeBanner, { transform: [{ translateY: slideAnim }] }]}>
         <Text style={styles.welcomeText}>Welcome back, Inspector</Text>
+        {/* Hidden button to manually trigger tutorial for testing */}
+        <TouchableOpacity onPress={() => setTutorialStep(1)} style={{ marginTop: 4 }}>
+          <Text style={{ color: '#c9a84c', fontSize: 10 }}>Start Tour</Text>
+        </TouchableOpacity>
       </Animated.View>
 
       {/* Main Content */}
@@ -34,7 +55,7 @@ export default function HomepageScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Alert banner */}
-        <View style={styles.alertBanner}>
+        <View style={[styles.alertBanner, tutorialStep === 1 && styles.highlightedElement]}>
           <View style={styles.pulseDot} />
           <View style={{ flex: 1 }}>
             <Text style={styles.alertTitle}>Active audit in progress</Text>
@@ -59,12 +80,12 @@ export default function HomepageScreen() {
 
         {/* Quick actions */}
         <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.grid}>
+        <View style={[styles.grid, tutorialStep === 2 && styles.highlightedElement]}>
           {[
             { label: "Digital Audit", sub: "Run full scan", route: "/audit", icon: "◈" },
             { label: "History", sub: "View event log", route: "/history", icon: "≡" },
             { label: "Detachments", sub: "Manage units", route: "/sites", icon: "◉" },
-            { label: "Settings", sub: "Configure app", route: "/profile", icon: "⚙" },
+            { label: "Escalations", sub: "Configure app", route: "/escalations", icon: "!" },
           ].map((a) => (
             <TouchableOpacity
               key={a.label}
@@ -83,7 +104,7 @@ export default function HomepageScreen() {
 
         {/* Recent activity */}
         <Text style={styles.sectionTitle}>Recent Activity</Text>
-        <View style={styles.historyContainer}>
+        <View style={[styles.historyContainer, tutorialStep === 3 && styles.highlightedElement]}>
           {HISTORY.map((h, i) => (
             <View key={i} style={styles.historyRow}>
               <View style={[styles.historyDot, h.flag ? { backgroundColor: "#fff" } : { backgroundColor: "#333" }]} />
@@ -93,6 +114,23 @@ export default function HomepageScreen() {
           ))}
         </View>
       </ScrollView>
+
+      {/* Tutorial Overlay */}
+      {tutorialStep > 0 && (
+        <View style={styles.tutorialOverlay}>
+          <View style={styles.tutorialBox}>
+            <Text style={styles.tutorialStepText}>Step {tutorialStep} of {TUTORIAL_STEPS.length}</Text>
+            <Text style={styles.tutorialTitle}>{TUTORIAL_STEPS[tutorialStep - 1].title}</Text>
+            <Text style={styles.tutorialDesc}>{TUTORIAL_STEPS[tutorialStep - 1].text}</Text>
+            
+            <TouchableOpacity style={styles.tutorialButton} onPress={handleNextStep}>
+              <Text style={styles.tutorialButtonText}>
+                {tutorialStep === TUTORIAL_STEPS.length ? "Finish Tour" : "Next"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -136,4 +174,28 @@ const styles = StyleSheet.create({
   historyDot: { width: 6, height: 6, borderRadius: 3, marginRight: 12 },
   historyEvent: { flex: 1, fontSize: 13, color: '#e8e8e8', marginRight: 12 },
   historyDate: { fontSize: 11, color: '#555', fontFamily: 'monospace' },
+
+  // Tutorial Styles
+  tutorialOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    zIndex: 100, justifyContent: 'flex-end', padding: 20, paddingBottom: 60,
+  },
+  tutorialBox: {
+    backgroundColor: '#111', borderColor: '#333', borderWidth: 1,
+    borderRadius: 8, padding: 24,
+  },
+  tutorialStepText: { fontSize: 10, color: '#c9a84c', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 8 },
+  tutorialTitle: { fontSize: 18, fontWeight: '600', color: '#e8e8e8', marginBottom: 8 },
+  tutorialDesc: { fontSize: 13, color: '#888', lineHeight: 20, marginBottom: 20 },
+  tutorialButton: { backgroundColor: '#fff', paddingVertical: 12, borderRadius: 4, alignItems: 'center' },
+  tutorialButtonText: { color: '#000', fontSize: 14, fontWeight: '600' },
+  
+  // Highlight currently active tutorial element
+  highlightedElement: {
+    borderColor: '#c9a84c',
+    borderWidth: 1,
+    zIndex: 101, // brings element above the overlay slightly if combined with precise absolute positioning
+    backgroundColor: '#1a1a1a'
+  }
 });

@@ -4,9 +4,10 @@ import Checkbox from 'expo-checkbox';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Location from 'expo-location';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import * as Haptics from 'expo-haptics';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useNavigation, useRouter } from 'expo-router';
-import { Alert, Button, Keyboard, Platform, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View, ActivityIndicator } from 'react-native';
+import { Alert, Button, Keyboard, Platform, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View, ActivityIndicator, Animated } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import CustomTextInput from '../components/custom-text-input';
 import LiveCameraModal from '../components/live-camera-modal';
@@ -19,27 +20,74 @@ import { supabase } from '../lib/supabase';
 
 const NAME_HISTORY_FILE = FileSystem.documentDirectory + 'nameHistory.json';
 
-export default function AuditFormScreen() {
+const HINTS_DATA: Record<string, string> = {
+    lesp: "License to Exercise Security Profession",
+    lto: "Land Transportation Office",
+    ddo: "Duty Detail Order",
+    ltofp: "License to Own and Possess Firearms",
+    fa: "Firearm License",
+    id: "Company Identification",
+    rlm: "Record of Lawful Movement",
+    remarks: "General inspector comments or notes",
+    violation: "Details regarding any observed infractions"
+};
 
+// Custom component for the animated inline hint
+const HintLabel = ({ text, hintKey }: { text: string; hintKey: string }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const slideAnim = useRef(new Animated.Value(-30)).current;
+    const opacityAnim = useRef(new Animated.Value(0)).current;
+
+    const toggleHint = () => {
+        if (isOpen) {
+            // Animate out
+            Animated.parallel([
+                Animated.timing(slideAnim, { toValue: -30, duration: 200, useNativeDriver: true }),
+                Animated.timing(opacityAnim, { toValue: 0, duration: 200, useNativeDriver: true })
+            ]).start(() => setIsOpen(false));
+        } else {
+            // Animate in
+            setIsOpen(true);
+            Animated.parallel([
+                Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+                Animated.timing(opacityAnim, { toValue: 1, duration: 300, useNativeDriver: true })
+            ]).start();
+        }
+    };
+
+    return (
+        <View style={styles.hintRow}>
+            <Text style={styles.labelTitle}>{text}</Text>
+            <TouchableOpacity onPress={toggleHint} style={styles.hintButton}>
+                <Text style={styles.exclamation}>!</Text>
+            </TouchableOpacity>
+
+            {isOpen && (
+                <Animated.View style={[styles.message, { opacity: opacityAnim, transform: [{ translateX: slideAnim }] }]}>
+                    <Text style={styles.messageText}>{HINTS_DATA[hintKey]}</Text>
+                </Animated.View>
+            )}
+        </View>
+    );
+};
+
+export default function AuditFormScreen() {
     const navigation = useNavigation();
     const router = useRouter();
 
-    // Modal State for Submission Receipt
     const [submittedPayload, setSubmittedPayload] = useState<any>(null);
     const [savedNames, setSavedNames] = useState<string[]>([]);
-
-    // Loading State
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-
-    // Camera Permissions
     const [permission, requestPermission] = useCameraPermissions();
-
     const [isVerified, setIsVerified] = useState<boolean>(false);
     const [isProcessingScan, setIsProcessingScan] = useState<boolean>(false);
-
     const [branchCode, setBranchCode] = useState<string>('');
     const [branchName, setBranchName] = useState<string>('');
     const [branchLocation, setBranchLocation] = useState<string>('');
+
+    // Scanner Enhancements State
+    const [isTorchOn, setIsTorchOn] = useState<boolean>(false);
+    const scanLineAnim = useRef(new Animated.Value(0)).current;
 
     interface GuardRosterData {
         guard_name: string;
@@ -49,16 +97,12 @@ export default function AuditFormScreen() {
     const [guardName, setGuardName] = useState<string>('');
     const [assignedGuards, setAssignedGuards] = useState<GuardRosterData[]>([]);
     const [isGuardDropdownOpen, setIsGuardDropdownOpen] = useState<boolean>(false);
-
     const [firearmSerial, setFirearmSerial] = useState<string>('');
     const [firearmMake, setFirearmMake] = useState<string>('');
-
     const [lespExpDay, setLespExpDay] = useState<string>('');
     const [lespExpMonth, setLespExpMonth] = useState<string>('');
     const [lespExpYear, setLespExpYear] = useState<string>('');
-
     const [remarks, setRemarks] = useState<string>('');
-
     const [isUniformCompliant, setIsUniformCompliant] = useState<boolean>(false);
     
     // Document Statuses
@@ -71,7 +115,6 @@ export default function AuditFormScreen() {
 
     // Violation Ticket States
     const [isTicketOpen, setIsTicketOpen] = useState<boolean>(false);
-
     const [securityLicenseNo, setSecurityLicenseNo] = useState<string>('');
     const [securityLicenseExpiry, setSecurityLicenseExpiry] = useState<string>('');
     const [pershingCap, setPershingCap] = useState<'Yes' | 'No'>('Yes');
@@ -96,14 +139,12 @@ export default function AuditFormScreen() {
     const [shortCleanFingerNails, setShortCleanFingerNails] = useState<'Yes' | 'No'>('Yes');
     const [medicineKitWithMediplus, setMedicineKitWithMediplus] = useState<'Yes' | 'No'>('Yes');
     const [stunGunWithFlashlight, setStunGunWithFlashlight] = useState<'Yes' | 'No'>('Yes');
-
     const [violationRemarks, setViolationRemarks] = useState<string>('');
 
     //Signature State Memory
     const [guardSignature, setGuardSignature] = useState<string | null>(null);
     const [clientSignature, setClientSignature] = useState<string | null>(null);
     const [isClientAbsent, setIsClientAbsent] = useState<boolean>(false);
-
     const [activeSigner, setActiveSigner] = useState<'guard' | 'client' | null>(null);
 
     //Live Photo Camera
@@ -137,6 +178,26 @@ export default function AuditFormScreen() {
         fetchIdentity();
     }, []);
 
+    // Animated Laser Sweep Effect
+    useEffect(() => {
+        if (!isVerified) {
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(scanLineAnim, {
+                        toValue: 250, 
+                        duration: 2000,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(scanLineAnim, {
+                        toValue: 0,
+                        duration: 2000,
+                        useNativeDriver: true,
+                    })
+                ])
+            ).start();
+        }
+    }, [isVerified, scanLineAnim]);
+
     useEffect(() => {
         const fetchAssignedGuards = async () => {
             if (!isVerified || !branchName) return;
@@ -165,30 +226,22 @@ export default function AuditFormScreen() {
     const clearAuditInputs = () => {
         setGuardName('');
         setIsGuardDropdownOpen(false);
-
         setFirearmSerial('');
         setFirearmMake('');
-
         setLespExpDay('');
         setLespExpMonth('');
         setLespExpYear('');
-
         setRemarks('');
-
         setIsUniformCompliant(false);
-
         setLtoStatus('Valid');
         setDdoStatus('Valid');
         setLtofpStatus('Valid');
         setFaStatus('Valid');
         setIdStatus('Valid');
         setRlmStatus('Valid');
-
         setIsTicketOpen(false);
-
         setSecurityLicenseNo('');
         setSecurityLicenseExpiry('');
-
         setPershingCap('Yes');
         setValidSecurityLicense('Yes');
         setCompanyId('Yes');
@@ -211,16 +264,11 @@ export default function AuditFormScreen() {
         setShortCleanFingerNails('Yes');
         setMedicineKitWithMediplus('Yes');
         setStunGunWithFlashlight('Yes');
-
         setViolationRemarks('');
-
         setGuardSignature(null);
         setClientSignature(null);
-
         setIsClientAbsent(false);
-
         setLivePhotoUri(null);
-
         setIsAtmOnline(false);
         setIsAtmOffline(false);
         setIsDoorSecure(false);
@@ -388,6 +436,9 @@ export default function AuditFormScreen() {
 
         setIsProcessingScan(true);
 
+        // TRIGGER HAPTIC VIBRATION UPON SCAN
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
         try {
             const parsedData = JSON.parse(data);
             
@@ -459,32 +510,53 @@ export default function AuditFormScreen() {
 
     if (!isVerified) {
         return (
-            <View style={{flex: 1}}>
+            <View style={{flex: 1, backgroundColor: '#000'}}>
                 <CameraView
                     style={StyleSheet.absoluteFill}
                     barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
                     onBarcodeScanned={handleBarcodeScanned}
+                    enableTorch={isTorchOn} // Flaslight control integration
                 />
                 <View style={styles.overlay}>
                     <View style={styles.unfocusedContainer} />
                     <View style={styles.middleContainer}>
                         <View style={styles.unfocusedContainer} />
-                        <View style={styles.focusedContainer} />
+                        
+                        <View style={styles.focusedContainer}>
+                            {/* Animated Green Laser Line */}
+                            <Animated.View style={[
+                                styles.scanLine,
+                                { transform: [{ translateY: scanLineAnim }] }
+                            ]} />
+                        </View>
+                        
                         <View style={styles.unfocusedContainer} />
                     </View>
-                    <View style={styles.bottomContainer} />
-                    <Button
-                        title="DEV BYPASS (FOR TESTING ONLY)"
-                        color="red"
-                        onPress={() => {
-                            setBranchCode("DEV-001");
-                            setBranchName("Development Branch");
-                            setBranchLocation("Localhost");
-                            setTimeIn(new Date().toISOString());
-                            setIsVerified(true);
-                        }}
-                    />
-                    <Text style={styles.scannerText}>Scan Detachment QR Code to Begin Audit</Text>
+                    <View style={styles.bottomContainer}>
+                        <Text style={styles.scannerText}>Scan Detachment QR Code to Begin Audit</Text>
+                        
+                        {/* Flashlight Toggle */}
+                        <TouchableOpacity 
+                            style={styles.torchButton}
+                            onPress={() => setIsTorchOn(!isTorchOn)}
+                        >
+                            <Text style={styles.torchButtonText}>
+                                {isTorchOn ? "🔦 Turn Flashlight Off" : "🔦 Turn Flashlight On"}
+                            </Text>
+                        </TouchableOpacity>
+
+                        <Button
+                            title="DEV BYPASS (FOR TESTING ONLY)"
+                            color="red"
+                            onPress={() => {
+                                setBranchCode("DEV-001");
+                                setBranchName("Development Branch");
+                                setBranchLocation("Localhost");
+                                setTimeIn(new Date().toISOString());
+                                setIsVerified(true);
+                            }}
+                        />
+                    </View>
                 </View>
             </View>
         );
@@ -603,8 +675,9 @@ export default function AuditFormScreen() {
                     )}
                 </View>
 
+                <HintLabel text="LESP Expiry Date" hintKey="lesp" />
                 <DateInputGroup 
-                    label="LESP Expiry Date"
+                    label=""
                     day={lespExpDay}
                     month={lespExpMonth}
                     year={lespExpYear}
@@ -623,7 +696,8 @@ export default function AuditFormScreen() {
                 </View>
 
                 <Text style={styles.subHeader}>Documents</Text>
-                <Text style={styles.labelTitle}>LTO</Text>
+
+                <HintLabel text="LTO" hintKey="lto" />
                 <View style={styles.radioGroup}>
                     {['Valid', 'Expired', 'Missing'].map((status) => (
                         <TouchableOpacity
@@ -636,7 +710,7 @@ export default function AuditFormScreen() {
                     ))}
                 </View>
 
-                <Text style={styles.labelTitle}>DDO</Text>
+                <HintLabel text="DDO" hintKey="ddo" />
                 <View style={styles.radioGroup}>
                     {['Valid', 'Expired', 'Missing'].map((status) => (
                         <TouchableOpacity
@@ -649,7 +723,7 @@ export default function AuditFormScreen() {
                     ))}
                 </View>
 
-                <Text style={styles.labelTitle}>LTOFP</Text>
+                <HintLabel text="LTOFP" hintKey="ltofp" />
                 <View style={styles.radioGroup}>
                     {['Valid', 'Expired', 'Missing'].map((status) => (
                         <TouchableOpacity
@@ -662,7 +736,7 @@ export default function AuditFormScreen() {
                     ))}
                 </View>
 
-                <Text style={styles.labelTitle}>FA LICENSE</Text>
+                <HintLabel text="FA LICENSE" hintKey="fa" />
                 <View style={styles.radioGroup}>
                     {['Valid', 'Expired', 'Missing'].map((status) => (
                         <TouchableOpacity
@@ -675,7 +749,7 @@ export default function AuditFormScreen() {
                     ))}
                 </View>
 
-                <Text style={styles.labelTitle}>COMPANY ID</Text>
+                <HintLabel text="COMPANY ID" hintKey="id" />
                 <View style={styles.radioGroup}>
                     {['Valid', 'Expired', 'Missing'].map((status) => (
                         <TouchableOpacity
@@ -688,7 +762,7 @@ export default function AuditFormScreen() {
                     ))}
                 </View>
 
-                <Text style={styles.labelTitle}>RLM</Text>
+                <HintLabel text="RLM" hintKey="rlm" />
                 <View style={styles.radioGroup}>
                     {['Valid', 'Expired', 'Missing'].map((status) => (
                         <TouchableOpacity
@@ -701,8 +775,8 @@ export default function AuditFormScreen() {
                     ))}
                 </View>
 
+                <HintLabel text="Remarks" hintKey="remarks" />
                 <CustomTextInput
-                    label="Remarks"
                     value={remarks}
                     onChangeText={setRemarks}
                     multiline={true}
@@ -758,8 +832,8 @@ export default function AuditFormScreen() {
                         <ViolationItemCard itemName="21. Medicine Kit With Mediplus" status={medicineKitWithMediplus} onUpdate={setMedicineKitWithMediplus} />
                         <ViolationItemCard itemName="22. Stun Gun With Flashlight" status={stunGunWithFlashlight} onUpdate={setStunGunWithFlashlight} />
 
+                        <HintLabel text="Violation" hintKey="violation" />
                         <CustomTextInput
-                            label="Violation"
                             value={violationRemarks}
                             onChangeText={setViolationRemarks}
                             multiline={true}
@@ -903,9 +977,9 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: '#f5f5f5'
   },
-    contentContainer: {
-        paddingBottom: 120,
-    },
+  contentContainer: {
+    paddingBottom: 120,
+  },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -918,14 +992,44 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: '#333',
   },
+
+  // Slide Animation Inline Hint Styles
+  hintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 8,
+    marginLeft: 5,
+    zIndex: 10,
+  },
   labelTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginLeft: 5,
-    marginTop: 10,
-    marginBottom: 8,
     color: '#333',
   },
+  hintButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  exclamation: {
+    color: '#F97316',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  message: {
+    backgroundColor: 'rgba(249, 115, 22, 0.5)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginLeft: 4,
+    flexShrink: 1, 
+  },
+  messageText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
   checkboxGroup: {
     backgroundColor: '#fff',
     padding: 15,
@@ -1026,6 +1130,8 @@ const styles = StyleSheet.create({
   triggerButton: { paddingVertical: 10, paddingHorizontal: 15, backgroundColor: '#f0f0f0', borderRadius: 5, borderWidth: 1, borderColor: '#aaa' },
   triggerButtonSuccess: { backgroundColor: '#28a745' },
   triggerButtonText: { fontSize: 14, fontWeight: 'bold', color: '#333' },
+  
+  // Camera Overlay Enhanced Styles
   scannerOverlay: {
     position: 'absolute',
     bottom: 50,
@@ -1040,7 +1146,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
+    marginBottom: 20,
   },
+  scanLine: {
+    width: '100%',
+    height: 3,
+    backgroundColor: '#28a745',
+    shadowColor: '#28a745',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  torchButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#fff',
+    alignSelf: 'center',
+  },
+  torchButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
   detachmentHeader: {
     backgroundColor: '#e9ecef',
     padding: 15,
@@ -1080,13 +1213,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderRadius: 12,
     backgroundColor: 'transparent',
+    overflow: 'hidden', // Keeps the laser sweep strictly inside the bounds
   },
   bottomContainer: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 100,
+    paddingTop: 40,
   },
   nameGroup: {
     marginBottom: 20,
