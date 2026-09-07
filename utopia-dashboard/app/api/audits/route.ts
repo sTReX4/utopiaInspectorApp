@@ -27,8 +27,6 @@ export async function POST(request: Request) {
         live_photo_url: body.live_photo_uri,
         guard_signature: body.guard_signature,
         inspector_signature: body.client_signature,
-        
-        // --- NEW: ACTIVE DISPATCH VARIABLES ---
         visit_type: body.visit_type,
         incident_remarks: body.incident_remarks
       }
