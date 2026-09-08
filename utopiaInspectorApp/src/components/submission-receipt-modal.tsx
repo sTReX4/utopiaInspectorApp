@@ -8,18 +8,60 @@ import {
   TouchableOpacity 
 } from 'react-native';
 
+/**
+ * Mirrors a row of the `audits` table in Supabase, which uses snake_case
+ * column names. Keep this in sync with the table definition.
+ */
+export interface AuditRecord {
+  id: string;
+  created_at: string | null;
+  branch_code: string;
+  branch_name: string | null;
+  branch_location: string | null;
+  inspector_name: string;
+  guard_name: string | null;
+  firearm_make: string | null;
+  firearm_serial: string | null;
+  lesp_expiry: string | null;
+  uniform_status: boolean | null;
+  remarks: string | null;
+  /**
+   * Only populated when the guard was a no-show; it carries the facility
+   * status the inspector recorded in the guard's absence.
+   */
+  guard_present_status: {
+    atm_online?: boolean;
+    atm_offline?: boolean;
+    door_secure?: boolean;
+  } | null;
+  incident_remarks: string | null;
+  visit_type: string | null;
+  escalation_status: string | null;
+}
+
 interface SubmissionReceiptModalProps {
   visible: boolean;
   onClose: () => void;
-  auditData: any;
+  auditData: AuditRecord | null;
 }
 
-export default function SubmissionReceiptModal({ 
-  visible, 
-  onClose, 
-  auditData 
+export default function SubmissionReceiptModal({
+  visible,
+  onClose,
+  auditData
 }: SubmissionReceiptModalProps) {
   if (!auditData) return null;
+
+  // A populated `guard_present_status` means the guard was absent from post.
+  const guardAbsent = !!auditData.guard_present_status;
+
+  const submittedAt = auditData.created_at
+    ? new Date(auditData.created_at).toLocaleString()
+    : 'N/A';
+
+  const firearm = [auditData.firearm_make, auditData.firearm_serial]
+    .filter(Boolean)
+    .join(' - ');
 
   return (
     <Modal 
@@ -43,24 +85,26 @@ export default function SubmissionReceiptModal({
           {/* Detachment Information Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Detachment Information</Text>
-            <Text style={styles.label}>Site Name: <Text style={styles.value}>{auditData.siteName || 'N/A'}</Text></Text>
-            <Text style={styles.label}>Detachment: <Text style={styles.value}>{auditData.detachmentName || 'N/A'}</Text></Text>
-            <Text style={styles.label}>Date & Time: <Text style={styles.value}>{auditData.createdAt || 'N/A'}</Text></Text>
+            <Text style={styles.label}>Branch Name: <Text style={styles.value}>{auditData.branch_name || 'N/A'}</Text></Text>
+            <Text style={styles.label}>Branch Code: <Text style={styles.value}>{auditData.branch_code || 'N/A'}</Text></Text>
+            <Text style={styles.label}>Location: <Text style={styles.value}>{auditData.branch_location || 'N/A'}</Text></Text>
+            <Text style={styles.label}>Date & Time: <Text style={styles.value}>{submittedAt}</Text></Text>
           </View>
 
           {/* Guard & Personnel Info Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Guard & Personnel Info</Text>
-            <Text style={styles.label}>Inspected Guard: <Text style={styles.value}>{auditData.guardName || 'N/A'}</Text></Text>
-            <Text style={styles.label}>Inspector: <Text style={styles.value}>{auditData.inspectorName || 'N/A'}</Text></Text>
-            <Text style={styles.label}>Shift Status: <Text style={styles.value}>{auditData.shiftStatus || 'N/A'}</Text></Text>
+            <Text style={styles.label}>Inspected Guard: <Text style={styles.value}>{guardAbsent ? 'NO-SHOW (ABSENT)' : (auditData.guard_name || 'N/A')}</Text></Text>
+            <Text style={styles.label}>Inspector: <Text style={styles.value}>{auditData.inspector_name || 'N/A'}</Text></Text>
+            <Text style={styles.label}>Shift Status: <Text style={styles.value}>{guardAbsent ? 'Absent from post' : 'Present on post'}</Text></Text>
           </View>
 
           {/* Compliance & Operational Notes Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Compliance & Operational Notes</Text>
-            <Text style={styles.label}>Uniform Status: <Text style={styles.value}>{auditData.uniformCompliance ? 'Compliant' : 'Non-Compliant'}</Text></Text>
-            <Text style={styles.label}>Equipment Check: <Text style={styles.value}>{auditData.equipmentStatus || 'Standard'}</Text></Text>
+            <Text style={styles.label}>Uniform Status: <Text style={styles.value}>{guardAbsent ? 'N/A (guard absent)' : (auditData.uniform_status ? 'Compliant' : 'Non-Compliant')}</Text></Text>
+            <Text style={styles.label}>Firearm: <Text style={styles.value}>{guardAbsent ? 'N/A (guard absent)' : (firearm || 'N/A')}</Text></Text>
+            <Text style={styles.label}>LESP Expiry: <Text style={styles.value}>{guardAbsent ? 'N/A (guard absent)' : (auditData.lesp_expiry || 'N/A')}</Text></Text>
             <Text style={styles.label}>Remarks: <Text style={styles.value}>{auditData.remarks || 'No additional remarks.'}</Text></Text>
           </View>
 

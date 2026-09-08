@@ -18,13 +18,13 @@ export default function DashboardStats({ activeFilter, onFilterSelect, globalDat
         uniformViolations: 0,
         activeViolations: 0,
         documentIssues: 0,
+        alarmResponses: 0,
     });
     const [totalDetachments, setTotalDetachments] = useState<number>(0);
     const [isLoading, setIsLoading] = useState(true);
 
     const docFilter = 'documents_checklist->>lto_license.eq.Expired,documents_checklist->>lto_license.eq.Missing,documents_checklist->>ddo_license.eq.Expired,documents_checklist->>ddo_license.eq.Missing,documents_checklist->>ltofp_license.eq.Expired,documents_checklist->>ltofp_license.eq.Missing,documents_checklist->>fa_license.eq.Expired,documents_checklist->>fa_license.eq.Missing,documents_checklist->>id_license.eq.Expired,documents_checklist->>id_license.eq.Missing,documents_checklist->>rlm_license.eq.Expired,documents_checklist->>rlm_license.eq.Missing';
 
-    // Fetch the dynamic total of active detachments once on mount
     useEffect(() => {
         const fetchTotalDetachments = async () => {
             const { count, error } = await supabase
@@ -46,7 +46,6 @@ export default function DashboardStats({ activeFilter, onFilterSelect, globalDat
     const fetchKpis = async () => {
         setIsLoading(true);
         try {
-            // 1. Filtered Query for the specific sub-metrics
             const getBaseQuery = () => {
                 let query = supabase
                     .from('audits')
@@ -61,7 +60,6 @@ export default function DashboardStats({ activeFilter, onFilterSelect, globalDat
                 return query;
             };
 
-            // 2. Unfiltered Global Query to track true daily progress
             const getGlobalProgressQuery = () => {
                 return supabase
                     .from('audits')
@@ -76,14 +74,16 @@ export default function DashboardStats({ activeFilter, onFilterSelect, globalDat
                 { count: missingSigs },
                 { count: uniformFails },
                 { count: violations },
-                { count: docIssues }
+                { count: docIssues },
+                { count: alarms }
             ] = await Promise.all([
-                getGlobalProgressQuery(), // Progress ignores the inspector filter
+                getGlobalProgressQuery(),
                 getBaseQuery().not('guard_present_status', 'is', null),
                 getBaseQuery().is('inspector_signature', null),
                 getBaseQuery().eq('uniform_status', false),
                 getBaseQuery().not('violations_checklist', 'is', null),
-                getBaseQuery().or(docFilter)
+                getBaseQuery().or(docFilter),
+                getBaseQuery().eq('visit_type', 'Alarm Response')
             ]);
 
             setStats({
@@ -93,6 +93,7 @@ export default function DashboardStats({ activeFilter, onFilterSelect, globalDat
                 uniformViolations: uniformFails || 0,
                 activeViolations: violations || 0,
                 documentIssues: docIssues || 0,
+                alarmResponses: alarms || 0,
             });
         } catch (error) {
             console.error("Error fetching KPI stats:", error);
@@ -103,8 +104,8 @@ export default function DashboardStats({ activeFilter, onFilterSelect, globalDat
 
     if (isLoading) {
         return (
-            <div className="grid grid-cols-2 lg:grid-cols-6 border border-slate-200 bg-slate-200 gap-px mb-6">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 border border-slate-200 bg-slate-200 gap-px mb-6">
+                {[1, 2, 3, 4, 5, 6, 7].map((i) => (
                     <div key={i} className="h-24 bg-white animate-pulse"></div>
                 ))}
             </div>
@@ -122,12 +123,19 @@ export default function DashboardStats({ activeFilter, onFilterSelect, globalDat
     };
 
     return (
-        <div className="grid grid-cols-2 lg:grid-cols-6 border border-slate-200 bg-slate-200 gap-px mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 border border-slate-200 bg-slate-200 gap-px mb-6">
             <div onClick={() => onFilterSelect(null)} className={`p-4 flex flex-col justify-center cursor-pointer transition-none ${activeFilter === null ? 'bg-slate-900' : 'bg-white hover:bg-slate-50'}`}>
                 <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === null ? 'text-slate-400' : 'text-slate-500'}`}>Inspection Progress</p>
                 <div className="flex items-baseline gap-2 mt-1">
                     <span className={`text-2xl font-mono tracking-tight ${activeFilter === null ? 'text-white' : 'text-slate-900'}`}>{stats.totalAudits}</span>
                     <span className={`text-xs font-mono font-medium ${activeFilter === null ? 'text-slate-500' : 'text-slate-400'}`}>/ {totalDetachments}</span>
+                </div>
+            </div>
+
+            <div onClick={() => handleToggle('alarm')} className={`p-4 flex flex-col justify-center cursor-pointer transition-none ${activeFilter === 'alarm' ? 'bg-slate-900' : 'bg-white hover:bg-slate-50'}`}>
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === 'alarm' ? 'text-slate-400' : 'text-slate-500'}`}>Alarm Responses</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                    <span className={`text-2xl font-mono tracking-tight ${getNumColor(activeFilter === 'alarm', stats.alarmResponses)}`}>{stats.alarmResponses}</span>
                 </div>
             </div>
 
