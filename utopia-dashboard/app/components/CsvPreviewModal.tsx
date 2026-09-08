@@ -1,6 +1,6 @@
 'use client';
 
-import { Download, FileSpreadsheet } from 'lucide-react';
+import { DownloadSimple, FileXls } from '@phosphor-icons/react';
 
 interface CsvPreviewModalProps {
   audits: any[];
@@ -90,65 +90,65 @@ export default function CsvPreviewModal({ audits, onClose, targetInspector, targ
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto transition-none">
-      <div className="relative w-full max-w-7xl flex flex-col bg-white rounded-none border border-slate-300 shadow-none overflow-hidden max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 overflow-y-auto transition-colors duration-200">
+      <div className="relative w-full max-w-7xl flex flex-col bg-surface rounded-control border border-line shadow-none overflow-hidden max-h-[90vh]">
         
         {/* --- Toolbar --- */}
-        <div className="bg-slate-900 p-6 flex justify-between items-center text-white shrink-0">
+        <div className="bg-ink p-6 flex justify-between items-center text-surface shrink-0">
           <div className="flex items-center gap-4">
-            <div className="border border-slate-700 p-3 bg-slate-800">
-              <FileSpreadsheet className="w-6 h-6 text-white" />
+            <div className="border border-shell-line p-3 bg-shell">
+              <FileXls className="w-6 h-6 text-surface" />
             </div>
             <div>
-              <h3 className="font-bold text-base uppercase tracking-widest text-slate-100">Master Routing Form Preview</h3>
-              <p className="text-xs font-mono text-slate-400 uppercase tracking-widest mt-1.5">
+              <h3 className="font-bold text-base text-shell-ink">Master Routing Form Preview</h3>
+              <p className="text-xs text-ink-muted mt-1.5">
                 Target: {targetInspector.toUpperCase()} | Date: {targetDate} | Records: {audits.length}
               </p>
             </div>
           </div>
           <div className="flex gap-4">
-            <button onClick={onClose} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-none transition-none text-sm font-bold uppercase tracking-widest border border-slate-700">
+            <button onClick={onClose} className="px-6 py-3 bg-shell hover:bg-shell-line text-surface rounded-control transition-colors duration-200 text-sm font-bold border border-shell-line">
               Cancel
             </button>
-            <button onClick={handleExportCSV} className="px-6 py-3 bg-white hover:bg-slate-200 text-slate-900 rounded-none flex items-center transition-none text-sm font-bold uppercase tracking-widest">
-              <Download className="w-5 h-5 mr-2" />
+            <button onClick={handleExportCSV} className="px-6 py-3 bg-surface hover:bg-sunken text-ink rounded-control flex items-center transition-colors duration-200 text-sm font-bold">
+              <DownloadSimple className="w-5 h-5 mr-2" />
               Download CSV
             </button>
           </div>
         </div>
 
         {/* --- Spreadsheet Preview Canvas --- */}
-        <div className="overflow-auto flex-1 p-0 bg-white">
+        <div className="overflow-auto flex-1 p-0 bg-surface">
           <table className="w-full text-left border-collapse min-w-[1200px]">
-            <thead className="sticky top-0 bg-slate-100 z-10 border-b border-slate-300">
-              <tr className="text-xs uppercase font-mono tracking-widest text-slate-500">
-                <th className="p-5 font-bold border-r border-slate-200">Time In</th>
-                <th className="p-5 font-bold border-r border-slate-200">Time Out</th>
-                <th className="p-5 font-bold border-r border-slate-200">Branch Code</th>
-                <th className="p-5 font-bold border-r border-slate-200">Detachment</th>
-                <th className="p-5 font-bold border-r border-slate-200">Guard Name</th>
-                <th className="p-5 font-bold border-r border-slate-200">LESP Expiry</th>
-                <th className="p-5 font-bold border-r border-slate-200">Uniform</th>
-                <th className="p-5 font-bold border-r border-slate-200">F/A SN</th>
-                <th className="p-5 font-bold border-r border-slate-200">F/A Make</th>
-                <th className="p-5 font-bold border-r border-slate-200">Remarks</th>
+            <thead className="sticky top-0 bg-sunken z-10 border-b border-line">
+              <tr className="text-xs text-ink-muted">
+                <th className="p-5 font-bold border-r border-line">Time In</th>
+                <th className="p-5 font-bold border-r border-line">Time Out</th>
+                <th className="p-5 font-bold border-r border-line">Branch Code</th>
+                <th className="p-5 font-bold border-r border-line">Detachment</th>
+                <th className="p-5 font-bold border-r border-line">Guard Name</th>
+                <th className="p-5 font-bold border-r border-line">LESP Expiry</th>
+                <th className="p-5 font-bold border-r border-line">Uniform</th>
+                <th className="p-5 font-bold border-r border-line">F/A SN</th>
+                <th className="p-5 font-bold border-r border-line">F/A Make</th>
+                <th className="p-5 font-bold border-r border-line">Remarks</th>
                 <th className="p-5 font-bold">Guard Signature</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
+            <tbody className="divide-y divide-line">
               {tableRows.map((row, index) => (
-                <tr key={index} className="hover:bg-slate-50 transition-none">
-                  <td className="p-5 text-sm font-mono text-slate-600 border-r border-slate-200">{row.timeIn}</td>
-                  <td className="p-5 text-sm font-mono text-slate-600 border-r border-slate-200">{row.timeOut}</td>
-                  <td className="p-5 text-sm font-mono text-slate-900 border-r border-slate-200">{row.code}</td>
-                  <td className="p-5 text-base font-bold text-slate-900 border-r border-slate-200">{row.detachment}</td>
-                  <td className={`p-5 text-sm font-bold border-r border-slate-200 ${row.guardName === 'NO-SHOW' ? 'text-red-600' : 'text-slate-900'}`}>{row.guardName}</td>
-                  <td className={`p-5 text-sm font-mono border-r border-slate-200 ${row.guardName === 'NO-SHOW' ? 'text-slate-500 font-bold' : 'text-slate-700'}`}>{row.lespExpiry}</td>
-                  <td className={`p-5 text-sm font-bold border-r border-slate-200 ${row.uniform === 'NON-COMPLIANT' ? 'text-red-600' : (row.guardName === 'NO-SHOW' ? 'text-slate-500' : 'text-slate-900')}`}>{row.uniform}</td>
-                  <td className={`p-5 text-sm font-mono border-r border-slate-200 ${row.guardName === 'NO-SHOW' ? 'text-slate-500 font-bold' : 'text-slate-700'}`}>{row.faSn}</td>
-                  <td className={`p-5 text-sm border-r border-slate-200 ${row.guardName === 'NO-SHOW' ? 'text-slate-500 font-mono font-bold uppercase tracking-widest' : 'text-slate-700'}`}>{row.faMake}</td>
-                  <td className={`p-5 text-sm font-mono border-r border-slate-200 ${row.remarks === 'IS' ? 'text-red-600 font-bold' : 'text-slate-500 font-bold'}`}>{row.remarks}</td>
-                  <td className={`p-5 text-sm font-bold ${row.signature === 'MISSING' || row.signature === 'BREACHED' ? 'text-red-600' : (row.guardName === 'NO-SHOW' ? 'text-slate-500 font-mono uppercase tracking-widest' : 'text-emerald-600')}`}>{row.signature}</td>
+                <tr key={index} className="hover:bg-sunken transition-colors duration-200">
+                  <td className="p-5 text-sm text-ink-muted border-r border-line">{row.timeIn}</td>
+                  <td className="p-5 text-sm text-ink-muted border-r border-line">{row.timeOut}</td>
+                  <td className="p-5 text-sm text-ink border-r border-line">{row.code}</td>
+                  <td className="p-5 text-base font-bold text-ink border-r border-line">{row.detachment}</td>
+                  <td className={`p-5 text-sm font-bold border-r border-line ${row.guardName === 'NO-SHOW' ? 'text-danger-ink' : 'text-ink'}`}>{row.guardName}</td>
+                  <td className={`p-5 text-sm border-r border-line ${row.guardName === 'NO-SHOW' ? 'text-ink-muted font-bold' : 'text-ink'}`}>{row.lespExpiry}</td>
+                  <td className={`p-5 text-sm font-bold border-r border-line ${row.uniform === 'NON-COMPLIANT' ? 'text-danger-ink' : (row.guardName === 'NO-SHOW' ? 'text-ink-muted' : 'text-ink')}`}>{row.uniform}</td>
+                  <td className={`p-5 text-sm border-r border-line ${row.guardName === 'NO-SHOW' ? 'text-ink-muted font-bold' : 'text-ink'}`}>{row.faSn}</td>
+                  <td className={`p-5 text-sm border-r border-line ${row.guardName === 'NO-SHOW' ? 'text-ink-muted font-bold  ' : 'text-ink'}`}>{row.faMake}</td>
+                  <td className={`p-5 text-sm border-r border-line ${row.remarks === 'IS' ? 'text-danger-ink font-bold' : 'text-ink-muted font-bold'}`}>{row.remarks}</td>
+                  <td className={`p-5 text-sm font-bold ${row.signature === 'MISSING' || row.signature === 'BREACHED' ? 'text-danger-ink' : (row.guardName === 'NO-SHOW' ? 'text-ink-muted   ' : 'text-ok-ink')}`}>{row.signature}</td>
                 </tr>
               ))}
             </tbody>

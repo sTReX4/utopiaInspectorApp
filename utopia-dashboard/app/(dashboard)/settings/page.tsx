@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/app/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Lock, Save, Download, User, Sliders, Database, ShieldAlert, Key } from 'lucide-react';
+import { Database, DownloadSimple, FloppyDisk, Key, Lock, ShieldWarning, SlidersHorizontal, User } from '@phosphor-icons/react';
 
 export default function SettingsPage() {
   const { user, role, isLoading: authLoading } = useAuth();
@@ -89,7 +89,7 @@ export default function SettingsPage() {
 
   if (authLoading) {
     return (
-      <div className="flex h-screen items-center justify-center text-slate-500 font-mono text-sm tracking-widest uppercase">
+      <div className="flex h-screen items-center justify-center text-ink-muted text-sm">
         Verifying Security Clearance...
       </div>
     );
@@ -99,15 +99,15 @@ export default function SettingsPage() {
     <div className="max-w-[1200px] mx-auto space-y-8 pb-12">
       
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-slate-200 pb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-line pb-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">System Configuration</h1>
-          <p className="text-slate-500 mt-2 text-sm">Manage operational thresholds, compliance retention, and access protocols.</p>
+          <h1 className="text-3xl font-bold text-ink tracking-tight">System Configuration</h1>
+          <p className="text-ink-muted mt-2 text-sm">Manage operational thresholds, compliance retention, and access protocols.</p>
         </div>
         
         {saveMessage && (
-          <div className={`px-4 py-2 border rounded-none font-mono text-xs font-bold uppercase tracking-widest ${
-            saveMessage.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-700'
+          <div className={`px-4 py-2 border rounded-control text-xs font-bold ${
+            saveMessage.type === 'success' ? 'bg-ok-bg border-ok-ink/20 text-ok-ink' : 'bg-danger-bg border-danger-ink/20 text-danger-ink'
           }`}>
             {saveMessage.text}
           </div>
@@ -120,24 +120,24 @@ export default function SettingsPage() {
         <div className="space-y-8 lg:col-span-1">
           
           {/* Section 1: Personal & Operational Preferences */}
-          <div className="bg-white border border-slate-200 rounded-none">
-            <div className="border-b border-slate-200 p-4 bg-slate-50 flex items-center gap-2">
-              <User className="w-4 h-4 text-slate-500" />
-              <h2 className="font-bold text-slate-900 text-sm">Account Preferences</h2>
+          <div className="bg-surface border border-line rounded-control">
+            <div className="border-b border-line p-4 bg-canvas flex items-center gap-2">
+              <User className="w-4 h-4 text-ink-muted" />
+              <h2 className="font-bold text-ink text-sm">Account Preferences</h2>
             </div>
             <div className="p-4 space-y-4">
               <div>
-                <label className="block font-mono text-[10px] text-slate-500 uppercase tracking-widest mb-2">Authorized Email</label>
+                <label className="block text-xs text-ink-muted mb-2">Authorized Email</label>
                 <input 
                   type="text" 
                   disabled 
                   value={user?.email || ''} 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-none p-2.5 font-mono text-sm text-slate-500 cursor-not-allowed"
+                  className="w-full bg-canvas border border-line rounded-control p-2.5 text-sm text-ink-muted cursor-not-allowed"
                 />
               </div>
               <button 
                 onClick={handlePasswordReset}
-                className="w-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-none transition-none flex items-center justify-center"
+                className="w-full bg-surface border border-line hover:bg-sunken text-ink font-bold text-xs px-4 py-2.5 rounded-control transition-colors duration-200 flex items-center justify-center"
               >
                 <Key className="w-4 h-4 mr-2" />
                 Initiate Password Reset
@@ -146,18 +146,18 @@ export default function SettingsPage() {
           </div>
 
           {/* Section 2: Platform Access Management */}
-          <div className="bg-white border border-slate-200 rounded-none">
-            <div className="border-b border-slate-200 p-4 bg-slate-50 flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-slate-500" />
-              <h2 className="font-bold text-slate-900 text-sm">Access Management</h2>
+          <div className="bg-surface border border-line rounded-control">
+            <div className="border-b border-line p-4 bg-canvas flex items-center gap-2">
+              <ShieldWarning className="w-4 h-4 text-ink-muted" />
+              <h2 className="font-bold text-ink text-sm">Access Management</h2>
             </div>
             <div className="p-4 space-y-4">
-              <p className="text-xs text-slate-600 leading-relaxed">
+              <p className="text-xs text-ink-muted leading-relaxed">
                 User roles and personnel clearances are strictly managed through the Supabase 
-                <span className="font-mono bg-slate-100 px-1 mx-1 border border-slate-200">public.profiles</span> 
+                <span className="bg-sunken px-1 mx-1 border border-line">public.profiles</span> 
                 table to ensure cryptographic security.
               </p>
-              <div className="bg-slate-900 text-slate-300 p-3 rounded-none border border-slate-800 font-mono text-xs">
+              <div className="bg-ink text-shell-muted p-3 rounded-control border border-shell-line text-xs">
                 <span className="text-emerald-400 font-bold">CURRENT CLEARANCE:</span> {role?.toUpperCase() || 'UNKNOWN'}
               </div>
             </div>
@@ -168,82 +168,82 @@ export default function SettingsPage() {
         <div className="space-y-8 lg:col-span-2">
           
           {/* Section 3: System Variables & Thresholds */}
-          <div className="bg-white border border-slate-200 rounded-none">
-            <div className="border-b border-slate-200 p-4 bg-slate-50 flex items-center justify-between">
+          <div className="bg-surface border border-line rounded-control">
+            <div className="border-b border-line p-4 bg-canvas flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-slate-500" />
-                <h2 className="font-bold text-slate-900 text-sm">Global System Thresholds</h2>
+                <SlidersHorizontal className="w-4 h-4 text-ink-muted" />
+                <h2 className="font-bold text-ink text-sm">Global System Thresholds</h2>
               </div>
               {!isSuperadmin && (
-                <span className="bg-slate-200 text-slate-600 font-mono text-[10px] font-bold px-2 py-1 uppercase tracking-widest flex items-center">
+                <span className="bg-sunken text-ink-muted text-xs font-bold px-2 py-1 flex items-center">
                   <Lock className="w-3 h-3 mr-1" /> Read Only
                 </span>
               )}
             </div>
             
             {isLoading ? (
-              <div className="p-12 text-center font-mono text-xs text-slate-500 uppercase tracking-widest">Loading Telemetry...</div>
+              <div className="p-12 text-center text-xs text-ink-muted">Loading Telemetry...</div>
             ) : (
               <div className="p-6 space-y-6">
                 
                 {/* Geofence & Timeout Row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block font-mono text-[10px] text-slate-500 uppercase tracking-widest mb-2">GPS Geofence Limit (Meters)</label>
+                    <label className="block text-xs text-ink-muted mb-2">GPS Geofence Limit (Meters)</label>
                     <input 
                       type="number" 
                       disabled={!isSuperadmin}
                       value={geofence} 
                       onChange={(e) => setGeofence(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-300 focus:border-slate-900 rounded-none p-2.5 font-mono text-sm text-slate-900 outline-none transition-none disabled:bg-slate-50 disabled:text-slate-500"
+                      className="w-full bg-surface border border-line focus:border-ink rounded-control p-2.5 text-sm text-ink outline-none transition-colors duration-200 disabled:bg-canvas disabled:text-ink-muted"
                     />
-                    <p className="text-[11px] text-slate-500 mt-1">Radius mismatch before triggering Mismatch Escalation.</p>
+                    <p className="text-[11px] text-ink-muted mt-1">Radius mismatch before triggering Mismatch Escalation.</p>
                   </div>
 
                   <div>
-                    <label className="block font-mono text-[10px] text-slate-500 uppercase tracking-widest mb-2">Session Timeout (Minutes)</label>
+                    <label className="block text-xs text-ink-muted mb-2">Session Timeout (Minutes)</label>
                     <input 
                       type="number" 
                       disabled={!isSuperadmin}
                       value={timeout} 
                       onChange={(e) => setTimeoutVal(Number(e.target.value))}
-                      className="w-full bg-white border border-slate-300 focus:border-slate-900 rounded-none p-2.5 font-mono text-sm text-slate-900 outline-none transition-none disabled:bg-slate-50 disabled:text-slate-500"
+                      className="w-full bg-surface border border-line focus:border-ink rounded-control p-2.5 text-sm text-ink outline-none transition-colors duration-200 disabled:bg-canvas disabled:text-ink-muted"
                     />
-                    <p className="text-[11px] text-slate-500 mt-1">Idle duration before automated Command Center lock.</p>
+                    <p className="text-[11px] text-ink-muted mt-1">Idle duration before automated Command Center lock.</p>
                   </div>
                 </div>
 
                 {/* Escalation Routing */}
-                <div className="border-t border-slate-100 pt-6">
-                  <label className="block font-mono text-[10px] text-slate-500 uppercase tracking-widest mb-2">Escalation Routing Emails (Comma Separated)</label>
+                <div className="border-t border-line pt-6">
+                  <label className="block text-xs text-ink-muted mb-2">Escalation Routing Emails (Comma Separated)</label>
                   <textarea 
                     rows={3}
                     disabled={!isSuperadmin}
                     value={emails} 
                     onChange={(e) => setEmails(e.target.value)}
                     placeholder="qc@utopiasecurity.com, ops@utopiasecurity.com"
-                    className="w-full bg-white border border-slate-300 focus:border-slate-900 rounded-none p-3 font-mono text-sm text-slate-900 outline-none transition-none resize-none disabled:bg-slate-50 disabled:text-slate-500"
+                    className="w-full bg-surface border border-line focus:border-ink rounded-control p-3 text-sm text-ink outline-none transition-colors duration-200 resize-none disabled:bg-canvas disabled:text-ink-muted"
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">Executive addresses receiving automated incident reports.</p>
+                  <p className="text-[11px] text-ink-muted mt-1">Executive addresses receiving automated incident reports.</p>
                 </div>
 
                 {/* Save Action */}
-                <div className="border-t border-slate-100 pt-6 flex justify-end">
+                <div className="border-t border-line pt-6 flex justify-end">
                   {isSuperadmin ? (
                     <button 
                       onClick={handleSaveSettings}
                       disabled={isSaving}
-                      className="bg-slate-900 hover:bg-black text-white px-6 py-2.5 rounded-none font-bold text-sm flex items-center transition-none shadow-sm disabled:bg-slate-400"
+                      className="bg-ink hover:bg-[#333333] text-surface px-6 py-2.5 rounded-control font-bold text-sm flex items-center transition-colors duration-200 disabled:bg-ink-muted"
                     >
                       {isSaving ? 'UPDATING...' : (
                         <>
-                          <Save className="w-4 h-4 mr-2" /> 
+                          <FloppyDisk className="w-4 h-4 mr-2" /> 
                           APPLY GLOBAL THRESHOLDS
                         </>
                       )}
                     </button>
                   ) : (
-                    <button disabled className="bg-slate-100 text-slate-400 px-6 py-2.5 rounded-none font-bold text-sm flex items-center border border-slate-200 cursor-not-allowed">
+                    <button disabled className="bg-sunken text-ink-muted px-6 py-2.5 rounded-control font-bold text-sm flex items-center border border-line cursor-not-allowed">
                       <Lock className="w-4 h-4 mr-2" />
                       RESTRICTED TO SUPERADMIN
                     </button>
@@ -255,29 +255,29 @@ export default function SettingsPage() {
           </div>
 
           {/* Section 4: Data Archiving & Maintenance */}
-          <div className="bg-white border border-slate-200 rounded-none">
-            <div className="border-b border-slate-200 p-4 bg-slate-50 flex items-center justify-between">
+          <div className="bg-surface border border-line rounded-control">
+            <div className="border-b border-line p-4 bg-canvas flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Database className="w-4 h-4 text-slate-500" />
-                <h2 className="font-bold text-slate-900 text-sm">Archiving & Maintenance</h2>
+                <Database className="w-4 h-4 text-ink-muted" />
+                <h2 className="font-bold text-ink text-sm">Archiving & Maintenance</h2>
               </div>
             </div>
             <div className="p-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border border-slate-200 p-4 bg-slate-50">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border border-line p-4 bg-canvas">
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm">Master Compliance Export</h3>
-                  <p className="text-xs text-slate-500 mt-1">Execute a complete raw CSV dump of all historical audits, sites, and personnel records.</p>
+                  <h3 className="font-bold text-ink text-sm">Master Compliance Export</h3>
+                  <p className="text-xs text-ink-muted mt-1">Execute a complete raw CSV dump of all historical audits, sites, and personnel records.</p>
                 </div>
                 {isSuperadmin ? (
                   <button 
                     onClick={handleMasterExport}
-                    className="bg-white border border-slate-300 hover:border-slate-900 text-slate-900 px-4 py-2 rounded-none font-bold text-xs flex items-center shrink-0 transition-none"
+                    className="bg-surface border border-line hover:border-ink text-ink px-4 py-2 rounded-control font-bold text-xs flex items-center shrink-0 transition-colors duration-200"
                   >
-                    <Download className="w-4 h-4 mr-2" />
+                    <DownloadSimple className="w-4 h-4 mr-2" />
                     EXPORT DATABASE
                   </button>
                 ) : (
-                  <button disabled className="bg-white border border-slate-200 text-slate-300 px-4 py-2 rounded-none font-bold text-xs flex items-center shrink-0 cursor-not-allowed">
+                  <button disabled className="bg-surface border border-line text-shell-muted px-4 py-2 rounded-control font-bold text-xs flex items-center shrink-0 cursor-not-allowed">
                     <Lock className="w-4 h-4 mr-2" />
                     LOCKED
                   </button>
@@ -285,18 +285,18 @@ export default function SettingsPage() {
               </div>
 
               <div className="mt-6">
-                <label className="block font-mono text-[10px] text-slate-500 uppercase tracking-widest mb-2">Audit Retention Policy (Months)</label>
+                <label className="block text-xs text-ink-muted mb-2">Audit Retention Policy (Months)</label>
                 <div className="flex items-center gap-3">
                   <input 
                     type="number" 
                     disabled={!isSuperadmin}
                     value={retention} 
                     onChange={(e) => setRetention(Number(e.target.value))}
-                    className="w-32 bg-white border border-slate-300 focus:border-slate-900 rounded-none p-2.5 font-mono text-sm text-slate-900 outline-none transition-none disabled:bg-slate-50 disabled:text-slate-500"
+                    className="w-32 bg-surface border border-line focus:border-ink rounded-control p-2.5 text-sm text-ink outline-none transition-colors duration-200 disabled:bg-canvas disabled:text-ink-muted"
                   />
-                  <span className="text-xs font-bold text-slate-400 uppercase">Months</span>
+                  <span className="text-xs font-bold text-ink-muted">Months</span>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-2">Routine logs older than this threshold will be targeted for soft-deletion during automated maintenance sweeps.</p>
+                <p className="text-[11px] text-ink-muted mt-2">Routine logs older than this threshold will be targeted for soft-deletion during automated maintenance sweeps.</p>
               </div>
             </div>
           </div>

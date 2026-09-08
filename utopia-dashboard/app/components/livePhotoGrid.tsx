@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { Images } from '@phosphor-icons/react';
 import AuditDetailPanel from './auditDetailPanel';
 
 interface AuditPhoto {
@@ -79,39 +80,51 @@ export default function LivePhotoGrid({ activeFilter, globalDate, globalInspecto
     };
 
     const getGridTitle = () => {
-        let baseTitle = 'LIVE FEED: ALL RECORDS';
-        if (activeFilter === 'no-show') baseTitle = 'LIVE FEED: NO-SHOWS';
-        else if (activeFilter === 'violations') baseTitle = 'LIVE FEED: VIOLATIONS';
-        else if (activeFilter === 'uniform') baseTitle = 'LIVE FEED: UNIFORM FAILURES';
-        else if (activeFilter === 'missing-sigs') baseTitle = 'LIVE FEED: MISSING SIGNATURES';
-        else if (activeFilter === 'documents') baseTitle = 'LIVE FEED: DOCUMENT ISSUES';
+        let baseTitle = 'Live feed: all records';
+        if (activeFilter === 'no-show') baseTitle = 'Live feed: no-shows';
+        else if (activeFilter === 'violations') baseTitle = 'Live feed: violations';
+        else if (activeFilter === 'uniform') baseTitle = 'Live feed: uniform failures';
+        else if (activeFilter === 'missing-sigs') baseTitle = 'Live feed: missing signatures';
+        else if (activeFilter === 'documents') baseTitle = 'Live feed: document issues';
         
-        return globalInspector ? `${baseTitle} (${globalInspector.toUpperCase()})` : baseTitle;
+        return globalInspector ? `${baseTitle} (${globalInspector})` : baseTitle;
     };
 
     return (
-        <div className="border border-slate-200 bg-white min-h-[400px] flex flex-col">
-            <div className="p-6 border-b border-slate-200">
-                <h2 className="text-base font-bold tracking-widest text-slate-900 uppercase">
+        <div className="border border-line rounded-card overflow-hidden bg-surface min-h-[400px] flex flex-col">
+            <div className="p-6 border-b border-line">
+                <h2 className="text-base font-medium text-ink">
                     {getGridTitle()}
                 </h2>
             </div>
 
             {isLoading ? (
-                <div className="flex-1 flex items-center justify-center text-slate-500 font-mono text-xs uppercase tracking-widest">
-                    Querying database...
+                <div className="flex-1 bg-sunken p-px">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-px">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="flex flex-col bg-surface">
+                                <div className="aspect-video w-full bg-sunken animate-pulse border-b border-line"></div>
+                                <div className="p-5 flex flex-col gap-3">
+                                    <div className="h-4 w-2/3 bg-sunken animate-pulse rounded-control"></div>
+                                    <div className="h-3 w-full bg-sunken animate-pulse rounded-control"></div>
+                                    <div className="h-3 w-1/2 bg-sunken animate-pulse rounded-control"></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             ) : (
-                <div className="flex-1 bg-slate-200 p-px">
+                <div className="flex-1 bg-sunken p-px">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-px">
                         {photos.map((photo) => (
-                            <div 
-                                key={photo.id} 
+                            <button
+                                type="button"
+                                key={photo.id}
                                 onClick={() => setSelectedAuditId(photo.id)}
-                                className="flex flex-col bg-white cursor-pointer transition-none hover:bg-slate-50 group relative"
+                                className="flex flex-col bg-surface text-left cursor-pointer transition-colors duration-200 hover:bg-sunken group relative"
                             >
-                                <div className="aspect-video w-full bg-slate-100 relative border-b border-slate-200 overflow-hidden">
-                                    <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-none z-10"></div>
+                                <div className="aspect-video w-full bg-sunken relative border-b border-line overflow-hidden">
+                                    <div className="absolute inset-0 bg-ink/0 group-hover:bg-ink/10 transition-colors duration-200 z-10"></div>
                                     <img
                                         src={photo.live_photo_url}
                                         alt={`Guard at ${photo.branch_name}`}
@@ -120,27 +133,31 @@ export default function LivePhotoGrid({ activeFilter, globalDate, globalInspecto
                                 </div>
 
                                 <div className="p-5 flex flex-col gap-3">
-                                    <p className="text-sm font-bold text-slate-900 uppercase tracking-wider truncate">
+                                    <p className="text-sm font-bold text-ink truncate">
                                         {photo.branch_name}
                                     </p>
                                     <div className="flex flex-col gap-2 mt-1">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">Inspector</span>
-                                            <span className="text-xs font-mono font-medium text-slate-900 uppercase truncate max-w-[150px] text-right">{photo.inspector_name}</span>
+                                            <span className="text-xs text-ink-muted">Inspector</span>
+                                            <span className="text-xs font-medium text-ink truncate max-w-[150px] text-right">{photo.inspector_name}</span>
                                         </div>
-                                        <div className="flex justify-between items-center border-t border-slate-100 pt-2">
-                                            <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">Time</span>
-                                            <span className="text-xs font-mono font-medium text-slate-900">{formatTime(photo.created_at)}</span>
+                                        <div className="flex justify-between items-center border-t border-line pt-2">
+                                            <span className="text-xs text-ink-muted">Time</span>
+                                            <span className="text-xs font-mono text-ink">{formatTime(photo.created_at)}</span>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </button>
                         ))}
                     </div>
 
                     {photos.length === 0 && (
-                        <div className="w-full bg-white text-center text-slate-500 py-16 text-sm font-mono uppercase tracking-widest">
-                            No records match the current filter.
+                        <div className="w-full bg-surface flex flex-col items-center justify-center text-center py-20 px-6">
+                            <Images className="w-8 h-8 text-ink-muted mb-4" />
+                            <p className="text-sm font-medium text-ink">No records match the current filter</p>
+                            <p className="text-sm text-ink-muted mt-1 max-w-[46ch]">
+                                Try a different date, clear the inspector filter, or select another tile above.
+                            </p>
                         </div>
                     )}
                 </div>

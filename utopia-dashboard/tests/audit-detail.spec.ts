@@ -41,5 +41,5 @@ test('Opens detail panel and alerts on >100m GPS Mismatch', async ({ page }) => 
     await expect(page.getByText('Audit Inspection Report')).toBeVisible();
     
     // 6. Assert QC Escalation banner triggers for violations
-    await expect(page.getByText('⚠️ QC/TBD Manager Review Required')).toBeVisible();
+    await expect(page.getByText('QC/TBD Manager Review Required')).toBeVisible();
   });

@@ -102,77 +102,72 @@ export default function DashboardStats({ activeFilter, onFilterSelect, globalDat
         }
     };
 
+    const handleToggle = (filterName: string) => {
+        onFilterSelect(activeFilter === filterName ? null : filterName);
+    };
+
+    /*
+     * One tile definition drives the whole row. The previous seven copy-pasted
+     * blocks drifted apart over time, which is how the active state ended up
+     * with unreadable label contrast.
+     */
+    const tiles: { key: string | null; label: string; value: number; total?: number }[] = [
+        { key: null, label: 'Inspection Progress', value: stats.totalAudits, total: totalDetachments },
+        { key: 'alarm', label: 'Alarm Responses', value: stats.alarmResponses },
+        { key: 'no-show', label: 'No-Show Guards', value: stats.noShowGuards },
+        { key: 'violations', label: 'Violations Logged', value: stats.activeViolations },
+        { key: 'uniform', label: 'Uniform Failures', value: stats.uniformViolations },
+        { key: 'documents', label: 'Document Issues', value: stats.documentIssues },
+        { key: 'missing-sigs', label: 'Missing Signatures', value: stats.missingSignatures },
+    ];
+
     if (isLoading) {
         return (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 border border-slate-200 bg-slate-200 gap-px mb-6">
-                {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-                    <div key={i} className="h-24 bg-white animate-pulse"></div>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 border border-line rounded-card overflow-hidden bg-line gap-px mb-6">
+                {tiles.map((tile) => (
+                    <div key={tile.label} className="h-24 bg-surface p-5 flex flex-col justify-center gap-2">
+                        <div className="h-3 w-2/3 bg-sunken animate-pulse rounded-control"></div>
+                        <div className="h-6 w-1/3 bg-sunken animate-pulse rounded-control"></div>
+                    </div>
                 ))}
             </div>
         );
     }
 
-    const handleToggle = (filterName: string) => {
-        onFilterSelect(activeFilter === filterName ? null : filterName);
-    };
-
-    const getNumColor = (isActive: boolean, value: number) => {
-        if (isActive) return 'text-white';
-        if (value > 0) return 'text-red-600';
-        return 'text-slate-900';
-    };
-
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 border border-slate-200 bg-slate-200 gap-px mb-6">
-            <div onClick={() => onFilterSelect(null)} className={`p-4 flex flex-col justify-center cursor-pointer transition-none ${activeFilter === null ? 'bg-slate-900' : 'bg-white hover:bg-slate-50'}`}>
-                <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === null ? 'text-slate-400' : 'text-slate-500'}`}>Inspection Progress</p>
-                <div className="flex items-baseline gap-2 mt-1">
-                    <span className={`text-2xl font-mono tracking-tight ${activeFilter === null ? 'text-white' : 'text-slate-900'}`}>{stats.totalAudits}</span>
-                    <span className={`text-xs font-mono font-medium ${activeFilter === null ? 'text-slate-500' : 'text-slate-400'}`}>/ {totalDetachments}</span>
-                </div>
-            </div>
-
-            <div onClick={() => handleToggle('alarm')} className={`p-4 flex flex-col justify-center cursor-pointer transition-none ${activeFilter === 'alarm' ? 'bg-slate-900' : 'bg-white hover:bg-slate-50'}`}>
-                <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === 'alarm' ? 'text-slate-400' : 'text-slate-500'}`}>Alarm Responses</p>
-                <div className="flex items-baseline gap-2 mt-1">
-                    <span className={`text-2xl font-mono tracking-tight ${getNumColor(activeFilter === 'alarm', stats.alarmResponses)}`}>{stats.alarmResponses}</span>
-                </div>
-            </div>
-
-            <div onClick={() => handleToggle('no-show')} className={`p-4 flex flex-col justify-center cursor-pointer transition-none ${activeFilter === 'no-show' ? 'bg-slate-900' : 'bg-white hover:bg-slate-50'}`}>
-                <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === 'no-show' ? 'text-slate-400' : 'text-slate-500'}`}>No-Show Guards</p>
-                <div className="flex items-baseline gap-2 mt-1">
-                    <span className={`text-2xl font-mono tracking-tight ${getNumColor(activeFilter === 'no-show', stats.noShowGuards)}`}>{stats.noShowGuards}</span>
-                </div>
-            </div>
-
-            <div onClick={() => handleToggle('violations')} className={`p-4 flex flex-col justify-center cursor-pointer transition-none ${activeFilter === 'violations' ? 'bg-slate-900' : 'bg-white hover:bg-slate-50'}`}>
-                <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === 'violations' ? 'text-slate-400' : 'text-slate-500'}`}>Violations Logged</p>
-                <div className="flex items-baseline gap-2 mt-1">
-                    <span className={`text-2xl font-mono tracking-tight ${getNumColor(activeFilter === 'violations', stats.activeViolations)}`}>{stats.activeViolations}</span>
-                </div>
-            </div>
-
-            <div onClick={() => handleToggle('uniform')} className={`p-4 flex flex-col justify-center cursor-pointer transition-none ${activeFilter === 'uniform' ? 'bg-slate-900' : 'bg-white hover:bg-slate-50'}`}>
-                <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === 'uniform' ? 'text-slate-400' : 'text-slate-500'}`}>Uniform Failures</p>
-                <div className="flex items-baseline gap-2 mt-1">
-                    <span className={`text-2xl font-mono tracking-tight ${getNumColor(activeFilter === 'uniform', stats.uniformViolations)}`}>{stats.uniformViolations}</span>
-                </div>
-            </div>
-            
-            <div onClick={() => handleToggle('documents')} className={`p-4 flex flex-col justify-center cursor-pointer transition-none ${activeFilter === 'documents' ? 'bg-slate-900' : 'bg-white hover:bg-slate-50'}`}>
-                <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === 'documents' ? 'text-slate-400' : 'text-slate-500'}`}>Document Issues</p>
-                <div className="flex items-baseline gap-2 mt-1">
-                    <span className={`text-2xl font-mono tracking-tight ${getNumColor(activeFilter === 'documents', stats.documentIssues)}`}>{stats.documentIssues}</span>
-                </div>
-            </div>
-
-            <div onClick={() => handleToggle('missing-sigs')} className={`p-4 flex flex-col justify-center cursor-pointer transition-none ${activeFilter === 'missing-sigs' ? 'bg-slate-900' : 'bg-white hover:bg-slate-50'}`}>
-                <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === 'missing-sigs' ? 'text-slate-400' : 'text-slate-500'}`}>Missing Signatures</p>
-                <div className="flex items-baseline gap-2 mt-1">
-                    <span className={`text-2xl font-mono tracking-tight ${getNumColor(activeFilter === 'missing-sigs', stats.missingSignatures)}`}>{stats.missingSignatures}</span>
-                </div>
-            </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 border border-line rounded-card overflow-hidden bg-line gap-px mb-6">
+            {tiles.map((tile) => {
+                const isActive = activeFilter === tile.key;
+                /* Only counts that represent a problem turn red. A total does not. */
+                const isAlert = tile.key !== null && tile.value > 0;
+                return (
+                    <button
+                        key={tile.label}
+                        type="button"
+                        onClick={() => (tile.key === null ? onFilterSelect(null) : handleToggle(tile.key))}
+                        aria-pressed={isActive}
+                        className={`p-5 flex flex-col justify-center text-left transition-colors duration-200 ${
+                            isActive ? 'bg-ink' : 'bg-surface hover:bg-sunken'
+                        }`}
+                    >
+                        <p className={`text-xs ${isActive ? 'text-shell-muted' : 'text-ink-muted'}`}>
+                            {tile.label}
+                        </p>
+                        <div className="flex items-baseline gap-2 mt-1.5">
+                            <span className={`text-2xl tracking-tight font-mono ${
+                                isActive ? 'text-shell-ink' : isAlert ? 'text-danger-ink' : 'text-ink'
+                            }`}>
+                                {tile.value}
+                            </span>
+                            {tile.total !== undefined && (
+                                <span className={`text-xs font-mono ${isActive ? 'text-shell-muted' : 'text-ink-muted'}`}>
+                                    / {tile.total}
+                                </span>
+                            )}
+                        </div>
+                    </button>
+                );
+            })}
         </div>
     );
 }

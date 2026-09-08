@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Search, Filter, AlertTriangle, FileText, Calendar, MapPin, Database, User, Lock, RefreshCcw } from 'lucide-react';
+import { ArrowsClockwise, CalendarBlank, Database, FileText, FunnelSimple, Lock, MagnifyingGlass, MapPin, User, Warning } from '@phosphor-icons/react';
 import PdfPreviewModal from '@/app/components/PdfPreviewModal';
 import CsvPreviewModal from '@/app/components/CsvPreviewModal'; 
 import AuditDetailPanel from '@/app/components/auditDetailPanel'; 
@@ -119,26 +119,26 @@ export default function ReportsExtractionPage() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-slate-200 pb-5">
-        <h1 className="text-xl font-bold tracking-tight text-slate-900 uppercase">Data Extraction & Logs</h1>
-        <p className="text-sm text-slate-500 mt-1">Filter database records, verify data, and generate official reports.</p>
+      <div className="border-b border-line pb-5">
+        <h1 className="text-xl font-bold tracking-tight text-ink">Data Extraction & Logs</h1>
+        <p className="text-sm text-ink-muted mt-1">Filter database records, verify data, and generate official reports.</p>
       </div>
 
       {/* PANEL 1: THE SYSTEM QUERY BUILDER */}
-      <div className="border border-slate-200 bg-white p-6">
-        <div className="flex items-center mb-5 pb-4 border-b border-slate-200">
-          <Filter className="w-4 h-4 text-slate-400 mr-2" />
-          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-widest">System Query Builder</h2>
+      <div className="border border-line bg-surface p-6">
+        <div className="flex items-center mb-5 pb-4 border-b border-line">
+          <FunnelSimple className="w-4 h-4 text-ink-muted mr-2" />
+          <h2 className="text-sm font-bold text-ink">System Query Builder</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5 mb-6">
           
           <div>
-            <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Target Inspector</label>
+            <label className="block text-xs font-bold text-ink-muted mb-2">Target Inspector</label>
             <div className="relative">
-              <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+              <User className="w-4 h-4 text-ink-muted absolute left-3 top-2.5 pointer-events-none" />
               <select
-                className="w-full pl-9 pr-8 py-2.5 border border-slate-300 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 text-sm font-medium text-slate-900 bg-white appearance-none cursor-pointer"
+                className="w-full pl-9 pr-8 py-2.5 border border-line rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface appearance-none cursor-pointer"
                 value={filterInspector}
                 onChange={(e) => setFilterInspector(e.target.value)}
               >
@@ -151,11 +151,11 @@ export default function ReportsExtractionPage() {
           </div>
 
           <div>
-            <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Target Branch</label>
+            <label className="block text-xs font-bold text-ink-muted mb-2">Target Branch</label>
             <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+              <MagnifyingGlass className="w-4 h-4 text-ink-muted absolute left-3 top-2.5 pointer-events-none" />
               <select
-                className="w-full pl-9 pr-8 py-2.5 border border-slate-300 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 text-sm font-medium text-slate-900 bg-white appearance-none cursor-pointer"
+                className="w-full pl-9 pr-8 py-2.5 border border-line rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface appearance-none cursor-pointer"
                 value={filterBranch}
                 onChange={(e) => setFilterBranch(e.target.value)}
               >
@@ -168,24 +168,24 @@ export default function ReportsExtractionPage() {
           </div>
 
           <div>
-            <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Start Date (Req for CSV)</label>
+            <label className="block text-xs font-bold text-ink-muted mb-2">Start Date (Req for CSV)</label>
             <div className="relative">
-              <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+              <CalendarBlank className="w-4 h-4 text-ink-muted absolute left-3 top-2.5 pointer-events-none" />
               <input
                 type="date"
-                className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 text-sm font-medium text-slate-900 bg-white transition-none"
+                className="w-full pl-9 pr-3 py-2.5 border border-line rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface transition-colors duration-200"
                 value={filterDateFrom}
                 onChange={(e) => setFilterDateFrom(e.target.value)}
               />
             </div>
           </div>
           <div>
-            <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">End Date</label>
+            <label className="block text-xs font-bold text-ink-muted mb-2">End Date</label>
             <div className="relative">
-              <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+              <CalendarBlank className="w-4 h-4 text-ink-muted absolute left-3 top-2.5 pointer-events-none" />
               <input
                 type="date"
-                className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 text-sm font-medium text-slate-900 bg-white transition-none"
+                className="w-full pl-9 pr-3 py-2.5 border border-line rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface transition-colors duration-200"
                 value={filterDateTo}
                 onChange={(e) => setFilterDateTo(e.target.value)}
               />
@@ -193,49 +193,49 @@ export default function ReportsExtractionPage() {
           </div>
           <div className="flex flex-col justify-center space-y-3 pt-4">
             <label className="flex items-center space-x-2 cursor-pointer group">
-              <input type="checkbox" className="w-4 h-4 text-slate-900 rounded-none border-slate-300 focus:ring-slate-900" checked={filterOnlyViolations} onChange={(e) => setFilterOnlyViolations(e.target.checked)} />
-              <span className="text-[11px] font-mono font-bold text-slate-700 uppercase tracking-widest flex items-center transition-none">
-                <AlertTriangle className="w-3.5 h-3.5 text-slate-400 mr-1.5" /> Violations Only
+              <input type="checkbox" className="w-4 h-4 text-ink rounded-control border-line focus:ring-info-ink" checked={filterOnlyViolations} onChange={(e) => setFilterOnlyViolations(e.target.checked)} />
+              <span className="text-[11px] font-bold text-ink flex items-center transition-colors duration-200">
+                <Warning className="w-3.5 h-3.5 text-ink-muted mr-1.5" /> Violations Only
               </span>
             </label>
             <label className="flex items-center space-x-2 cursor-pointer group">
-              <input type="checkbox" className="w-4 h-4 text-slate-900 rounded-none border-slate-300 focus:ring-slate-900" checked={filterGpsIssues} onChange={(e) => setFilterGpsIssues(e.target.checked)} />
-              <span className="text-[11px] font-mono font-bold text-slate-700 uppercase tracking-widest flex items-center transition-none">
-                <MapPin className="w-3.5 h-3.5 text-slate-400 mr-1.5" /> Flag GPS Mismatches
+              <input type="checkbox" className="w-4 h-4 text-ink rounded-control border-line focus:ring-info-ink" checked={filterGpsIssues} onChange={(e) => setFilterGpsIssues(e.target.checked)} />
+              <span className="text-[11px] font-bold text-ink flex items-center transition-colors duration-200">
+                <MapPin className="w-3.5 h-3.5 text-ink-muted mr-1.5" /> Flag GPS Mismatches
               </span>
             </label>
           </div>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 pt-3">
-          <button onClick={handleRunQuery} className="bg-slate-900 text-white px-6 py-3 rounded-none text-xs font-bold uppercase tracking-widest flex items-center transition-none w-full sm:w-auto justify-center hover:bg-slate-800">
+          <button onClick={handleRunQuery} className="bg-ink text-surface px-6 py-3 rounded-control text-xs font-bold flex items-center transition-colors duration-200 w-full sm:w-auto justify-center hover:bg-[#333333]">
             <Database className="w-3.5 h-3.5 mr-2" />
             {isLoading ? 'Querying...' : 'Run Query'}
           </button>
           
-          <button onClick={handleClearQuery} className="bg-white text-slate-900 border border-slate-300 px-6 py-3 rounded-none text-xs font-bold uppercase tracking-widest flex items-center transition-none w-full sm:w-auto justify-center hover:bg-slate-50">
-            <RefreshCcw className="w-3.5 h-3.5 mr-2 text-slate-400" />
+          <button onClick={handleClearQuery} className="bg-surface text-ink border border-line px-6 py-3 rounded-control text-xs font-bold flex items-center transition-colors duration-200 w-full sm:w-auto justify-center hover:bg-sunken">
+            <ArrowsClockwise className="w-3.5 h-3.5 mr-2 text-ink-muted" />
             Clear Filters
           </button>
         </div>
       </div>
 
       {/* PANEL 2: RAW DATA PREVIEW */}
-      <div className="border border-slate-200 bg-white overflow-hidden flex flex-col h-[400px]">
-        <div className="border-b border-slate-200 p-4 flex justify-between items-center shrink-0">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-900 flex items-center">
-            <FileText className="w-4 h-4 mr-2 text-slate-400" />
+      <div className="border border-line bg-surface overflow-hidden flex flex-col h-[400px]">
+        <div className="border-b border-line p-4 flex justify-between items-center shrink-0">
+          <h3 className="text-xs font-bold text-ink flex items-center">
+            <FileText className="w-4 h-4 mr-2 text-ink-muted" />
             Global Data Preview
           </h3>
-          <span className="text-[10px] font-mono bg-white border border-slate-300 text-slate-900 px-3 py-1 rounded-none font-bold tracking-widest uppercase">
+          <span className="text-xs bg-surface border border-line text-ink px-3 py-1 rounded-control font-bold">
             {hasQueried ? `${audits.length} Records Found` : 'Awaiting Query'}
           </span>
         </div>
 
-        <div className="overflow-auto flex-1 p-0 bg-white">
-          <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 bg-slate-50 z-10">
-              <tr className="text-[10px] font-mono uppercase tracking-widest text-slate-500 border-b border-slate-200">
+        <div className="overflow-auto flex-1 p-0 bg-surface">
+          <table className="w-full text-left border-collapse min-w-[900px]">
+            <thead className="sticky top-0 bg-canvas z-10">
+              <tr className="text-xs text-ink-muted border-b border-line">
                 <th className="p-4 font-bold">Date & Time</th>
                 <th className="p-4 font-bold">Detachment</th>
                 <th className="p-4 font-bold">Inspector Name</th>
@@ -243,27 +243,27 @@ export default function ReportsExtractionPage() {
                 <th className="p-4 font-bold">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-line">
               {!hasQueried ? (
-                <tr><td colSpan={5} className="p-12 text-center text-slate-400 text-xs font-mono uppercase tracking-widest">Set your filters above and click "Run Query" to preview data.</td></tr>
+                <tr><td colSpan={5} className="p-12 text-center text-ink-muted text-xs">Set your filters above and click "Run Query" to preview data.</td></tr>
               ) : audits.length === 0 ? (
-                <tr><td colSpan={5} className="p-12 text-center text-slate-400 text-xs font-mono uppercase tracking-widest">No audits match your current query parameters.</td></tr>
+                <tr><td colSpan={5} className="p-12 text-center text-ink-muted text-xs">No audits match your current query parameters.</td></tr>
               ) : (
                 audits.map((audit) => (
                   <tr 
                     key={audit.id} 
                     onClick={() => setSelectedDetailAuditId(audit.id)}
-                    className="hover:bg-slate-50 cursor-pointer transition-none group"
+                    className="hover:bg-sunken cursor-pointer transition-colors duration-200 group"
                   >
-                    <td className="p-4 text-xs font-mono text-slate-500 whitespace-nowrap">{formatDate(audit.time_in)}</td>
-                    <td className="p-4 text-sm font-bold text-slate-900">{audit.branch_name}</td>
-                    <td className="p-4 text-sm font-medium text-slate-700">{audit.inspector_name || 'UNKNOWN'}</td>
-                    <td className="p-4 text-sm font-medium text-slate-700">{audit.guard_name || 'NO-SHOW'}</td>
+                    <td className="p-4 text-xs text-ink-muted whitespace-nowrap">{formatDate(audit.time_in)}</td>
+                    <td className="p-4 text-sm font-bold text-ink">{audit.branch_name}</td>
+                    <td className="p-4 text-sm font-medium text-ink">{audit.inspector_name || 'UNKNOWN'}</td>
+                    <td className="p-4 text-sm font-medium text-ink">{audit.guard_name || 'NO-SHOW'}</td>
                     <td className="p-4">
                       {audit.violations_checklist ? (
-                        <span className="inline-flex px-1.5 py-0.5 border border-red-300 bg-red-50 text-red-700 rounded-none text-[10px] font-mono font-bold uppercase tracking-widest">Incident</span>
+                        <span className="inline-flex px-1.5 py-0.5 border border-danger-ink/20 bg-danger-bg text-danger-ink rounded-control text-xs font-bold">Incident</span>
                       ) : (
-                        <span className="inline-flex px-1.5 py-0.5 border border-slate-300 text-slate-900 rounded-none text-[10px] font-mono font-bold uppercase tracking-widest">Routine / Clear</span>
+                        <span className="inline-flex px-1.5 py-0.5 border border-line text-ink rounded-control text-xs font-bold">Routine / Clear</span>
                       )}
                     </td>
                   </tr>
@@ -278,19 +278,19 @@ export default function ReportsExtractionPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
         
         {/* Accounting & HR Export */}
-        <div className="border border-slate-200 bg-white p-6 flex flex-col justify-between">
+        <div className="border border-line bg-surface p-6 flex flex-col justify-between">
           <div>
-            <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900 mb-2">Accounting & Payroll (Internal)</h3>
-            <p className="text-sm text-slate-500 mb-5 leading-relaxed">
+            <h3 className="text-sm font-bold text-ink mb-2">Accounting & Payroll (Internal)</h3>
+            <p className="text-sm text-ink-muted mb-5 leading-relaxed">
               Extracts chronological proof-of-work routing logs into a structured spreadsheet mimicking physical routing forms.
             </p>
           </div>
           
           <div>
             {!canExportCsv && hasQueried && (
-               <div className="mb-4 p-4 border border-red-300 bg-red-50 flex items-start">
-                 <Lock className="w-4 h-4 text-red-600 mr-2 mt-0.5 shrink-0" />
-                 <p className="text-[11px] font-mono uppercase tracking-widest text-red-800 font-bold">
+               <div className="mb-4 p-4 border border-danger-ink/20 bg-danger-bg flex items-start">
+                 <Lock className="w-4 h-4 text-danger-ink mr-2 mt-0.5 shrink-0" />
+                 <p className="text-[11px] text-danger-ink font-bold">
                    Strict Filter Required: Target Inspector & Start Date
                  </p>
                </div>
@@ -298,8 +298,8 @@ export default function ReportsExtractionPage() {
             <button
               onClick={() => setShowCsvPreview(true)}
               disabled={!canExportCsv}
-              className={`w-full py-3 rounded-none text-xs font-bold uppercase tracking-widest flex items-center justify-center transition-none ${
-                !canExportCsv ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' : 'bg-slate-900 hover:bg-slate-800 text-white'
+              className={`w-full py-3 rounded-control text-xs font-bold flex items-center justify-center transition-colors duration-200 ${
+                !canExportCsv ? 'bg-sunken text-ink-muted cursor-not-allowed border border-line' : 'bg-ink hover:bg-[#333333] text-surface'
               }`}
             >
               <FileText className="w-4 h-4 mr-2" />
@@ -309,18 +309,18 @@ export default function ReportsExtractionPage() {
         </div>
 
         {/* Client Reporting Export */}
-        <div className="border border-slate-200 bg-white p-6 flex flex-col justify-between">
+        <div className="border border-line bg-surface p-6 flex flex-col justify-between">
           <div>
-            <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900 mb-2">Client Incident Reports (External)</h3>
-            <p className="text-sm text-slate-500 mb-5 leading-relaxed">
+            <h3 className="text-sm font-bold text-ink mb-2">Client Incident Reports (External)</h3>
+            <p className="text-sm text-ink-muted mb-5 leading-relaxed">
               Generates standardized, read-only PDF documents containing photographic evidence and dual e-signatures.
             </p>
 
             {hasQueried && audits.length > 0 && (
-              <div className="mb-5 bg-slate-50 p-4 border border-slate-200">
-                <label className="block text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Select Report to Generate</label>
+              <div className="mb-5 bg-canvas p-4 border border-line">
+                <label className="block text-xs font-bold text-ink-muted mb-2">Select Report to Generate</label>
                 <select
-                  className="w-full p-2.5 border border-slate-300 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 text-sm font-medium text-slate-900 bg-white cursor-pointer"
+                  className="w-full p-2.5 border border-line rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface cursor-pointer"
                   value={selectedPdfAuditId}
                   onChange={(e) => setSelectedPdfAuditId(e.target.value)}
                 >
@@ -339,8 +339,8 @@ export default function ReportsExtractionPage() {
               setPreviewAuditData(targetAudit);
             }}
             disabled={!hasQueried || audits.length === 0}
-            className={`w-full py-3 rounded-none text-xs font-bold uppercase tracking-widest flex items-center justify-center transition-none mt-auto ${
-              (!hasQueried || audits.length === 0) ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' : 'bg-slate-900 hover:bg-slate-800 text-white'
+            className={`w-full py-3 rounded-control text-xs font-bold flex items-center justify-center transition-colors duration-200 mt-auto ${
+              (!hasQueried || audits.length === 0) ? 'bg-sunken text-ink-muted cursor-not-allowed border border-line' : 'bg-ink hover:bg-[#333333] text-surface'
             }`}
           >
             <FileText className="w-4 h-4 mr-2" />

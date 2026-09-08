@@ -1,12 +1,36 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-// FIX: Forced strict absolute aliases to prevent Context Duplication
-import { AuthProvider } from '@/app/context/AuthContext'; 
-import Sidebar from "@/app/components/sidebar"; 
+import { Geist, Geist_Mono, Newsreader } from "next/font/google";
+import { AuthProvider } from '@/app/context/AuthContext';
+import IconProvider from '@/app/components/icon-provider';
 import "./globals.css";
 
-// Inter is the industry standard for clean, legible enterprise UI (used by Stripe, Vercel, etc.)
-const inter = Inter({ subsets: ["latin"] });
+/*
+ * Geist carries the interface. Geist Mono is reserved for data that benefits
+ * from fixed advance widths: identifiers, timestamps, coordinates, licence
+ * numbers. It is not a decorative voice.
+ */
+const geistSans = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist-sans",
+  display: "swap",
+});
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+  display: "swap",
+});
+
+/*
+ * Newsreader is used only where the editorial register is genuinely earned:
+ * the legal documents and the login wordmark. It never appears inside the
+ * console, where density beats voice.
+ */
+const newsreader = Newsreader({
+  subsets: ["latin"],
+  variable: "--font-newsreader",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Utopia Operations | SOC Dashboard",
@@ -19,24 +43,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} ${newsreader.variable}`}
+    >
+      {/*
+        * The root layout owns typography, tokens and auth only. Chrome belongs
+        * to the route groups, so the login screen no longer has to break out of
+        * a shell that was never meant to contain it.
+        */}
+      <body className="font-sans">
         <AuthProvider>
-          {/* Enterprise Shell: Slate background automatically inherits from globals.css */}
-          <div className="flex min-h-screen">
-            <Sidebar />
-            
-            {/* 
-              * Main Content Area 
-              * ml-64 pushes content past the fixed 16rem sidebar.
-              * We use flex-col to ensure all sub-pages stretch and align perfectly.
-              */}
-            <main className="flex-1 ml-64 flex flex-col">
-              <div className="flex-1 p-8 lg:p-10 max-w-[1600px] mx-auto w-full">
-                {children}
-              </div>
-            </main>
-          </div>
+          <IconProvider>{children}</IconProvider>
         </AuthProvider>
       </body>
     </html>

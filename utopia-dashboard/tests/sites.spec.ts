@@ -46,7 +46,7 @@ test.describe('Sites & Detachments - Roster Management', () => {
     // 2. Open Add Detachment Modal
     await page.click('button:has-text("Add Detachment")');
     await expect(page.getByRole('heading', { name: 'Register New Detachment' })).toBeVisible();
-    await page.click('button:has-text("×")'); // Close modal
+    await page.getByRole('button', { name: 'Close' }).click(); // Close modal
 
     // 3. Open QR Code Modal
     await page.getByTitle('Generate Verification QR').first().click();

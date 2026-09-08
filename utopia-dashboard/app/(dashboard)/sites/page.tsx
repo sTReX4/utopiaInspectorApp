@@ -3,13 +3,13 @@
 import { useAuth } from '@/app/context/AuthContext';
 import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Plus, Search, MapPin, QrCode, Power, PowerOff, Printer, Map, Lock, Eye, UserPlus, User, ShieldCheck, Trash2, AlertTriangle, X } from 'lucide-react';
+import { Eye, Lock, MagnifyingGlass, MapPin, MapTrifold, Plus, Power, Printer, Prohibit, QrCode, ShieldCheck, Trash, User, UserPlus, Warning, X } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 
-const LocationPicker = dynamic(() => import('../components/locationPicker'), { 
+const LocationPicker = dynamic(() => import('@/app/components/locationPicker'), { 
   ssr: false,
-  loading: () => <div className="h-64 bg-slate-50 flex items-center justify-center text-slate-400 font-mono text-xs uppercase tracking-widest border border-slate-200">Loading Map...</div>
+  loading: () => <div className="h-64 bg-canvas flex items-center justify-center text-ink-muted text-xs border border-line">Loading Map...</div>
 });
 
 interface Inspector {
@@ -242,7 +242,7 @@ export default function SitesPage() {
 
   if (authLoading) return (
     <div className="flex h-[50vh] items-center justify-center">
-      <div className="text-xs font-mono uppercase tracking-widest text-slate-500">Verifying Security Clearance...</div>
+      <div className="text-xs text-ink-muted">Verifying Security Clearance...</div>
     </div>
   );
 
@@ -250,47 +250,47 @@ export default function SitesPage() {
     <div className="space-y-6">
       
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-5">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-line pb-5">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 uppercase">Detachment Roster</h1>
+            <h1 className="text-xl font-bold tracking-tight text-ink">Detachment Roster</h1>
             {!isSuperadmin && (
-              <span className="bg-white text-slate-600 text-xs font-mono px-2 py-0.5 border border-slate-300 uppercase tracking-widest flex items-center">
+              <span className="bg-surface text-ink-muted text-xs px-2 py-0.5 border border-line flex items-center">
                 <Eye className="w-3 h-3 mr-1" /> Partial Access
               </span>
             )}
           </div>
-          <p className="text-sm text-slate-500 mt-1">Manage client locations, verification codes, and assignments.</p>
+          <p className="text-sm text-ink-muted mt-1">Manage client locations, verification codes, and assignments.</p>
         </div>
 
         {isSuperadmin ? (
-          <button onClick={() => setIsAddModalOpen(true)} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-none text-sm font-semibold flex items-center transition-none">
+          <button onClick={() => setIsAddModalOpen(true)} className="bg-ink hover:bg-[#333333] text-surface px-5 py-2.5 rounded-control text-sm font-semibold flex items-center transition-colors duration-200">
             <Plus className="w-4 h-4 mr-2" /> Add Detachment
           </button>
         ) : (
-          <button disabled className="bg-slate-100 text-slate-400 px-5 py-2.5 rounded-none text-sm font-semibold flex items-center cursor-not-allowed border border-slate-200">
+          <button disabled className="bg-sunken text-ink-muted px-5 py-2.5 rounded-control text-sm font-semibold flex items-center cursor-not-allowed border border-line">
             <Lock className="w-4 h-4 mr-2" /> Add Detachment
           </button>
         )}
       </div>
 
       {/* Search Bar */}
-      <div className="bg-white border border-slate-200 p-3 flex items-center">
-        <Search className="w-4 h-4 text-slate-400 mr-3 ml-2" />
+      <div className="bg-surface border border-line p-3 flex items-center">
+        <MagnifyingGlass className="w-4 h-4 text-ink-muted mr-3 ml-2" />
         <input 
           type="text" 
           placeholder="Search by branch name or code..." 
-          className="flex-1 outline-none text-sm font-medium text-slate-900 bg-transparent placeholder-slate-400"
+          className="flex-1 outline-none text-sm font-medium text-ink bg-transparent placeholder-ink-muted"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
 
       {/* Main Table */}
-      <div className="border border-slate-200 bg-white overflow-hidden">
-        <table className="w-full text-left border-collapse">
+      <div className="border border-line bg-surface rounded-card overflow-x-auto">
+        <table className="w-full text-left border-collapse min-w-[900px]">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-widest text-slate-500 font-mono">
+            <tr className="bg-canvas border-b border-line text-xs text-ink-muted">
               <th className="p-4 font-bold">Branch Code</th>
               <th className="p-4 font-bold">Branch Name</th>
               <th className="p-4 font-bold">Location</th>
@@ -299,19 +299,19 @@ export default function SitesPage() {
               <th className="p-4 font-bold text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200">
+          <tbody className="divide-y divide-line">
             {isLoading ? (
-              <tr><td colSpan={6} className="p-12 text-center text-slate-500 font-mono text-xs uppercase tracking-widest">Loading database...</td></tr>
+              <tr><td colSpan={6} className="p-12 text-center text-ink-muted text-xs">Loading database...</td></tr>
             ) : filteredSites.length === 0 ? (
-              <tr><td colSpan={6} className="p-12 text-center text-slate-500 font-mono text-xs uppercase tracking-widest">No detachments found. Add one above.</td></tr>
+              <tr><td colSpan={6} className="p-12 text-center text-ink-muted text-xs">No detachments found. Add one above.</td></tr>
             ) : (
               filteredSites.map((site) => (
-                <tr key={site.id} className={`transition-none hover:bg-slate-50 ${!site.is_active && 'bg-slate-50 opacity-60'}`}>
-                  <td className="p-4 font-mono text-sm text-slate-500">{site.branch_code}</td>
-                  <td className="p-4 text-sm font-bold text-slate-900">{site.branch_name}</td>
-                  <td className="p-4 text-sm text-slate-600">
+                <tr key={site.id} className={`transition-colors duration-200 hover:bg-sunken ${!site.is_active && 'bg-canvas opacity-60'}`}>
+                  <td className="p-4 text-sm text-ink-muted">{site.branch_code}</td>
+                  <td className="p-4 text-sm font-bold text-ink">{site.branch_name}</td>
+                  <td className="p-4 text-sm text-ink-muted">
                     <div className="flex items-center">
-                      <MapPin className="w-3.5 h-3.5 mr-1.5 text-slate-400 shrink-0" />
+                      <MapPin className="w-3.5 h-3.5 mr-1.5 text-ink-muted shrink-0" />
                       {site.branch_location}
                     </div>
                   </td>
@@ -320,25 +320,25 @@ export default function SitesPage() {
                     {site.assigned_guards && site.assigned_guards.length > 0 ? (
                       <div className="flex flex-col gap-1.5">
                         {site.assigned_guards.map((gName, idx) => (
-                          <span key={idx} className="flex items-center text-xs font-mono font-bold text-slate-800 bg-white px-2 py-1 rounded-none w-max border border-slate-300 uppercase tracking-widest">
-                            <ShieldCheck className="w-3 h-3 mr-1.5 text-slate-400" />
+                          <span key={idx} className="flex items-center text-xs font-bold text-ink bg-surface px-2 py-1 rounded-control w-max border border-line">
+                            <ShieldCheck className="w-3 h-3 mr-1.5 text-ink-muted" />
                             {gName}
                           </span>
                         ))}
                       </div>
                     ) : (
-                      <span className="text-xs font-mono text-slate-400 uppercase tracking-widest">Unmanned Post</span>
+                      <span className="text-xs text-ink-muted">Unmanned Post</span>
                     )}
                   </td>
 
                   <td className="p-4">
                     {site.inspector ? (
-                      <span className="flex items-center text-xs font-mono font-bold text-slate-900 bg-white px-2 py-1 rounded-none w-max border border-slate-300 uppercase tracking-widest">
-                        <User className="w-3 h-3 mr-1.5 text-slate-400" />
+                      <span className="flex items-center text-xs font-bold text-ink bg-surface px-2 py-1 rounded-control w-max border border-line">
+                        <User className="w-3 h-3 mr-1.5 text-ink-muted" />
                         {site.inspector.full_name}
                       </span>
                     ) : (
-                      <span className="text-xs font-mono text-slate-400 uppercase tracking-widest">Unassigned</span>
+                      <span className="text-xs text-ink-muted">Unassigned</span>
                     )}
                   </td>
 
@@ -351,7 +351,7 @@ export default function SitesPage() {
                         setGuardSearch('');
                         setIsAssignModalOpen(true);
                       }}
-                      className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-none transition-none"
+                      className="p-2 text-ink-muted hover:text-ink hover:bg-sunken rounded-control transition-colors duration-200"
                       title="Dispatch Personnel"
                     >
                       <UserPlus className="w-4 h-4" />
@@ -359,16 +359,16 @@ export default function SitesPage() {
 
                     <button 
                       onClick={() => setSelectedSiteForMap(site)}
-                      className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-none transition-none"
+                      className="p-2 text-ink-muted hover:text-ink hover:bg-sunken rounded-control transition-colors duration-200"
                       title="View Map Location"
                     >
-                      <Map className="w-4 h-4" />
+                      <MapTrifold className="w-4 h-4" />
                     </button>
 
                     {site.is_active && (
                       <button 
                         onClick={() => setSelectedSiteForQR(site)}
-                        className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-none transition-none"
+                        className="p-2 text-ink-muted hover:text-ink hover:bg-sunken rounded-control transition-colors duration-200"
                         title="Generate Verification QR"
                       >
                         <QrCode className="w-4 h-4" />
@@ -378,13 +378,13 @@ export default function SitesPage() {
                     {isSuperadmin ? (
                       <button 
                         onClick={() => toggleSiteStatus(site.id, site.is_active)}
-                        className={`p-2 rounded-none transition-none ${site.is_active ? 'text-slate-500 hover:text-red-600 hover:bg-red-50' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200'}`} 
+                        className={`p-2 rounded-control transition-colors duration-200 ${site.is_active ? 'text-ink-muted hover:text-danger-ink hover:bg-danger-bg' : 'text-ink-muted hover:text-ink hover:bg-sunken'}`} 
                         title={site.is_active ? "Deactivate Site" : "Reactivate Site"}
                       >
-                        {site.is_active ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+                        {site.is_active ? <Prohibit className="w-4 h-4" /> : <Power className="w-4 h-4" />}
                       </button>
                     ) : (
-                      <button disabled className="p-2 text-slate-300 cursor-not-allowed">
+                      <button disabled className="p-2 text-shell-muted cursor-not-allowed">
                         <Lock className="w-4 h-4" />
                       </button>
                     )}
@@ -392,13 +392,13 @@ export default function SitesPage() {
                     {isSuperadmin ? (
                       <button 
                         onClick={() => { setSiteToDelete(site); setDeleteConfirmText(''); }}
-                        className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-none transition-none" 
+                        className="p-2 text-ink-muted hover:text-danger-ink hover:bg-danger-bg rounded-control transition-colors duration-200" 
                         title="Delete Detachment"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash className="w-4 h-4" />
                       </button>
                     ) : (
-                      <button disabled className="p-2 text-slate-300 cursor-not-allowed">
+                      <button disabled className="p-2 text-shell-muted cursor-not-allowed">
                         <Lock className="w-4 h-4" />
                       </button>
                     )}
@@ -414,27 +414,27 @@ export default function SitesPage() {
 
       {/* 1. Assign Inspector & Guards Modal */}
       {isAssignModalOpen && siteToAssign && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-none">
-          <div className="bg-white rounded-none border border-slate-300 shadow-none w-full max-w-md overflow-visible flex flex-col">
-            <div className="bg-white border-b border-slate-200 p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-slate-900 uppercase tracking-tight flex items-center gap-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
+          <div className="bg-surface rounded-control border border-line shadow-none w-full max-w-md overflow-visible flex flex-col">
+            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
+              <h3 className="text-base font-bold text-ink tracking-tight flex items-center gap-2">
                 <UserPlus className="w-4 h-4" /> Dispatch Personnel
               </h3>
-              <button onClick={() => setIsAssignModalOpen(false)} className="text-slate-400 hover:text-slate-900 transition-none text-xl leading-none">✕</button>
+              <button onClick={() => setIsAssignModalOpen(false)} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
             </div>
             
-            <form onSubmit={handleAssignPersonnel} className="p-6 space-y-6 overflow-visible bg-slate-50">
-              <div className="bg-white p-4 border border-slate-200">
-                <p className="text-xs text-slate-500 font-mono uppercase tracking-widest mb-1">Target Detachment</p>
-                <p className="font-bold text-slate-900 text-sm uppercase">{siteToAssign.branch_name}</p>
-                <p className="text-xs font-mono text-slate-500 mt-1">{siteToAssign.branch_code}</p>
+            <form onSubmit={handleAssignPersonnel} className="p-6 space-y-6 overflow-visible bg-canvas">
+              <div className="bg-surface p-4 border border-line">
+                <p className="text-xs text-ink-muted mb-1">Target Detachment</p>
+                <p className="font-bold text-ink text-sm">{siteToAssign.branch_name}</p>
+                <p className="text-xs text-ink-muted mt-1">{siteToAssign.branch_code}</p>
               </div>
 
               <div className="space-y-5">
                 <div>
-                  <label className="block text-xs font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Select Roving Inspector</label>
+                  <label className="block text-xs font-bold text-ink-muted mb-2">Select Roving Inspector</label>
                   <select 
-                    className="w-full border border-slate-300 p-2.5 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 text-sm font-medium text-slate-900 bg-white cursor-pointer"
+                    className="w-full border border-line p-2.5 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface cursor-pointer"
                     value={selectedInspectorId}
                     onChange={(e) => setSelectedInspectorId(e.target.value)}
                   >
@@ -447,15 +447,15 @@ export default function SitesPage() {
                   </select>
                 </div>
 
-                <div className="border-t border-slate-200 pt-5">
-                  <label className="block text-xs font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Deploy Guards to Detachment</label>
+                <div className="border-t border-line pt-5">
+                  <label className="block text-xs font-bold text-ink-muted mb-2">Deploy Guards to Detachment</label>
                   
-                  <div className="flex flex-wrap gap-2 mb-3 min-h-[42px] p-2 bg-white border border-slate-300">
-                    {selectedGuards.length === 0 && <span className="text-xs font-mono text-slate-400 py-1 px-1 uppercase tracking-widest">No guards deployed.</span>}
+                  <div className="flex flex-wrap gap-2 mb-3 min-h-[42px] p-2 bg-surface border border-line">
+                    {selectedGuards.length === 0 && <span className="text-xs text-ink-muted py-1 px-1">No guards deployed.</span>}
                     {selectedGuards.map(g => (
-                      <span key={g.id} className="flex items-center text-xs font-mono font-bold text-slate-900 bg-slate-100 pl-2 pr-1 py-1 rounded-none border border-slate-300 uppercase tracking-widest">
+                      <span key={g.id} className="flex items-center text-xs font-bold text-ink bg-sunken pl-2 pr-1 py-1 rounded-control border border-line">
                         {g.guard_name}
-                        <button type="button" onClick={() => handleRemoveGuardFromSelection(g.id)} className="ml-2 text-slate-400 hover:text-slate-900 hover:bg-slate-200 p-0.5 transition-none">
+                        <button type="button" onClick={() => handleRemoveGuardFromSelection(g.id)} className="ml-2 text-ink-muted hover:text-ink hover:bg-sunken p-0.5 transition-colors duration-200">
                           <X className="w-3 h-3" />
                         </button>
                       </span>
@@ -463,16 +463,16 @@ export default function SitesPage() {
                   </div>
 
                   <div className="relative">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <MagnifyingGlass className="w-4 h-4 text-ink-muted absolute left-3 top-2.5" />
                     <input
                       type="text"
                       placeholder="Search and add guards..."
-                      className="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 text-sm font-medium text-slate-900 bg-white"
+                      className="w-full pl-9 pr-4 py-2.5 border border-line rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface"
                       value={guardSearch}
                       onChange={(e) => setGuardSearch(e.target.value)}
                     />
                     {guardSearch && (
-                      <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 max-h-48 overflow-y-auto z-50">
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-line max-h-48 overflow-y-auto z-50">
                         {allGuards
                           .filter(g => g.guard_name.toLowerCase().includes(guardSearch.toLowerCase()) || (g.assigned_branch && g.assigned_branch.toLowerCase().includes(guardSearch.toLowerCase())))
                           .filter(g => !selectedGuards.find(sg => sg.id === g.id))
@@ -481,18 +481,18 @@ export default function SitesPage() {
                               key={g.id}
                               type="button"
                               onClick={() => handleAddGuardToSelection(g)}
-                              className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-200 last:border-0 flex flex-col transition-none"
+                              className="w-full text-left px-4 py-3 hover:bg-sunken border-b border-line last:border-0 flex flex-col transition-colors duration-200"
                             >
-                              <span className="text-sm font-bold text-slate-900">{g.guard_name}</span>
+                              <span className="text-sm font-bold text-ink">{g.guard_name}</span>
                               {g.assigned_branch && (
-                                <span className="text-xs text-slate-500 font-mono uppercase tracking-widest mt-1">
+                                <span className="text-xs text-ink-muted mt-1">
                                   Currently at: {g.assigned_branch}
                                 </span>
                               )}
                             </button>
                         ))}
                         {allGuards.filter(g => g.guard_name.toLowerCase().includes(guardSearch.toLowerCase()) && !selectedGuards.find(sg => sg.id === g.id)).length === 0 && (
-                            <div className="p-3 text-xs font-mono uppercase tracking-widest text-slate-500 text-center">No matching guards available.</div>
+                            <div className="p-3 text-xs text-ink-muted text-center">No matching guards available.</div>
                         )}
                       </div>
                     )}
@@ -501,7 +501,7 @@ export default function SitesPage() {
               </div>
 
               <div className="pt-2">
-                <button type="submit" className="w-full bg-slate-900 text-white text-sm font-bold uppercase tracking-widest py-3 rounded-none hover:bg-slate-800 transition-none">
+                <button type="submit" className="w-full bg-ink text-surface text-sm font-bold py-3 rounded-control hover:bg-[#333333] transition-colors duration-200">
                   Confirm Assignment
                 </button>
               </div>
@@ -512,38 +512,38 @@ export default function SitesPage() {
 
       {/* 2. Add New Site Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-none">
-          <div className="bg-white rounded-none border border-slate-300 shadow-none w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="bg-white border-b border-slate-200 p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-slate-900 uppercase tracking-tight">Register New Detachment</h3>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-900 transition-none text-xl leading-none">✕</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
+          <div className="bg-surface rounded-control border border-line shadow-none w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
+              <h3 className="text-base font-bold text-ink tracking-tight">Register New Detachment</h3>
+              <button onClick={() => setIsAddModalOpen(false)} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
             </div>
             
-            <form onSubmit={handleAddSite} className="p-6 flex flex-col md:flex-row gap-6 overflow-y-auto bg-slate-50">
+            <form onSubmit={handleAddSite} className="p-6 flex flex-col md:flex-row gap-6 overflow-y-auto bg-canvas">
               <div className="w-full md:w-1/2 space-y-4">
                 <div>
-                  <label className="block text-xs font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Branch Code (Unique)</label>
-                  <input required type="text" placeholder="e.g. BDO-001" className="w-full border border-slate-300 p-2.5 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 bg-white text-sm font-medium text-slate-900" value={newSite.code} onChange={e => setNewSite({...newSite, code: e.target.value})} />
+                  <label className="block text-xs font-bold text-ink-muted mb-2">Branch Code (Unique)</label>
+                  <input required type="text" placeholder="e.g. BDO-001" className="w-full border border-line p-2.5 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newSite.code} onChange={e => setNewSite({...newSite, code: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Branch Name</label>
-                  <input required type="text" placeholder="e.g. BDO Makati Ave" className="w-full border border-slate-300 p-2.5 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 bg-white text-sm font-medium text-slate-900" value={newSite.name} onChange={e => setNewSite({...newSite, name: e.target.value})} />
+                  <label className="block text-xs font-bold text-ink-muted mb-2">Branch Name</label>
+                  <input required type="text" placeholder="e.g. BDO Makati Ave" className="w-full border border-line p-2.5 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newSite.name} onChange={e => setNewSite({...newSite, name: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Full Address / Location</label>
-                  <input required type="text" placeholder="e.g. Makati City, Metro Manila" className="w-full border border-slate-300 p-2.5 rounded-none outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 bg-white text-sm font-medium text-slate-900" value={newSite.location} onChange={e => setNewSite({...newSite, location: e.target.value})} />
+                  <label className="block text-xs font-bold text-ink-muted mb-2">Full Address / Location</label>
+                  <input required type="text" placeholder="e.g. Makati City, Metro Manila" className="w-full border border-line p-2.5 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newSite.location} onChange={e => setNewSite({...newSite, location: e.target.value})} />
                 </div>
               </div>
 
               <div className="w-full md:w-1/2 flex flex-col">
-                <label className="block text-xs font-mono font-bold text-slate-500 uppercase tracking-widest mb-2">Pinpoint Location</label>
-                <div className="flex-1 min-h-[250px] border border-slate-300 bg-white">
+                <label className="block text-xs font-bold text-ink-muted mb-2">Pinpoint Location</label>
+                <div className="flex-1 min-h-[250px] border border-line bg-surface">
                   <LocationPicker 
                     position={newSite.coordinates} 
                     setPosition={(pos) => setNewSite({...newSite, coordinates: pos})} 
                   />
                 </div>
-                <div className="mt-3 p-3 bg-white border border-slate-300 text-xs font-mono text-center text-slate-900">
+                <div className="mt-3 p-3 bg-surface border border-line text-xs text-center text-ink">
                   {newSite.coordinates 
                     ? `Lat: ${newSite.coordinates.lat.toFixed(5)}, Lng: ${newSite.coordinates.lng.toFixed(5)}` 
                     : "No location selected"}
@@ -551,8 +551,8 @@ export default function SitesPage() {
               </div>
             </form>
 
-            <div className="p-5 border-t border-slate-200 bg-white shrink-0">
-              <button onClick={handleAddSite} type="submit" className="w-full bg-slate-900 text-white text-sm font-bold uppercase tracking-widest py-3 rounded-none hover:bg-slate-800 transition-none">
+            <div className="p-5 border-t border-line bg-surface shrink-0">
+              <button onClick={handleAddSite} type="submit" className="w-full bg-ink text-surface text-sm font-bold py-3 rounded-control hover:bg-[#333333] transition-colors duration-200">
                 Save & Register Detachment
               </button>
             </div>
@@ -562,7 +562,7 @@ export default function SitesPage() {
 
       {/* 3. QR Code Generator Modal */}
       {selectedSiteForQR && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-none">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
           <style media="print">
             {`
               @page { size: auto; margin: 0; }
@@ -585,20 +585,20 @@ export default function SitesPage() {
             `}
           </style>
 
-          <div className="bg-white border border-slate-300 rounded-none w-full max-w-sm flex flex-col print:border-none">
+          <div className="bg-surface border border-line rounded-control w-full max-w-sm flex flex-col print:border-none">
             
-            <div className="bg-white border-b border-slate-200 p-5 flex justify-between items-center shrink-0 print:hidden">
-              <h3 className="text-base font-bold text-slate-900 uppercase tracking-tight">Verification QR Code</h3>
-              <button onClick={() => setSelectedSiteForQR(null)} className="text-slate-400 hover:text-slate-900 transition-none text-xl leading-none">✕</button>
+            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0 print:hidden">
+              <h3 className="text-base font-bold text-ink tracking-tight">Verification QR Code</h3>
+              <button onClick={() => setSelectedSiteForQR(null)} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
             </div>
 
-            <div id="qr-print-area" className="p-8 flex flex-col items-center justify-center space-y-6 bg-slate-50 print:bg-white">
+            <div id="qr-print-area" className="p-8 flex flex-col items-center justify-center space-y-6 bg-canvas print:bg-white">
               <div className="text-center">
-                <h2 className="text-xl font-bold text-slate-900 uppercase tracking-tight">{selectedSiteForQR.branch_name}</h2>
-                <p className="text-sm font-mono text-slate-500 mt-2">{selectedSiteForQR.branch_code}</p>
+                <h2 className="text-xl font-bold text-ink tracking-tight">{selectedSiteForQR.branch_name}</h2>
+                <p className="text-sm text-ink-muted mt-2">{selectedSiteForQR.branch_code}</p>
               </div>
               
-              <div className="bg-white p-6 border border-slate-300 print:border-none">
+              <div className="bg-surface p-6 border border-line print:border-none">
                 <QRCodeSVG 
                   value={JSON.stringify({
                     code: selectedSiteForQR.branch_code,
@@ -611,13 +611,13 @@ export default function SitesPage() {
                 />
               </div>
 
-              <p className="text-xs font-mono text-slate-500 text-center leading-relaxed print:mt-4 print:text-black max-w-xs uppercase tracking-widest">
+              <p className="text-xs text-ink-muted text-center leading-relaxed print:mt-4 print:text-black max-w-xs">
                 Scan via Inspector App to verify arrival at <span className="font-bold print:text-black">{selectedSiteForQR.branch_code}</span>.
               </p>
 
               <button 
                 onClick={() => window.print()}
-                className="w-full mt-4 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold uppercase tracking-widest py-3 rounded-none flex items-center justify-center transition-none print:hidden"
+                className="w-full mt-4 bg-ink hover:bg-[#333333] text-surface text-sm font-bold py-3 rounded-control flex items-center justify-center transition-colors duration-200 print:hidden"
               >
                 <Printer className="w-4 h-4 mr-2" />
                 Print Document
@@ -629,32 +629,32 @@ export default function SitesPage() {
 
       {/* 4. View Map Location Modal */}
       {selectedSiteForMap && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-none">
-          <div className="bg-white rounded-none border border-slate-300 w-full max-w-2xl overflow-hidden flex flex-col">
-            <div className="bg-white border-b border-slate-200 p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-slate-900 uppercase tracking-tight">GPS Location</h3>
-              <button onClick={() => setSelectedSiteForMap(null)} className="text-slate-400 hover:text-slate-900 transition-none text-xl leading-none">✕</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
+          <div className="bg-surface rounded-control border border-line w-full max-w-2xl overflow-hidden flex flex-col">
+            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
+              <h3 className="text-base font-bold text-ink tracking-tight">GPS Location</h3>
+              <button onClick={() => setSelectedSiteForMap(null)} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
             </div>
-            <div className="p-6 flex flex-col space-y-4 bg-slate-50">
-              <div className="bg-white p-4 border border-slate-200">
-                <h2 className="text-sm font-bold uppercase text-slate-900">{selectedSiteForMap.branch_name}</h2>
-                <p className="text-xs font-mono text-slate-500 mt-1">{selectedSiteForMap.branch_location}</p>
+            <div className="p-6 flex flex-col space-y-4 bg-canvas">
+              <div className="bg-surface p-4 border border-line">
+                <h2 className="text-sm font-bold text-ink">{selectedSiteForMap.branch_name}</h2>
+                <p className="text-xs text-ink-muted mt-1">{selectedSiteForMap.branch_location}</p>
               </div>
-              <div className="h-72 w-full bg-white border border-slate-300">
+              <div className="h-72 w-full bg-surface border border-line">
                 {selectedSiteForMap.latitude && selectedSiteForMap.longitude ? (
                   <LocationPicker 
                     position={{ lat: selectedSiteForMap.latitude, lng: selectedSiteForMap.longitude }} 
                     setPosition={() => {}} 
                   />
                 ) : (
-                  <div className="h-full w-full flex flex-col items-center justify-center text-slate-400 font-mono text-xs uppercase tracking-widest">
-                    <MapPin className="w-6 h-6 text-slate-300 mb-2" />
+                  <div className="h-full w-full flex flex-col items-center justify-center text-ink-muted text-xs">
+                    <MapPin className="w-6 h-6 text-shell-muted mb-2" />
                     <span>No Coordinates Recorded</span>
                   </div>
                 )}
               </div>
               {selectedSiteForMap.latitude && (
-                <div className="bg-white p-3 border border-slate-200 text-xs font-mono text-slate-900 text-center uppercase tracking-widest">
+                <div className="bg-surface p-3 border border-line text-xs text-ink text-center">
                   Lat: {selectedSiteForMap.latitude} | Lng: {selectedSiteForMap.longitude}
                 </div>
               )}
@@ -665,38 +665,38 @@ export default function SitesPage() {
 
       {/* 5. Delete Detachment Modal */}
       {siteToDelete && isSuperadmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-none">
-          <div className="bg-white border border-slate-300 rounded-none w-full max-w-md overflow-hidden flex flex-col">
-            <div className="bg-white border-b border-slate-200 p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-red-600 uppercase tracking-tight flex items-center">
-                <AlertTriangle className="w-4 h-4 mr-2" /> Permanent Deletion
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
+          <div className="bg-surface border border-line rounded-control w-full max-w-md overflow-hidden flex flex-col">
+            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
+              <h3 className="text-base font-bold text-danger-ink tracking-tight flex items-center">
+                <Warning className="w-4 h-4 mr-2" /> Permanent Deletion
               </h3>
-              <button onClick={() => { setSiteToDelete(null); setDeleteConfirmText(''); }} className="text-slate-400 hover:text-slate-900 transition-none text-xl leading-none">✕</button>
+              <button onClick={() => { setSiteToDelete(null); setDeleteConfirmText(''); }} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
             </div>
             
-            <form onSubmit={handleDeleteSite} className="p-6 space-y-5 bg-slate-50">
-              <p className="text-slate-700 text-sm leading-relaxed">
-                You are about to permanently delete <strong className="text-slate-900">{siteToDelete.branch_name}</strong>.
+            <form onSubmit={handleDeleteSite} className="p-6 space-y-5 bg-canvas">
+              <p className="text-ink text-sm leading-relaxed">
+                You are about to permanently delete <strong className="text-ink">{siteToDelete.branch_name}</strong>.
               </p>
               
-              <div className="bg-red-50 border border-red-300 p-4 text-xs font-mono text-red-900 uppercase tracking-widest text-center">
+              <div className="bg-danger-bg border border-danger-ink/20 p-4 text-xs text-red-900 text-center">
                 Type <strong className="font-bold">DELETE</strong> to execute.
               </div>
               
               <input 
                 type="text" 
                 required
-                className="w-full border border-slate-300 p-3 outline-none text-slate-900 bg-white placeholder-slate-300 focus:border-red-600 focus:ring-1 focus:ring-red-600 font-mono font-bold tracking-widest text-center text-sm rounded-none" 
+                className="w-full border border-line p-3 outline-none text-ink bg-surface placeholder-ink-muted focus:border-red-600 focus:ring-1 focus:ring-red-600 font-bold text-center text-sm rounded-control" 
                 placeholder="DELETE"
                 value={deleteConfirmText}
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
               />
               
               <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => { setSiteToDelete(null); setDeleteConfirmText(''); }} className="flex-1 bg-white border border-slate-300 text-slate-900 text-xs font-bold uppercase tracking-widest py-3 rounded-none hover:bg-slate-100 transition-none">
+                <button type="button" onClick={() => { setSiteToDelete(null); setDeleteConfirmText(''); }} className="flex-1 bg-surface border border-line text-ink text-xs font-bold py-3 rounded-control hover:bg-sunken transition-colors duration-200">
                   Cancel
                 </button>
-                <button type="submit" disabled={deleteConfirmText !== 'DELETE'} className={`flex-1 text-xs font-bold uppercase tracking-widest py-3 rounded-none transition-none text-white border ${deleteConfirmText === 'DELETE' ? 'bg-red-600 hover:bg-red-700 border-red-700' : 'bg-red-300 border-red-300 cursor-not-allowed'}`}>
+                <button type="submit" disabled={deleteConfirmText !== 'DELETE'} className={`flex-1 text-xs font-bold py-3 rounded-control transition-colors duration-200 text-surface border ${deleteConfirmText === 'DELETE' ? 'bg-red-600 hover:bg-red-700 border-red-700' : 'bg-red-300 border-danger-ink/20 cursor-not-allowed'}`}>
                   Confirm Delete
                 </button>
               </div>
