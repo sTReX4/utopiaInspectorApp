@@ -32,10 +32,13 @@
    * not as a second brand colour. */
   --color-danger-bg: #fef2f2;
   --color-danger-ink: #b91c1c;
+  --color-danger-ink-hover: #991b1b;
   --color-info-bg: #eff6ff;
   --color-info-ink: #1d4ed8;
   --color-ok-bg: #ecfdf5;
   --color-ok-ink: #047857;
+  /* Success on the dark shell. ok-ink is 3.26:1 there and unusable. */
+  --color-ok-shell: #6ee7b7;
   --color-warn-bg: #fffbeb;
   --color-warn-ink: #b45309;
 

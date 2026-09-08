@@ -79,7 +79,7 @@ export default function TrackerMap({ routes, selectedRouteId }: TrackerMapProps)
               <p className="text-sm font-semibold text-ink mb-3">{route.inspector_name}</p>
               
               <p className="text-xs font-bold text-ink-muted mb-1.5">Assigned Location</p>
-              <span className="inline-flex text-xs font-bold bg-info-bg text-info-ink px-2 py-1 rounded-md ring-1 ring-blue-200/60">
+              <span className="inline-flex text-xs font-bold bg-info-bg text-info-ink px-2 py-1 rounded-control ring-1 ring-info-ink/20">
                 {route.branch_name}
               </span>
             </div>

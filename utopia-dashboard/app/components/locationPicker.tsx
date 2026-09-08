@@ -42,7 +42,7 @@ export default function LocationPicker({ position, setPosition }: LocationPicker
   }, []);
 
   return (
-    <div className="h-64 w-full rounded-lg overflow-hidden border border-gray-300 relative z-0">
+    <div className="h-64 w-full rounded-card overflow-hidden border border-line relative z-0">
       <MapContainer 
         center={position ? [position.lat, position.lng] : [defaultCenter.lat, defaultCenter.lng]} 
         zoom={13} 

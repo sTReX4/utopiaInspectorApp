@@ -186,7 +186,7 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
             
             {needsEscalation && !isAlarmResponse && (
               <section className={`mb-8 p-5 border-l-4 ${
-                auditData?.escalation_status === 'Resolved' ? 'bg-canvas border-shell-line border border-line' : 'bg-red-50/50 border-red-600 border border-danger-ink/20'
+                auditData?.escalation_status === 'Resolved' ? 'bg-canvas border-shell-line border border-line' : 'bg-danger-bg/50 border-danger-ink border border-danger-ink/20'
               }`}>
                 <div>
                   <h3 className={`text-xs font-bold flex items-center gap-2 ${
@@ -214,7 +214,7 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
                   <div className="flex flex-col gap-3 border-t border-danger-ink/20 pt-4 mt-4">
                     <div>
                       <span className="text-xs font-bold text-danger-ink">Admin Remarks:</span>
-                      <p className="text-sm text-red-900 bg-surface p-3 rounded-control border border-danger-ink/20 mt-1.5">
+                      <p className="text-sm text-danger-ink bg-surface p-3 rounded-control border border-danger-ink/20 mt-1.5">
                         "{auditData.escalation_remarks || 'No remarks provided.'}"
                       </p>
                     </div>
@@ -245,8 +245,8 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
                       disabled={isEscalating || !escalationRemarks.trim()}
                       className={`self-end text-xs font-bold py-2 px-5 rounded-control transition-colors duration-200 w-full sm:w-auto ${
                         isEscalating || !escalationRemarks.trim() 
-                          ? 'bg-red-200 text-surface cursor-not-allowed' 
-                          : 'bg-red-600 hover:bg-red-700 text-surface'
+                          ? 'bg-sunken text-ink-muted cursor-not-allowed' 
+                          : 'bg-danger-ink hover:bg-danger-ink-hover text-surface'
                       }`}
                     >
                       {isEscalating ? 'Escalating...' : 'Submit Escalation'}
@@ -474,11 +474,11 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
             {!isAlarmResponse && auditData.violations_checklist && (
               <section className="py-6">
                 <h3 className="text-xs font-bold text-danger-ink mb-5 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-red-600 rounded-control"></span>
+                  <span className="w-2 h-2 bg-danger-ink rounded-full"></span>
                   Violation Ticket Issued
                 </h3>
                 <div className="bg-surface border border-danger-ink/20 p-5">
-                  <div className="grid grid-cols-2 gap-6 mb-6 pb-6 border-b border-red-100">
+                  <div className="grid grid-cols-2 gap-6 mb-6 pb-6 border-b border-danger-ink/20">
                     <div>
                       <span className="text-xs text-ink-muted block mb-1">Security License No.</span>
                       <span className="text-sm font-medium text-ink">{auditData.violations_checklist.security_license_no || 'N/A'}</span>

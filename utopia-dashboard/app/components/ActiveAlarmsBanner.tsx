@@ -56,8 +56,8 @@ export default function ActiveAlarmsBanner() {
   return (
     <div className="mb-6 flex flex-col gap-2">
       {alarms.map((alarm) => (
-        <div key={alarm.id} className="bg-surface border border-red-600 rounded-control p-0 flex flex-col md:flex-row shadow-none">
-          <div className="bg-red-600 text-surface p-4 flex flex-col justify-center items-center md:w-48 shrink-0">
+        <div key={alarm.id} className="bg-surface border border-danger-ink rounded-control p-0 flex flex-col md:flex-row shadow-none">
+          <div className="bg-danger-ink text-surface p-4 flex flex-col justify-center items-center md:w-48 shrink-0">
             <ShieldWarning className="w-8 h-8 mb-2" />
             <span className="text-xs font-bold text-center">Active Incident</span>
           </div>
@@ -69,11 +69,11 @@ export default function ActiveAlarmsBanner() {
               </span>
             </div>
             <p className="text-xs text-ink-muted mb-2">RESPONDER: {alarm.inspector_name} | ARRIVAL: {new Date(alarm.time_in).toLocaleTimeString()}</p>
-            <p className="text-sm text-ink bg-danger-bg p-3 border border-red-100 font-medium">
+            <p className="text-sm text-ink bg-danger-bg p-3 border border-danger-ink/20 font-medium">
               "{alarm.incident_remarks || 'Awaiting detailed resolution notes...'}"
             </p>
           </div>
-          <div className="p-4 border-t md:border-t-0 md:border-l border-red-100 flex flex-col justify-center shrink-0">
+          <div className="p-4 border-t md:border-t-0 md:border-l border-danger-ink/20 flex flex-col justify-center shrink-0">
             <button
               onClick={() => setSelectedAuditId(alarm.id)}
               className="bg-ink text-surface text-xs font-bold py-3 px-6 rounded-control hover:bg-shell-hover transition-colors duration-200 flex items-center justify-center gap-2"

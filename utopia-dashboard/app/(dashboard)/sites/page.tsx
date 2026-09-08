@@ -612,7 +612,7 @@ export default function SitesPage() {
               </div>
 
               <p className="text-xs text-ink-muted text-center leading-relaxed print:mt-4 print:text-black max-w-xs">
-                Scan via Inspector App to verify arrival at <span className="font-bold print:text-black">{selectedSiteForQR.branch_code}</span>.
+                Scan this code using the Utopia Inspector App to verify arrival at <span className="font-bold print:text-black">{selectedSiteForQR.branch_code}</span>.
               </p>
 
               <button 
@@ -669,7 +669,7 @@ export default function SitesPage() {
           <div className="bg-surface border border-line rounded-control w-full max-w-md overflow-hidden flex flex-col">
             <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
               <h3 className="text-base font-bold text-danger-ink tracking-tight flex items-center">
-                <Warning className="w-4 h-4 mr-2" /> Permanent Deletion
+                <Warning className="w-4 h-4 mr-2" /> Danger: Permanent Deletion
               </h3>
               <button onClick={() => { setSiteToDelete(null); setDeleteConfirmText(''); }} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
             </div>
@@ -679,14 +679,14 @@ export default function SitesPage() {
                 You are about to permanently delete <strong className="text-ink">{siteToDelete.branch_name}</strong>.
               </p>
               
-              <div className="bg-danger-bg border border-danger-ink/20 p-4 text-xs text-red-900 text-center">
+              <div className="bg-danger-bg border border-danger-ink/20 p-4 text-xs text-danger-ink text-center">
                 Type <strong className="font-bold">DELETE</strong> to execute.
               </div>
               
               <input 
                 type="text" 
                 required
-                className="w-full border border-line p-3 outline-none text-ink bg-surface placeholder-ink-muted focus:border-red-600 focus:ring-1 focus:ring-red-600 font-bold text-center text-sm rounded-control" 
+                className="w-full border border-line p-3 outline-none text-ink bg-surface placeholder-ink-muted focus:border-danger-ink focus:ring-1 focus:ring-danger-ink font-bold text-center text-sm rounded-control" 
                 placeholder="DELETE"
                 value={deleteConfirmText}
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
@@ -696,7 +696,7 @@ export default function SitesPage() {
                 <button type="button" onClick={() => { setSiteToDelete(null); setDeleteConfirmText(''); }} className="flex-1 bg-surface border border-line text-ink text-xs font-bold py-3 rounded-control hover:bg-sunken transition-colors duration-200">
                   Cancel
                 </button>
-                <button type="submit" disabled={deleteConfirmText !== 'DELETE'} className={`flex-1 text-xs font-bold py-3 rounded-control transition-colors duration-200 text-surface border ${deleteConfirmText === 'DELETE' ? 'bg-red-600 hover:bg-red-700 border-red-700' : 'bg-red-300 border-danger-ink/20 cursor-not-allowed'}`}>
+                <button type="submit" disabled={deleteConfirmText !== 'DELETE'} className={`flex-1 text-xs font-bold py-3 rounded-control transition-colors duration-200 border ${deleteConfirmText === 'DELETE' ? 'bg-danger-ink hover:bg-danger-ink-hover border-danger-ink text-surface' : 'bg-sunken border-line text-ink-muted cursor-not-allowed'}`}>
                   Confirm Delete
                 </button>
               </div>

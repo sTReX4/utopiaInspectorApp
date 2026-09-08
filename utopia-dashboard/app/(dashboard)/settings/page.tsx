@@ -158,7 +158,7 @@ export default function SettingsPage() {
                 table to ensure cryptographic security.
               </p>
               <div className="bg-ink text-shell-muted p-3 rounded-control border border-shell-line text-xs">
-                <span className="text-emerald-400 font-bold">CURRENT CLEARANCE:</span> {role?.toUpperCase() || 'UNKNOWN'}
+                <span className="text-ok-shell font-bold">CURRENT CLEARANCE:</span> {role?.toUpperCase() || 'UNKNOWN'}
               </div>
             </div>
           </div>

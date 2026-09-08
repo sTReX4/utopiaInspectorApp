@@ -195,7 +195,7 @@ export default function ReportsExtractionPage() {
             <label className="flex items-center space-x-2 cursor-pointer group">
               <input type="checkbox" className="w-4 h-4 text-ink rounded-control border-line focus:ring-info-ink" checked={filterOnlyViolations} onChange={(e) => setFilterOnlyViolations(e.target.checked)} />
               <span className="text-[11px] font-bold text-ink flex items-center transition-colors duration-200">
-                <Warning className="w-3.5 h-3.5 text-ink-muted mr-1.5" /> Violations Only
+                <Warning className="w-3.5 h-3.5 text-ink-muted mr-1.5" /> Show Violations Only
               </span>
             </label>
             <label className="flex items-center space-x-2 cursor-pointer group">
