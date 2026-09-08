@@ -15,10 +15,10 @@ import SubmissionReceiptModal from '../components/submission-receipt-modal';
 import ViolationItemCard from '../components/violation-item-card';
 import DateInputGroup from '../components/date-input-group';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '../lib/supabase';
 import * as Network from 'expo-network';
 import { saveAuditLocally } from '../lib/sqlite';
 import { triggerAtomicSync } from '../lib/syncManager';
+import { loadGuardsForBranch, RosterSource } from '../lib/guardRoster';
 
 const NAME_HISTORY_FILE = FileSystem.documentDirectory + 'nameHistory.json';
 
@@ -51,6 +51,9 @@ export default function AuditFormScreen() {
 
     const [guardName, setGuardName] = useState<string>('');
     const [assignedGuards, setAssignedGuards] = useState<GuardRosterData[]>([]);
+    const [rosterSource, setRosterSource] = useState<RosterSource | null>(null);
+    const [rosterRefreshedAt, setRosterRefreshedAt] = useState<string | null>(null);
+    const [isRosterLoading, setIsRosterLoading] = useState<boolean>(false);
     const [isGuardDropdownOpen, setIsGuardDropdownOpen] = useState<boolean>(false);
 
     const [firearmSerial, setFirearmSerial] = useState<string>('');
@@ -147,21 +150,21 @@ export default function AuditFormScreen() {
         const fetchAssignedGuards = async () => {
             if (!isVerified || !branchName) return;
 
+            setIsRosterLoading(true);
             try {
-                const { data, error } = await supabase
-                    .from('guards')
-                    .select('guard_name, lesp_expiry_date')
-                    .eq('assigned_branch', branchName)
-                    .eq('is_active', true)
-                    .order('guard_name', { ascending: true });
-
-                if (error) throw error;
-
-                if (data) {
-                    setAssignedGuards(data as GuardRosterData[]);
-                }
+                // Reads the local mirror, refreshing it first when there is signal.
+                const roster = await loadGuardsForBranch(branchName);
+                setAssignedGuards(roster.guards as GuardRosterData[]);
+                setRosterSource(roster.source);
+                setRosterRefreshedAt(roster.refreshedAt);
             } catch (error) {
-                console.error("Failed to fetch assigned guards", error);
+                // Only reachable if local storage itself fails.
+                console.error('Failed to load guard roster', error);
+                setAssignedGuards([]);
+                setRosterSource(null);
+                setRosterRefreshedAt(null);
+            } finally {
+                setIsRosterLoading(false);
             }
         };
 
@@ -350,13 +353,26 @@ export default function AuditFormScreen() {
 
         // --- OFFLINE ARCHITECTURE INTERCEPT ---
         if (isOffline) {
-            await saveAuditLocally(payload, isAlarmResponse);
+            try {
+                await saveAuditLocally(payload, isAlarmResponse);
+            } catch (error) {
+                // Surface the failure instead of letting it escape as an
+                // unhandled rejection, which leaves the form stuck submitting
+                // and the inspector believing the report was cached.
+                console.error('Offline cache write failed:', error);
+                Alert.alert(
+                    'Local Save Failed',
+                    'This audit could not be written to local storage, so it has NOT been saved. Please try submitting again.'
+                );
+                setIsSubmitting(false);
+                return;
+            }
 
             Alert.alert(
                 'Offline Mode Active',
                 'Network dead zone detected. Audit securely encrypted to local storage and will sync automatically once signal is restored.'
             );
-            
+
             // Ensure UI safely resets for the next field audit
             clearAuditInputs();
             setIsSubmitting(false);
@@ -621,9 +637,25 @@ export default function AuditFormScreen() {
 
                     {isGuardDropdownOpen && (
                         <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, marginTop: 5, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}>
-                            {assignedGuards.length === 0 ? (
+                            {rosterSource === 'cache' && (
+                                <Text style={{ paddingHorizontal: 15, paddingTop: 12, color: '#b45309', fontSize: 12, fontWeight: '600' }}>
+                                    {`Offline. Showing the roster saved on this device${
+                                        rosterRefreshedAt
+                                            ? ` on ${new Date(rosterRefreshedAt).toLocaleString()}`
+                                            : ''
+                                    }.`}
+                                </Text>
+                            )}
+
+                            {isRosterLoading ? (
+                                <Text style={{ padding: 15, color: '#64748b', fontStyle: 'italic' }}>
+                                    Loading roster...
+                                </Text>
+                            ) : assignedGuards.length === 0 ? (
                                 <Text style={{ padding: 15, color: '#ef4444', fontStyle: 'italic', fontWeight: '500' }}>
-                                    No guards officially deployed to this detachment in the system.
+                                    {rosterSource === 'cache' && !rosterRefreshedAt
+                                        ? 'No roster saved on this device yet. Connect to the internet once to download it before heading to a dead zone.'
+                                        : 'No guards officially deployed to this detachment in the system.'}
                                 </Text>
                             ) : (
                                 assignedGuards.map((guard, index) => (

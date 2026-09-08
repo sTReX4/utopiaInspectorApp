@@ -2,6 +2,7 @@ import NetInfo from '@react-native-community/netinfo';
 import * as Notifications from 'expo-notifications';
 import { DeviceEventEmitter } from 'react-native';
 import { getPendingAudits, removeSyncedAudit } from './sqlite';
+import { refreshGuardRoster } from './guardRoster';
 
 
 const API_URL = 'http://192.168.1.8:3000/api/audits';
@@ -9,7 +10,7 @@ const API_URL = 'http://192.168.1.8:3000/api/audits';
 // Ensure notifications show even when the app is open
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
-        shouldShowAlert: true,
+        // `shouldShowAlert` is deprecated; banner and list replace it.
         shouldPlaySound: true,
         shouldSetBadge: false,
         shouldShowBanner: true,
@@ -21,14 +22,24 @@ let isSyncing = false;
 
 export const triggerAtomicSync = async () => {
     if (isSyncing) return;
-    
+
+    // The guard has to be released on every exit path, failures included.
+    // Leaving it set would block every later sync for the rest of the session.
+    isSyncing = true;
+    try {
+        await runAtomicSync();
+    } finally {
+        isSyncing = false;
+    }
+};
+
+const runAtomicSync = async () => {
     const pendingRecords = await getPendingAudits();
     if (pendingRecords.length === 0) {
         DeviceEventEmitter.emit('sync_status', { isSyncing: false, count: 0 });
         return;
     }
 
-    isSyncing = true;
     DeviceEventEmitter.emit('sync_status', { isSyncing: true, count: pendingRecords.length });
 
     await Notifications.scheduleNotificationAsync({
@@ -56,7 +67,14 @@ export const triggerAtomicSync = async () => {
                 await removeSyncedAudit(record.id);
                 successCount++;
             } else {
-                throw new Error(`Server rejected offline audit ${record.id}`);
+                // Include the status and body. Without them a routing failure,
+                // a database rejection and a crashed server are indistinguishable,
+                // which makes a stuck queue impossible to diagnose from the logs.
+                const body = await response.text().catch(() => '<unreadable response body>');
+                throw new Error(
+                    `Server rejected offline audit ${record.id}: ` +
+                    `HTTP ${response.status} ${response.statusText} - ${body.slice(0, 300)}`
+                );
             }
         } catch (error) {
             console.error(`Atomic Sync failed for audit ${record.id}`, error);
@@ -66,7 +84,6 @@ export const triggerAtomicSync = async () => {
         }
     }
 
-    isSyncing = false;
     DeviceEventEmitter.emit('sync_status', { isSyncing: false, count: pendingRecords.length - successCount });
 
     if (successCount > 0) {
@@ -94,7 +111,17 @@ export const triggerAtomicSync = async () => {
 export const initializeNetworkListener = () => {
     NetInfo.addEventListener(state => {
         if (state.isConnected && state.isInternetReachable) {
-            triggerAtomicSync();
+            // Fire-and-forget, so the rejection must be handled here or it
+            // escapes as an unhandled promise rejection.
+            triggerAtomicSync().catch(error => {
+                console.error('Background sync failed:', error);
+            });
+
+            // Top up the offline roster while there is signal. Waiting until the
+            // inspector scans a QR code is too late if that site has no coverage.
+            refreshGuardRoster().catch(error => {
+                console.warn('Guard roster refresh failed:', error);
+            });
         }
     });
 };

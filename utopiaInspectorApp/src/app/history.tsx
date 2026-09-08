@@ -177,7 +177,7 @@ export default function HistoryScreen() {
       <SubmissionReceiptModal 
         visible={modalVisible} 
         onClose={() => setModalVisible(false)} 
-        payload={selectedAudit} 
+        auditData={selectedAudit}
       />
     </View>
   );
