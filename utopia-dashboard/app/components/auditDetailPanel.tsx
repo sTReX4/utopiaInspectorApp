@@ -9,7 +9,6 @@ interface AuditDetailPanelProps {
     userRole?: 'admin' | 'superadmin';
 }
 
-// Math function to calculate the physical distance (in meters) between two GPS coordinates
 const calculateDistanceInMeters = (
     lat1?: number | string | null, 
     lon1?: number | string | null, 
@@ -18,13 +17,12 @@ const calculateDistanceInMeters = (
 ) => {
     if (!lat1 || !lon1 || !lat2 || !lon2) return null;
     
-    // Safely cast to Numbers to prevent string math errors
     const numLat1 = Number(lat1);
     const numLon1 = Number(lon1);
     const numLat2 = Number(lat2);
     const numLon2 = Number(lon2);
 
-    const R = 6371e3; // Earth radius in meters
+    const R = 6371e3; 
     const toRad = (value: number) => (value * Math.PI) / 180;
     const dLat = toRad(numLat2 - numLat1);
     const dLon = toRad(numLon2 - numLon1);
@@ -39,16 +37,13 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
     const [isLoading, setIsLoading] = useState(false);
     const [mapView, setMapView] = useState<'inspector' | 'detachment'>('inspector');
     
-    // --- QC/TBD Manager Escalation States ---
     const [isEscalating, setIsEscalating] = useState(false);
     const [escalationSuccess, setEscalationSuccess] = useState(false);
     const [escalationRemarks, setEscalationRemarks] = useState('');
-
     const [isResolving, setIsResolving] = useState(false);
 
     const handleEscalateReport = async () => {
         if (!escalationRemarks.trim()) return;
-        
         setIsEscalating(true);
         try {
             const { error } = await supabase
@@ -58,9 +53,7 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
                     escalation_remarks: escalationRemarks 
                 })
                 .eq('id', auditId);
-
             if (error) throw error;
-            
             setEscalationSuccess(true);
         } catch (error) {
             console.error('Error escalating report:', error);
@@ -76,9 +69,7 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
                 .from('audits')
                 .update({ escalation_status: 'Resolved' })
                 .eq('id', auditId);
-
             if (error) throw error;
-            
             setAuditData((prev: any) => ({ ...prev, escalation_status: 'Resolved' }));
         } catch (error) {
             console.error('Error resolving report:', error);
@@ -128,9 +119,7 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
         fetchAuditDetails();
     }, [auditId]);
 
-    if (!auditId) {
-        return null; 
-    }
+    if (!auditId) return null; 
 
     const activeLat = mapView === 'inspector' ? auditData?.gps_latitude : detachmentGps?.lat;
     const activeLng = mapView === 'inspector' ? auditData?.gps_longitude : detachmentGps?.lng;
@@ -144,7 +133,6 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
     ? `https://www.openstreetmap.org/export/embed.html?bbox=${numLng - offset},${numLat - offset},${numLng + offset},${numLat + offset}&layer=mapnik&marker=${numLat},${numLng}`
     : null;
 
-    // Sterile Mono-Badge Renderer
     const renderStatusBadge = (status: string | boolean | null | undefined, customText?: string) => {
         const text = customText || String(status);
         if (status === 'Valid' || status === true || status === 'Compliant' || status === 'Yes' || status === 'Secured') 
@@ -162,14 +150,14 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
         detachmentGps?.lat, detachmentGps?.lng
     );
     
-    // --- ESCALATION LOGIC ENGINE ---
+    // --- ESCALATION & ROUTING ENGINE ---
+    const isAlarmResponse = auditData?.visit_type === 'Alarm Response' || !!auditData?.incident_remarks;
+    
     const isGpsMismatch = distance !== null && distance > 100;
     const hasViolations = !!auditData?.violations_checklist;
-    
     const hasDocumentIssues = auditData?.documents_checklist 
         ? Object.values(auditData.documents_checklist).some(status => status === 'Expired' || status === 'Missing')
         : false;
-
     const isUniformNonCompliant = auditData?.uniform_compliance === false || auditData?.uniform_status === false || auditData?.uniform_status === 'Non-Compliant';
 
     const needsEscalation = isGpsMismatch || hasViolations || hasDocumentIssues || isUniformNonCompliant;
@@ -180,7 +168,6 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
 
       <div className="relative w-full max-w-md md:max-w-3xl bg-white h-full border-l border-slate-200 overflow-y-auto z-10 flex flex-col">
         
-        {/* Sterile Header */}
         <div className="bg-white border-b border-slate-200 p-6 sticky top-0 z-20 flex justify-between items-center">
           <div>
             <h2 className="text-base font-semibold tracking-tight text-slate-900 uppercase">Audit Inspection Report</h2>
@@ -196,8 +183,7 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
         ) : auditData ? (
           <div className="p-6 space-y-0 flex-1 divide-y divide-slate-200">
             
-            {/* --- AUTOMATED QC/TBD ESCALATION BANNER --- */}
-            {needsEscalation && (
+            {needsEscalation && !isAlarmResponse && (
               <section className={`mb-8 p-5 border-l-4 ${
                 auditData?.escalation_status === 'Resolved' ? 'bg-slate-50 border-slate-800 border border-slate-200' : 'bg-red-50/50 border-red-600 border border-red-200'
               }`}>
@@ -313,7 +299,6 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
             <section className="py-6">
               <div className="flex justify-between items-center mb-5">
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest">GPS Location</h3>
-                {/* Always render the button group so it's obvious to the user, but disable if data is missing */}
                 <div className="flex border border-slate-200">
                   <button
                     onClick={() => setMapView('inspector')}
@@ -368,9 +353,11 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
               </div>
             </section>
 
-            {/* 3. Guard Evidence & Identification */}
+            {/* 3. Guard Evidence / Incident Details */}
             <section className="py-6">
-               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-5">Guard Identity & Equipment</h3>
+               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-5">
+                 {isAlarmResponse ? 'Incident Resolution Evidence' : 'Guard Identity & Equipment'}
+               </h3>
                <div className="flex flex-col sm:flex-row gap-8">
                  
                  <div className="w-full sm:w-1/3">
@@ -383,77 +370,90 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
                    </div>
                  </div>
 
-                 <div className="w-full sm:w-2/3 grid grid-cols-2 gap-y-6 gap-x-4">
-                    <div className="col-span-2">
-                      <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-widest mb-1.5">Guard on Post</span>
-                      {auditData.guard_present_status ? (
-                        renderStatusBadge(false, 'NO-SHOW (ABSENT)')
-                      ) : (
-                        <span className="text-sm font-medium text-slate-900">{auditData.guard_name || 'PRESENT'}</span>
-                      )}
-                    </div>
-
-                    {!auditData.guard_present_status && (
-                      <>
-                        <div>
-                          <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-widest mb-1.5">Uniform Compliance</span>
-                          {renderStatusBadge(
-                              auditData.uniform_compliance === true || auditData.uniform_status === 'Compliant' || auditData.uniform_status === true, 
-                              (auditData.uniform_compliance === true || auditData.uniform_status === 'Compliant' || auditData.uniform_status === true) ? 'Compliant' : 'Non-Compliant'
+                 <div className="w-full sm:w-2/3 flex flex-col gap-y-6">
+                   {isAlarmResponse ? (
+                     <div className="bg-red-50 border border-red-200 p-5 h-full">
+                       <span className="text-[10px] text-red-800 block uppercase font-mono tracking-widest mb-2 border-b border-red-200 pb-2">Active Incident Dispatch</span>
+                       <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-widest mb-1.5 mt-4">Resolution Remarks</span>
+                       <p className="text-sm text-slate-900 font-medium leading-relaxed">
+                         {auditData.incident_remarks || 'No incident remarks provided.'}
+                       </p>
+                     </div>
+                   ) : (
+                     <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                        <div className="col-span-2">
+                          <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-widest mb-1.5">Guard on Post</span>
+                          {auditData.guard_present_status ? (
+                            renderStatusBadge(false, 'NO-SHOW (ABSENT)')
+                          ) : (
+                            <span className="text-sm font-medium text-slate-900">{auditData.guard_name || 'PRESENT'}</span>
                           )}
                         </div>
-                        <div>
-                          <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-widest mb-1.5">LESP Expiry</span>
-                          <span className="text-sm font-mono text-slate-900">{auditData.lesp_expiry || 'N/A'}</span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-widest mb-1.5">Firearm Make</span>
-                          <span className="text-sm text-slate-900">{auditData.firearm_make || 'N/A'}</span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-widest mb-1.5">Firearm Serial</span>
-                          <span className="text-sm font-mono text-slate-900">{auditData.firearm_serial || 'N/A'}</span>
-                        </div>
-                      </>
-                    )}
 
-                    {auditData.guard_present_status && (() => {
-                      const isOnline = auditData.guard_present_status.atm_online;
-                      const isOffline = auditData.guard_present_status.atm_offline;
-                      
-                      // Convert mutually exclusive booleans into a single state parameter
-                      const atmStatusValue = isOnline ? true : (isOffline ? false : null);
-                      const atmStatusText = isOnline ? 'ONLINE' : (isOffline ? 'OFFLINE' : 'UNCHECKED');
-
-                      return (
-                        <div className="col-span-2 bg-slate-50 border border-slate-200 p-4 mt-2">
-                          <span className="text-[10px] text-slate-900 block uppercase font-mono tracking-widest mb-4 border-b border-slate-200 pb-2">Emergency Facility Status</span>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
+                        {!auditData.guard_present_status && (
+                          <>
                             <div>
-                              <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">ATM Status</span>
-                              <div>{renderStatusBadge(atmStatusValue, atmStatusText)}</div>
+                              <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-widest mb-1.5">Uniform Compliance</span>
+                              {renderStatusBadge(
+                                  auditData.uniform_compliance === true || auditData.uniform_status === 'Compliant' || auditData.uniform_status === true, 
+                                  (auditData.uniform_compliance === true || auditData.uniform_status === 'Compliant' || auditData.uniform_status === true) ? 'Compliant' : 'Non-Compliant'
+                              )}
                             </div>
                             <div>
-                              <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Facility Doors Secure</span>
-                              <div>{renderStatusBadge(auditData.guard_present_status.door_secure ? 'Secured' : 'Breached/Open')}</div>
+                              <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-widest mb-1.5">LESP Expiry</span>
+                              <span className="text-sm font-mono text-slate-900">{auditData.lesp_expiry || 'N/A'}</span>
                             </div>
-                          </div>
-                        </div>
-                      );
-                    })()}
+                            <div>
+                              <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-widest mb-1.5">Firearm Make</span>
+                              <span className="text-sm text-slate-900">{auditData.firearm_make || 'N/A'}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-widest mb-1.5">Firearm Serial</span>
+                              <span className="text-sm font-mono text-slate-900">{auditData.firearm_serial || 'N/A'}</span>
+                            </div>
+                          </>
+                        )}
+
+                        {auditData.guard_present_status && (() => {
+                          const isOnline = auditData.guard_present_status.atm_online;
+                          const isOffline = auditData.guard_present_status.atm_offline;
+                          
+                          const atmStatusValue = isOnline ? true : (isOffline ? false : null);
+                          const atmStatusText = isOnline ? 'ONLINE' : (isOffline ? 'OFFLINE' : 'UNCHECKED');
+
+                          return (
+                            <div className="col-span-2 bg-slate-50 border border-slate-200 p-4 mt-2">
+                              <span className="text-[10px] text-slate-900 block uppercase font-mono tracking-widest mb-4 border-b border-slate-200 pb-2">Emergency Facility Status</span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
+                                <div>
+                                  <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">ATM Status</span>
+                                  <div>{renderStatusBadge(atmStatusValue, atmStatusText)}</div>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Facility Doors Secure</span>
+                                  <div>{renderStatusBadge(auditData.guard_present_status.door_secure ? 'Secured' : 'Breached/Open')}</div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                     </div>
+                   )}
                  </div>
                </div>
                
-               <div className="mt-8">
-                 <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-widest mb-2">General Remarks</span>
-                 <p className="bg-white p-4 border border-slate-200 text-slate-900 text-sm leading-relaxed">
-                   {auditData.remarks || 'No remarks logged.'}
-                 </p>
-               </div>
+               {!isAlarmResponse && (
+                 <div className="mt-8">
+                   <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-widest mb-2">General Remarks</span>
+                   <p className="bg-white p-4 border border-slate-200 text-slate-900 text-sm leading-relaxed">
+                     {auditData.remarks || 'No remarks logged.'}
+                   </p>
+                 </div>
+               )}
             </section>
 
             {/* 4. Document Checklist */}
-            {auditData.documents_checklist && (
+            {!isAlarmResponse && auditData.documents_checklist && (
               <section className="py-6">
                 <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-5">Document Compliance</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -470,7 +470,7 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
             )}
 
             {/* 5. Violations Ticket */}
-            {auditData.violations_checklist && (
+            {!isAlarmResponse && auditData.violations_checklist && (
               <section className="py-6">
                 <h3 className="text-xs font-bold text-red-700 uppercase tracking-widest mb-5 flex items-center gap-2">
                   <span className="w-2 h-2 bg-red-600 rounded-none"></span>
@@ -514,9 +514,11 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
               <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-5">Captured Signatures</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 
-                {/* LEFT: Guard Signature */}
+                {/* LEFT: Guard / Inspector Signature */}
                 <div className="border border-slate-200 p-5 bg-white flex flex-col justify-between">
-                  <h4 className="text-[10px] font-bold text-slate-500 font-mono uppercase tracking-widest mb-4">Guard Signature</h4>
+                  <h4 className="text-[10px] font-bold text-slate-500 font-mono uppercase tracking-widest mb-4">
+                    {isAlarmResponse ? 'Inspector Signature' : 'Guard Signature'}
+                  </h4>
                   {auditData.guard_signature && auditData.guard_signature.startsWith('data:image') ? (
                     <img src={auditData.guard_signature} alt="Guard Signature" className="h-24 object-contain mix-blend-multiply border border-slate-100 bg-slate-50 w-full" />
                   ) : (
@@ -527,7 +529,7 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
                     </div>
                   )}
                   <div className="mt-4 pt-4 border-t border-slate-200 text-xs font-semibold text-slate-900 uppercase">
-                    {auditData.guard_name || 'N/A'}
+                    {isAlarmResponse ? auditData.inspector_name : (auditData.guard_name || 'N/A')}
                   </div>
                 </div>
 
