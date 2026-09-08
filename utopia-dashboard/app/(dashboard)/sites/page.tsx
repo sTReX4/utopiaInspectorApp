@@ -264,7 +264,7 @@ export default function SitesPage() {
         </div>
 
         {isSuperadmin ? (
-          <button onClick={() => setIsAddModalOpen(true)} className="bg-ink hover:bg-[#333333] text-surface px-5 py-2.5 rounded-control text-sm font-semibold flex items-center transition-colors duration-200">
+          <button onClick={() => setIsAddModalOpen(true)} className="bg-ink hover:bg-shell-hover text-surface px-5 py-2.5 rounded-control text-sm font-semibold flex items-center transition-colors duration-200">
             <Plus className="w-4 h-4 mr-2" /> Add Detachment
           </button>
         ) : (
@@ -501,7 +501,7 @@ export default function SitesPage() {
               </div>
 
               <div className="pt-2">
-                <button type="submit" className="w-full bg-ink text-surface text-sm font-bold py-3 rounded-control hover:bg-[#333333] transition-colors duration-200">
+                <button type="submit" className="w-full bg-ink text-surface text-sm font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
                   Confirm Assignment
                 </button>
               </div>
@@ -552,7 +552,7 @@ export default function SitesPage() {
             </form>
 
             <div className="p-5 border-t border-line bg-surface shrink-0">
-              <button onClick={handleAddSite} type="submit" className="w-full bg-ink text-surface text-sm font-bold py-3 rounded-control hover:bg-[#333333] transition-colors duration-200">
+              <button onClick={handleAddSite} type="submit" className="w-full bg-ink text-surface text-sm font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
                 Save & Register Detachment
               </button>
             </div>
@@ -617,7 +617,7 @@ export default function SitesPage() {
 
               <button 
                 onClick={() => window.print()}
-                className="w-full mt-4 bg-ink hover:bg-[#333333] text-surface text-sm font-bold py-3 rounded-control flex items-center justify-center transition-colors duration-200 print:hidden"
+                className="w-full mt-4 bg-ink hover:bg-shell-hover text-surface text-sm font-bold py-3 rounded-control flex items-center justify-center transition-colors duration-200 print:hidden"
               >
                 <Printer className="w-4 h-4 mr-2" />
                 Print Document

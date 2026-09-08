@@ -2,38 +2,42 @@
 
 /*
  * Utopia Design Tokens
- * Warm monochrome editorial system. One palette for the whole project:
- * public pages and the authenticated console share these values so the
- * app never fluctuates between warm and cool grays.
+ * Cool slate system built around a single primary, #0f172a, with white as the
+ * secondary. Primary carries the operational chrome (sidebar, primary actions,
+ * body text); white carries the surfaces it sits on and the type that sits on
+ * it. One palette across the public pages and the authenticated console.
  */
 @theme {
   /* Canvas and structure */
-  --color-canvas: #fbfbfa;
+  --color-canvas: #f8fafc;
   --color-surface: #ffffff;
-  --color-sunken: #f7f6f3;
-  --color-line: #eaeaea;
-  --color-line-strong: #dcdbd7;
+  --color-sunken: #f1f5f9;
+  --color-line: #e2e8f0;
+  --color-line-strong: #cbd5e1;
 
-  /* Text. ink-muted is darkened from the #787774 reference, which measures
-   * 4.32:1 on canvas and fails WCAG AA. #6f6e6b measures 4.92:1. */
-  --color-ink: #111111;
-  --color-ink-muted: #6f6e6b;
+  /* Primary and text. ink-muted is #5b6b80 rather than a stock slate-500,
+   * which measures 4.34:1 on the sunken surface used for inputs and fails
+   * WCAG AA. This value clears it at 4.97:1. */
+  --color-ink: #0f172a;
+  --color-ink-muted: #5b6b80;
 
-  /* Operational shell (sidebar, login chrome) */
-  --color-shell: #111111;
-  --color-shell-line: #2a2926;
-  --color-shell-ink: #f7f6f3;
-  --color-shell-muted: #9a9894;
+  /* Operational shell: primary ground, secondary type */
+  --color-shell: #0f172a;
+  --color-shell-line: #1e293b;
+  --color-shell-ink: #ffffff;
+  --color-shell-muted: #94a3b8;
+  --color-shell-hover: #1e293b;
 
-  /* Semantic pastels. Color is scarce and only carries meaning. */
-  --color-danger-bg: #fdebec;
-  --color-danger-ink: #9f2f2d;
-  --color-info-bg: #e1f3fe;
-  --color-info-ink: #1f6c9f;
-  --color-ok-bg: #edf3ec;
-  --color-ok-ink: #346538;
-  --color-warn-bg: #fbf3db;
-  --color-warn-ink: #956400;
+  /* Semantic status. Cool-leaning and desaturated so they read as state,
+   * not as a second brand colour. */
+  --color-danger-bg: #fef2f2;
+  --color-danger-ink: #b91c1c;
+  --color-info-bg: #eff6ff;
+  --color-info-ink: #1d4ed8;
+  --color-ok-bg: #ecfdf5;
+  --color-ok-ink: #047857;
+  --color-warn-bg: #fffbeb;
+  --color-warn-ink: #b45309;
 
   /* Shape scale: cards 12px, controls 6px, badges pill. No other radii. */
   --radius-card: 12px;
@@ -53,7 +57,7 @@
   /*
    * Light-only by deliberate choice. This is an internal operations console,
    * not a consumer surface, so OS dark-mode bleed is suppressed rather than
-   * themed.
+   * themed. The dark chrome is the primary colour, not a dark theme.
    */
   html,
   body {

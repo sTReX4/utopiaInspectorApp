@@ -233,7 +233,7 @@ export default function SettingsPage() {
                     <button 
                       onClick={handleSaveSettings}
                       disabled={isSaving}
-                      className="bg-ink hover:bg-[#333333] text-surface px-6 py-2.5 rounded-control font-bold text-sm flex items-center transition-colors duration-200 disabled:bg-ink-muted"
+                      className="bg-ink hover:bg-shell-hover text-surface px-6 py-2.5 rounded-control font-bold text-sm flex items-center transition-colors duration-200 disabled:bg-ink-muted"
                     >
                       {isSaving ? 'UPDATING...' : (
                         <>

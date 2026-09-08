@@ -223,7 +223,7 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
                         onClick={handleResolveEscalation}
                         disabled={isResolving}
                         className={`self-end text-xs font-bold py-2 px-5 rounded-control transition-colors duration-200 w-full sm:w-auto ${
-                          isResolving ? 'bg-line text-ink-muted cursor-not-allowed' : 'bg-ink hover:bg-[#333333] text-surface'
+                          isResolving ? 'bg-line text-ink-muted cursor-not-allowed' : 'bg-ink hover:bg-shell-hover text-surface'
                         }`}
                       >
                         {isResolving ? 'Resolving...' : 'Mark as Resolved'}

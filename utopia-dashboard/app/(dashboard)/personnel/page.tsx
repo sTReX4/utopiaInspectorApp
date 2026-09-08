@@ -390,7 +390,7 @@ export default function PersonnelPage() {
         <div className="flex items-center gap-3">
           {activeTab === 'guards' && (
             isSuperadmin ? (
-              <button onClick={() => setIsAddModalOpen(true)} className="bg-ink hover:bg-[#333333] text-surface px-5 py-2.5 rounded-control text-xs font-bold flex items-center transition-colors duration-200">
+              <button onClick={() => setIsAddModalOpen(true)} className="bg-ink hover:bg-shell-hover text-surface px-5 py-2.5 rounded-control text-xs font-bold flex items-center transition-colors duration-200">
                 <Plus className="w-4 h-4 mr-2" /> Register Guard
               </button>
             ) : (
@@ -402,7 +402,7 @@ export default function PersonnelPage() {
 
           {activeTab === 'inspectors' && (
             isSuperadmin ? (
-              <button onClick={() => setIsAddInspectorModalOpen(true)} className="bg-ink hover:bg-[#333333] text-surface px-5 py-2.5 rounded-control text-xs font-bold flex items-center transition-colors duration-200">
+              <button onClick={() => setIsAddInspectorModalOpen(true)} className="bg-ink hover:bg-shell-hover text-surface px-5 py-2.5 rounded-control text-xs font-bold flex items-center transition-colors duration-200">
                 <User className="w-4 h-4 mr-2" /> Register Inspector
               </button>
             ) : (
@@ -414,7 +414,7 @@ export default function PersonnelPage() {
 
           {activeTab === 'keys' && (
             isSuperadmin ? (
-              <button onClick={() => setIsKeyModalOpen(true)} className="bg-ink hover:bg-[#333333] text-surface px-5 py-2.5 rounded-control text-xs font-bold flex items-center transition-colors duration-200">
+              <button onClick={() => setIsKeyModalOpen(true)} className="bg-ink hover:bg-shell-hover text-surface px-5 py-2.5 rounded-control text-xs font-bold flex items-center transition-colors duration-200">
                 <Key className="w-4 h-4 mr-2" /> Generate Access Key
               </button>
             ) : (
@@ -701,7 +701,7 @@ export default function PersonnelPage() {
                 <input required type="date" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink transition-colors duration-200" value={editGuardData.lesp_expiry_date} onChange={e => setEditGuardData({...editGuardData, lesp_expiry_date: e.target.value})} />
               </div>
               <div className="pt-2">
-                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-[#333333] transition-colors duration-200">Save Changes</button>
+                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Changes</button>
               </div>
             </form>
           </div>
@@ -728,7 +728,7 @@ export default function PersonnelPage() {
                 <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={editInspectorData.contact_number || ''} onChange={e => setEditInspectorData({...editInspectorData, contact_number: e.target.value})} />
               </div>
               <div className="pt-2">
-                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-[#333333] transition-colors duration-200">Save Changes</button>
+                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Changes</button>
               </div>
             </form>
           </div>
@@ -763,7 +763,7 @@ export default function PersonnelPage() {
                 </select>
               </div>
               <div className="pt-2">
-                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-[#333333] transition-colors duration-200">
+                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
                   Confirm Deployment
                 </button>
               </div>
@@ -803,7 +803,7 @@ export default function PersonnelPage() {
                 </select>
               </div>
               <div className="pt-2">
-                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-[#333333] transition-colors duration-200">Save Guard Record</button>
+                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Guard Record</button>
               </div>
             </form>
           </div>
@@ -830,7 +830,7 @@ export default function PersonnelPage() {
                 <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newInspector.contact_number} onChange={e => setNewInspector({...newInspector, contact_number: e.target.value})} placeholder="0917-123-4567" />
               </div>
               <div className="pt-2">
-                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-[#333333] transition-colors duration-200">Save Inspector Record</button>
+                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Inspector Record</button>
               </div>
             </form>
           </div>
@@ -912,7 +912,7 @@ export default function PersonnelPage() {
               </div>
 
               <div className="pt-2">
-                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-[#333333] transition-colors duration-200">
+                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
                   Confirm Dispatch
                 </button>
               </div>
@@ -951,7 +951,7 @@ export default function PersonnelPage() {
                     </select>
                   </div>
                   <div className="pt-2">
-                    <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-[#333333] transition-colors duration-200">
+                    <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
                       Generate Key
                     </button>
                   </div>

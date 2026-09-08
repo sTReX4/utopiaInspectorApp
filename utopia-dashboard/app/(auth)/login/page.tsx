@@ -143,7 +143,7 @@ export default function LoginPage() {
               className={`w-full py-3 rounded-control font-medium text-sm flex items-center justify-center gap-2 press transition-colors duration-200 ${
                 isLoading
                   ? 'bg-ink-muted cursor-not-allowed text-surface'
-                  : 'bg-ink hover:bg-[#333333] text-surface'
+                  : 'bg-ink hover:bg-shell-hover text-surface'
               }`}
             >
               {isLoading && <CircleNotch weight="bold" className="w-4 h-4 animate-spin" />}

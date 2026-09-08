@@ -76,7 +76,7 @@ export default function ActiveAlarmsBanner() {
           <div className="p-4 border-t md:border-t-0 md:border-l border-red-100 flex flex-col justify-center shrink-0">
             <button
               onClick={() => setSelectedAuditId(alarm.id)}
-              className="bg-ink text-surface text-xs font-bold py-3 px-6 rounded-control hover:bg-[#333333] transition-colors duration-200 flex items-center justify-center gap-2"
+              className="bg-ink text-surface text-xs font-bold py-3 px-6 rounded-control hover:bg-shell-hover transition-colors duration-200 flex items-center justify-center gap-2"
             >
               View Report <ArrowRight className="w-4 h-4" />
             </button>

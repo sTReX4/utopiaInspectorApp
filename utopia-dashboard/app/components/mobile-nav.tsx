@@ -43,7 +43,7 @@ export default function MobileNav() {
               aria-current={isActive ? 'page' : undefined}
               className={`flex items-center gap-2 px-3 py-2 rounded-control whitespace-nowrap text-xs transition-colors duration-200 ${
                 isActive
-                  ? 'bg-info-bg text-info-ink font-medium'
+                  ? 'bg-white/10 text-shell-ink font-medium'
                   : 'text-shell-muted hover:text-shell-ink'
               }`}
             >

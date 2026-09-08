@@ -27,13 +27,13 @@ export default function DashboardHome() {
     <div className="space-y-6">
       
       {/* Dashboard Header */}
-      <div className="flex flex-col lg:flex-row lg:justify-between items-start lg:items-center gap-4 border-b border-line pb-5">
+      <div className="flex flex-col xl:flex-row xl:justify-between items-start xl:items-center gap-4 border-b border-line pb-5">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">Operations Overview</h1>
           <p className="text-sm text-ink-muted mt-1">Real-time security audit monitoring and compliance tracking.</p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto shrink-0">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto shrink-0">
           
           {/* Inspector Filter */}
           <div className="relative w-full sm:w-64">

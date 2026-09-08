@@ -161,7 +161,7 @@ export default function EscalationsPage() {
                 <div className="mt-8 pt-5 border-t border-line flex items-center justify-between">
                   <span className="text-xs text-ink-muted">Ref: {audit.id.split('-')[0]}</span>
                   <button
-                    className="bg-ink hover:bg-[#333333] text-surface text-xs font-bold py-3 px-6 rounded-control transition-colors duration-200 flex items-center gap-2"
+                    className="bg-ink hover:bg-shell-hover text-surface text-xs font-bold py-3 px-6 rounded-control transition-colors duration-200 flex items-center gap-2"
                   >
                     Review Full Audit
                     <ArrowRight className="w-4 h-4" />

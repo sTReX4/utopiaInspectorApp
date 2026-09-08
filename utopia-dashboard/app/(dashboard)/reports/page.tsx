@@ -208,7 +208,7 @@ export default function ReportsExtractionPage() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 pt-3">
-          <button onClick={handleRunQuery} className="bg-ink text-surface px-6 py-3 rounded-control text-xs font-bold flex items-center transition-colors duration-200 w-full sm:w-auto justify-center hover:bg-[#333333]">
+          <button onClick={handleRunQuery} className="bg-ink text-surface px-6 py-3 rounded-control text-xs font-bold flex items-center transition-colors duration-200 w-full sm:w-auto justify-center hover:bg-shell-hover">
             <Database className="w-3.5 h-3.5 mr-2" />
             {isLoading ? 'Querying...' : 'Run Query'}
           </button>
@@ -299,7 +299,7 @@ export default function ReportsExtractionPage() {
               onClick={() => setShowCsvPreview(true)}
               disabled={!canExportCsv}
               className={`w-full py-3 rounded-control text-xs font-bold flex items-center justify-center transition-colors duration-200 ${
-                !canExportCsv ? 'bg-sunken text-ink-muted cursor-not-allowed border border-line' : 'bg-ink hover:bg-[#333333] text-surface'
+                !canExportCsv ? 'bg-sunken text-ink-muted cursor-not-allowed border border-line' : 'bg-ink hover:bg-shell-hover text-surface'
               }`}
             >
               <FileText className="w-4 h-4 mr-2" />
@@ -340,7 +340,7 @@ export default function ReportsExtractionPage() {
             }}
             disabled={!hasQueried || audits.length === 0}
             className={`w-full py-3 rounded-control text-xs font-bold flex items-center justify-center transition-colors duration-200 mt-auto ${
-              (!hasQueried || audits.length === 0) ? 'bg-sunken text-ink-muted cursor-not-allowed border border-line' : 'bg-ink hover:bg-[#333333] text-surface'
+              (!hasQueried || audits.length === 0) ? 'bg-sunken text-ink-muted cursor-not-allowed border border-line' : 'bg-ink hover:bg-shell-hover text-surface'
             }`}
           >
             <FileText className="w-4 h-4 mr-2" />

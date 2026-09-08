@@ -59,7 +59,7 @@ export default function Sidebar() {
               aria-current={isActive ? 'page' : undefined}
               className={`flex items-center px-3 py-2.5 rounded-control press transition-colors duration-200 ${
                 isActive
-                  ? 'bg-info-bg text-info-ink font-medium'
+                  ? 'bg-white/10 text-shell-ink font-medium'
                   : 'text-shell-muted hover:bg-white/5 hover:text-shell-ink'
               }`}
             >
@@ -85,7 +85,7 @@ export default function Sidebar() {
               className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium tracking-[0.05em] uppercase ${
                 role === 'superadmin'
                   ? 'bg-info-bg text-info-ink'
-                  : 'bg-white/5 text-shell-muted'
+                  : 'bg-white/10 text-shell-ink'
               }`}
             >
               <Shield weight="fill" className="w-3 h-3 shrink-0" />
