@@ -2,6 +2,16 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Image, Pressable } from "react-native";
 import { Stack, useRouter } from "expo-router";
 
+// 1. Define your theme colors here
+const COLORS = {
+  navy: '#0f172a',
+  navyDeep: '#060f1a',
+  slate: '#64748b',
+  steel: '#334155',
+  white: '#e8e8e8',
+  danger: '#e57373',
+};
+
 export default function Layout() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -43,7 +53,7 @@ export default function Layout() {
                 onPress={() => handleMenuPress(item)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.menuItemText, item === "Sign out" && { color: "#e57373" }]}>
+                <Text style={[styles.menuItemText, item === "Sign out" && { color: COLORS.danger }]}>
                   {item}
                 </Text>
               </TouchableOpacity>
@@ -60,26 +70,83 @@ export default function Layout() {
   );
 }
 
+// 2. The StyleSheet can now access the COLORS object
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#050505" },
-  content: { flex: 1 },
+  container: { 
+    flex: 1, 
+    backgroundColor: COLORS.navy 
+  },
+  content: { 
+    flex: 1 
+  },
   
+  // Header
   header: { 
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 
-    paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16, zIndex: 10,
-    backgroundColor: '#050505'
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: 20, 
+    paddingTop: 60, 
+    paddingBottom: 16, 
+    zIndex: 10,
+    backgroundColor: COLORS.navy
   },
-  eyebrow: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 2, color: '#555', fontFamily: 'monospace' },
-  title: { fontSize: 24, fontWeight: '600', color: '#e8e8e8', letterSpacing: -0.5 },
-  headerRight: { flexDirection: 'row', alignItems: 'center' },
-  avatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#2a2a2a', overflow: 'hidden', backgroundColor: '#111' },
-  avatarImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  eyebrow: { 
+    fontSize: 10, 
+    textTransform: 'uppercase', 
+    letterSpacing: 2, 
+    color: COLORS.slate, 
+    fontFamily: 'monospace' 
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: '600', 
+    color: COLORS.white, 
+    letterSpacing: -0.5 
+  },
+  headerRight: { 
+    flexDirection: 'row', 
+    alignItems: 'center' 
+  },
+  avatar: { 
+    width: 36, 
+    height: 36, 
+    borderRadius: 18, 
+    borderWidth: 1, 
+    borderColor: COLORS.steel, 
+    overflow: 'hidden', 
+    backgroundColor: COLORS.navyDeep 
+  },
+  avatarImage: { 
+    width: '100%', 
+    height: '100%', 
+    resizeMode: 'cover' 
+  },
 
+  // Dropdown Menu
   menu: { 
-    position: 'absolute', top: 110, right: 20, width: 160, 
-    backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: '#2a2a2a', zIndex: 100,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.5, shadowRadius: 20
+    position: 'absolute', 
+    top: 110, 
+    right: 20, 
+    width: 160, 
+    backgroundColor: COLORS.navyDeep, 
+    borderWidth: 1, 
+    borderColor: COLORS.steel, 
+    zIndex: 100,
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 10 }, 
+    shadowOpacity: 0.5, 
+    shadowRadius: 20,
+    elevation: 10, 
   },
-  menuItem: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#1a1a1a' },
-  menuItemText: { color: '#e8e8e8', fontSize: 14 },
+  menuItem: { 
+    paddingHorizontal: 16, 
+    paddingVertical: 14, 
+    borderBottomWidth: 1, 
+    borderBottomColor: COLORS.navy 
+  },
+  menuItemText: { 
+    color: COLORS.white, 
+    fontSize: 14 
+  },
 });

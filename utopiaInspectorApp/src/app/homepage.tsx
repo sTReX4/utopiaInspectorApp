@@ -58,8 +58,8 @@ export default function HomepageScreen() {
         <View style={[styles.alertBanner, tutorialStep === 1 && styles.highlightedElement]}>
           <View style={styles.pulseDot} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.alertTitle}>Active audit in progress</Text>
-            <Text style={styles.alertSub}>AUD-2847 · 02:14:33</Text>
+            <Text style={styles.alertTitle}>Detachment Alert</Text>
+            <Text style={styles.alertSub}>See Assign Detachments</Text>
           </View>
           <Text style={{ color: '#555', fontSize: 18 }}>›</Text>
         </View>
@@ -67,9 +67,9 @@ export default function HomepageScreen() {
         {/* Stat row */}
         <View style={styles.statRow}>
           {[
-            { label: "Audits", value: "3" },
-            { label: "Blocked", value: "147" },
-            { label: "Score", value: "94%" },
+            { label: "Detachments", value: "0" },
+            { label: "Progress", value: "0" },
+            { label: "Status", value: "0" + "/" + "0" },
           ].map((s, idx) => (
             <View key={s.label} style={[styles.statBox, idx === 1 && { marginHorizontal: 1 }]}>
               <Text style={styles.statValue}>{s.value}</Text>
@@ -85,7 +85,7 @@ export default function HomepageScreen() {
             { label: "Digital Audit", sub: "Run full scan", route: "/audit", icon: "◈" },
             { label: "History", sub: "View event log", route: "/history", icon: "≡" },
             { label: "Detachments", sub: "Manage units", route: "/sites", icon: "◉" },
-            { label: "Escalations", sub: "Configure app", route: "/escalations", icon: "!" },
+            { label: "Pending", sub: "View pending items", route: "/pending", icon: "!" },
           ].map((a) => (
             <TouchableOpacity
               key={a.label}
