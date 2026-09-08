@@ -16,6 +16,9 @@ import ViolationItemCard from '../components/violation-item-card';
 import DateInputGroup from '../components/date-input-group';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
+import * as Network from 'expo-network';
+import { saveAuditLocally } from '../lib/sqlite';
+import { triggerAtomicSync } from '../lib/syncManager';
 
 const NAME_HISTORY_FILE = FileSystem.documentDirectory + 'nameHistory.json';
 
@@ -338,11 +341,32 @@ export default function AuditFormScreen() {
             client_signature: isClientAbsent ? 'UNAVAILABLE_ON_SITE' : clientSignature,
 
             visit_type: visitType,
-        incident_remarks: incidentRemarks
+            incident_remarks: incidentRemarks
         };
 
+        const network = await Network.getNetworkStateAsync();
+        const isOffline = !network.isConnected || !network.isInternetReachable;
+        const isAlarmResponse = visitType === 'Alarm Response';
+
+        // --- OFFLINE ARCHITECTURE INTERCEPT ---
+        if (isOffline) {
+            await saveAuditLocally(payload, isAlarmResponse);
+
+            Alert.alert(
+                'Offline Mode Active',
+                'Network dead zone detected. Audit securely encrypted to local storage and will sync automatically once signal is restored.'
+            );
+            
+            // Ensure UI safely resets for the next field audit
+            clearAuditInputs();
+            setIsSubmitting(false);
+            return;
+        }
+
+        // --- STANDARD ONLINE TRANSMISSION ---
         try {
-            const API_URL = 'https://utopia-inspector-app.vercel.app/api/audits';
+            // Revert back to the deployed API URL when moving out of local testing
+            const API_URL = 'http://192.168.1.8:3000/api/audits';
             
             const response = await fetch(API_URL, {
                 method: 'POST',
@@ -350,30 +374,28 @@ export default function AuditFormScreen() {
                 body: JSON.stringify(payload),
             });
             
-            const responseText = await response.text();
-            
-            if (!response.ok) {
-                console.error('Vercel Error Text:', responseText);
-                Alert.alert('Vercel Server Error', `Response: ${responseText.substring(0, 100)}`);
-                setIsSubmitting(false);
-                return;
+            if (response.ok) {
+                await triggerAtomicSync();
+                
+                clearAuditInputs();
+                Alert.alert('Audit Submitted', 'Data safely transmitted to Command Center.', [
+                    {
+                        text: 'View Receipt',
+                        onPress: () => setSubmittedPayload(payload),
+                    },
+                    {
+                        text: 'OK',
+                        style: 'cancel',
+                    },
+                ]);
+            } else {
+                const responseText = await response.text();
+                console.error('Server Error Text:', responseText);
+                Alert.alert('Server Error', `Response: ${responseText.substring(0, 100)}`);
             }
-
-            clearAuditInputs();
-            Alert.alert('Audit Submitted', 'The audit has been successfully submitted and logged.', [
-                {
-                    text: 'View Receipt',
-                    onPress: () => setSubmittedPayload(payload),
-                },
-                {
-                    text: 'OK',
-                    style: 'cancel',
-                },
-            ]);
-            
         } catch (error) {
             console.error('Submission Error:', error);
-            Alert.alert('Submission Error', 'An error occurred while submitting the audit. Please check your network connection and try again.');
+            Alert.alert('Transmission Error', 'Failed to reach headquarters. Please ensure stable connectivity and try again.');
         } finally {
             setIsSubmitting(false);
         }

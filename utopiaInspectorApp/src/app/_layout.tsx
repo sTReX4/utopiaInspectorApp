@@ -1,19 +1,34 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Image, Pressable } from "react-native";
 import { Stack, useRouter } from "expo-router";
+import * as Notifications from 'expo-notifications';
+import { initializeNetworkListener } from '../lib/syncManager';
+import SyncIndicator from '../components/sync-indicator';
 
 export default function Layout() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
 
+  useEffect(() => {
+    // Request native permissions for upload notifications
+    Notifications.requestPermissionsAsync();
+    
+    // Start the autonomous network listener
+    initializeNetworkListener();
+  }, []);
+
   const handleMenuPress = (item: string) => {
     setMenuOpen(false);
     if (item === "Profile") router.push("/profile");
     if (item === "Security") router.push("/settings");
+    if (item === "Offline Queue") router.push("/offline-queue");
   };
 
   return (
     <View style={styles.container}>
+      {/* Enterprise Global Sync Indicator */}
+      <SyncIndicator />
+
       {/* Global Header */}
       <View style={styles.header}>
         <View>
@@ -40,7 +55,7 @@ export default function Layout() {
           {/* Invisible overlay to catch outside taps and close menu */}
           <Pressable style={styles.overlay} onPress={() => setMenuOpen(false)} />
           <View style={styles.menu}>
-            {["Profile", "Security", "Notification", "Support", "Sign out"].map((item, i, arr) => (
+            {["Profile", "Security", "Offline Queue", "Support", "Sign out"].map((item, i, arr) => (
               <TouchableOpacity 
                 key={item} 
                 style={[styles.menuItem, i === arr.length - 1 && { borderBottomWidth: 0 }]} 
@@ -67,7 +82,7 @@ export default function Layout() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#050505" },
   content: { flex: 1 },
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 90 },
+  overlay: { ...StyleSheet.absoluteFill, zIndex: 90 },
   
   header: { 
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 
