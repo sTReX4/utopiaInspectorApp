@@ -1,69 +1,45 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Briefcase, CheckCircle, Copy, Key, Lock, MagnifyingGlass, MapPin, PencilSimple, Plus, Power, Prohibit, ShieldCheck, ShieldSlash, ShieldWarning, Trash, User, Warning, X, XCircle } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { Key, Lock, MagnifyingGlass, Plus, User, CheckCircle, Warning, XCircle } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
-import Modal from '@/app/components/modal';
+import Reveal from '@/app/components/reveal';
 
-interface Guard {
-  id: string;
-  guard_name: string;
-  lesp_number: string;
-  lesp_expiry_date: string;
-  assigned_branch: string | null;
-  is_active: boolean;
-}
+import { usePersonnelData } from './use-personnel-data';
+import type { BranchOption, DeleteTarget, Guard, Inspector } from './types';
 
-interface InspectorKey {
-  id: string;
-  access_key: string;
-  assigned_to: string;
-  is_used: boolean;
-  created_by: string;
-  created_at: string;
-  used_at: string | null;
-}
-
-interface Inspector {
-  id: string;
-  full_name: string;
-  contact_number: string | null;
-  is_active: boolean;
-  created_at: string;
-  detachments?: { branch_name: string }[];
-}
-
-interface BranchOption {
-  id: string;
-  branch_name: string;
-  assigned_inspector_id: string | null;
-  inspector?: { full_name: string } | null;
-}
+import GuardsTable from './_components/guards-table';
+import InspectorsTable from './_components/inspectors-table';
+import KeysTable from './_components/keys-table';
+import EditGuardModal from './_components/edit-guard-modal';
+import EditInspectorModal from './_components/edit-inspector-modal';
+import DeployGuardModal from './_components/deploy-guard-modal';
+import RegisterGuardModal from './_components/register-guard-modal';
+import RegisterInspectorModal from './_components/register-inspector-modal';
+import DispatchInspectorModal from './_components/dispatch-inspector-modal';
+import ProvisioningModal from './_components/provisioning-modal';
+import DeleteEntityModal from './_components/delete-entity-modal';
 
 export default function PersonnelPage() {
   const { user, role, isLoading: authLoading } = useAuth();
   const isSuperadmin = role === 'superadmin';
 
+  const {
+    guards, keys, inspectors, branchOptions, isLoading,
+    setGuards, setKeys, setInspectors, setBranchOptions,
+  } = usePersonnelData();
+
   // --- 3-TIER TAB SYSTEM ---
   const [activeTab, setActiveTab] = useState<'guards' | 'inspectors' | 'keys'>('guards');
-
-  // --- DATA STATES ---
-  const [guards, setGuards] = useState<Guard[]>([]);
-  const [keys, setKeys] = useState<InspectorKey[]>([]);
-  const [inspectors, setInspectors] = useState<Inspector[]>([]);
-  const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // --- GUARD MODALS ---
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newGuard, setNewGuard] = useState({ guard_name: '', lesp_number: '', lesp_expiry_date: '', assigned_branch: '' });
-  
-  const [isEditGuardModalOpen, setIsEditGuardModalOpen] = useState(false);
+
   const [editGuardData, setEditGuardData] = useState<Guard | null>(null);
 
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [guardToAssign, setGuardToAssign] = useState<Guard | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<string>('');
 
@@ -76,52 +52,14 @@ export default function PersonnelPage() {
   const [isAddInspectorModalOpen, setIsAddInspectorModalOpen] = useState(false);
   const [newInspector, setNewInspector] = useState({ full_name: '', contact_number: '' });
 
-  const [isEditInspectorModalOpen, setIsEditInspectorModalOpen] = useState(false);
   const [editInspectorData, setEditInspectorData] = useState<Inspector | null>(null);
 
-  const [isAssignInspectorModalOpen, setIsAssignInspectorModalOpen] = useState(false);
   const [inspectorToAssign, setInspectorToAssign] = useState<Inspector | null>(null);
   const [selectedDetachments, setSelectedDetachments] = useState<BranchOption[]>([]);
   const [detachmentSearch, setDetachmentSearch] = useState('');
 
-  const [entityToDelete, setEntityToDelete] = useState<{ id: string, name: string, type: 'guard' | 'inspector' | 'key' } | null>(null);
+  const [entityToDelete, setEntityToDelete] = useState<DeleteTarget | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    await Promise.all([fetchGuards(), fetchBranches(), fetchKeys(), fetchInspectors()]);
-    setIsLoading(false);
-  };
-
-  const fetchGuards = async () => {
-    const { data } = await supabase.from('guards').select('*').order('guard_name', { ascending: true });
-    if (data) setGuards(data);
-  };
-
-  const fetchBranches = async () => {
-    const { data } = await supabase
-      .from('detachments')
-      .select('id, branch_name, assigned_inspector_id, inspector:inspectors(full_name)')
-      .order('branch_name');
-    if (data) setBranchOptions(data as any);
-  };
-
-  const fetchKeys = async () => {
-    const { data } = await supabase.from('inspector_keys').select('*').order('created_at', { ascending: false });
-    if (data) setKeys(data);
-  };
-
-  const fetchInspectors = async () => {
-    const { data } = await supabase
-      .from('inspectors')
-      .select('*, detachments(branch_name)')
-      .order('full_name', { ascending: true });
-    if (data) setInspectors(data);
-  };
 
   // --- GUARD LOGIC ---
   const handleAddGuard = async (e: React.FormEvent) => {
@@ -142,9 +80,9 @@ export default function PersonnelPage() {
       return;
     }
 
-    setGuards([...guards, data].sort((a, b) => a.guard_name.localeCompare(b.guard_name))); 
-    setIsAddModalOpen(false); 
-    setNewGuard({ guard_name: '', lesp_number: '', lesp_expiry_date: '', assigned_branch: '' }); 
+    setGuards([...guards, data].sort((a, b) => a.guard_name.localeCompare(b.guard_name)));
+    setIsAddModalOpen(false);
+    setNewGuard({ guard_name: '', lesp_number: '', lesp_expiry_date: '', assigned_branch: '' });
   };
 
   const handleUpdateGuard = async (e: React.FormEvent) => {
@@ -167,7 +105,6 @@ export default function PersonnelPage() {
     }
 
     setGuards(guards.map(g => g.id === editGuardData.id ? { ...g, ...editGuardData } : g));
-    setIsEditGuardModalOpen(false);
     setEditGuardData(null);
   };
 
@@ -180,7 +117,7 @@ export default function PersonnelPage() {
 
     if (error) return alert("Error deploying guard.");
     setGuards(guards.map(g => g.id === guardToAssign.id ? { ...g, assigned_branch: branchToSave } : g));
-    setIsAssignModalOpen(false);
+    setGuardToAssign(null);
   };
 
   // --- INSPECTOR LOGIC ---
@@ -200,9 +137,9 @@ export default function PersonnelPage() {
       return;
     }
 
-    setInspectors([...inspectors, data].sort((a, b) => a.full_name.localeCompare(b.full_name))); 
-    setIsAddInspectorModalOpen(false); 
-    setNewInspector({ full_name: '', contact_number: '' }); 
+    setInspectors([...inspectors, data].sort((a, b) => a.full_name.localeCompare(b.full_name)));
+    setIsAddInspectorModalOpen(false);
+    setNewInspector({ full_name: '', contact_number: '' });
   };
 
   const handleUpdateInspector = async (e: React.FormEvent) => {
@@ -224,7 +161,6 @@ export default function PersonnelPage() {
     }
 
     setInspectors(inspectors.map(i => i.id === editInspectorData.id ? { ...i, ...editInspectorData } : i));
-    setIsEditInspectorModalOpen(false);
     setEditInspectorData(null);
   };
 
@@ -293,7 +229,7 @@ export default function PersonnelPage() {
         return ins;
     });
     setInspectors(updatedInspectors);
-    setIsAssignInspectorModalOpen(false);
+    setInspectorToAssign(null);
   };
 
   // --- KEY GENERATOR LOGIC ---
@@ -359,7 +295,7 @@ export default function PersonnelPage() {
 
   const getExpiryStatus = (dateString: string) => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); 
+    today.setHours(0, 0, 0, 0);
     const expiryDate = new Date(dateString);
     const diffDays = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -378,24 +314,27 @@ export default function PersonnelPage() {
     </div>
   );
 
+  const primaryAction = 'bg-ink hover:bg-shell-hover text-surface px-5 py-2.5 rounded-control text-xs font-bold flex items-center transition-colors duration-200';
+  const lockedAction = 'bg-sunken text-ink-muted px-5 py-2.5 rounded-control text-xs font-bold flex items-center cursor-not-allowed border border-line';
+
   return (
     <div className="space-y-6">
-      
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-line pb-5">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-ink">Personnel & Provisioning</h1>
+          <h1 className="text-xl font-bold tracking-tight text-ink">Personnel &amp; Provisioning</h1>
           <p className="text-sm text-ink-muted mt-1">Manage human resources and provision inspector mobile devices.</p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           {activeTab === 'guards' && (
             isSuperadmin ? (
-              <button onClick={() => setIsAddModalOpen(true)} className="bg-ink hover:bg-shell-hover text-surface px-5 py-2.5 rounded-control text-xs font-bold flex items-center transition-colors duration-200">
+              <button onClick={() => setIsAddModalOpen(true)} className={primaryAction}>
                 <Plus className="w-4 h-4 mr-2" /> Register Guard
               </button>
             ) : (
-              <button disabled className="bg-sunken text-ink-muted px-5 py-2.5 rounded-control text-xs font-bold flex items-center cursor-not-allowed border border-line">
+              <button disabled className={lockedAction}>
                 <Lock className="w-4 h-4 mr-2" /> HR Access Required
               </button>
             )
@@ -403,11 +342,11 @@ export default function PersonnelPage() {
 
           {activeTab === 'inspectors' && (
             isSuperadmin ? (
-              <button onClick={() => setIsAddInspectorModalOpen(true)} className="bg-ink hover:bg-shell-hover text-surface px-5 py-2.5 rounded-control text-xs font-bold flex items-center transition-colors duration-200">
+              <button onClick={() => setIsAddInspectorModalOpen(true)} className={primaryAction}>
                 <User className="w-4 h-4 mr-2" /> Register Inspector
               </button>
             ) : (
-              <button disabled className="bg-sunken text-ink-muted px-5 py-2.5 rounded-control text-xs font-bold flex items-center cursor-not-allowed border border-line">
+              <button disabled className={lockedAction}>
                 <Lock className="w-4 h-4 mr-2" /> HR Access Required
               </button>
             )
@@ -415,11 +354,11 @@ export default function PersonnelPage() {
 
           {activeTab === 'keys' && (
             isSuperadmin ? (
-              <button onClick={() => setIsKeyModalOpen(true)} className="bg-ink hover:bg-shell-hover text-surface px-5 py-2.5 rounded-control text-xs font-bold flex items-center transition-colors duration-200">
+              <button onClick={() => setIsKeyModalOpen(true)} className={primaryAction}>
                 <Key className="w-4 h-4 mr-2" /> Generate Access Key
               </button>
             ) : (
-              <button disabled className="bg-sunken text-ink-muted px-5 py-2.5 rounded-control text-xs font-bold flex items-center cursor-not-allowed border border-line">
+              <button disabled className={lockedAction}>
                 <Lock className="w-4 h-4 mr-2" /> Provisioning Restricted
               </button>
             )
@@ -429,36 +368,33 @@ export default function PersonnelPage() {
 
       {/* 3-TIER TABS */}
       <div className="flex space-x-8 border-b border-line">
-        <button 
-          onClick={() => { setActiveTab('guards'); setSearchQuery(''); }}
-          className={`pb-3 text-xs font-bold transition-colors duration-200 whitespace-nowrap ${activeTab === 'guards' ? 'border-b-2 border-ink text-ink' : 'text-ink-muted hover:text-ink border-b-2 border-transparent'}`}
-        >
-          Security Guards
-        </button>
-        <button 
-          onClick={() => { setActiveTab('inspectors'); setSearchQuery(''); }}
-          className={`pb-3 text-xs font-bold transition-colors duration-200 whitespace-nowrap ${activeTab === 'inspectors' ? 'border-b-2 border-ink text-ink' : 'text-ink-muted hover:text-ink border-b-2 border-transparent'}`}
-        >
-          Roving Inspectors
-        </button>
-        <button 
-          onClick={() => { setActiveTab('keys'); setSearchQuery(''); }}
-          className={`pb-3 text-xs font-bold transition-colors duration-200 whitespace-nowrap ${activeTab === 'keys' ? 'border-b-2 border-ink text-ink' : 'text-ink-muted hover:text-ink border-b-2 border-transparent'}`}
-        >
-          Device Provisioning
-        </button>
+        {([
+          ['guards', 'Security Guards'],
+          ['inspectors', 'Roving Inspectors'],
+          ['keys', 'Device Provisioning'],
+        ] as const).map(([tab, label]) => (
+          <button
+            key={tab}
+            onClick={() => { setActiveTab(tab); setSearchQuery(''); }}
+            aria-current={activeTab === tab ? 'page' : undefined}
+            className={`pb-3 text-xs font-bold transition-colors duration-200 whitespace-nowrap ${activeTab === tab ? 'border-b-2 border-ink text-ink' : 'text-ink-muted hover:text-ink border-b-2 border-transparent'}`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* Search Bar */}
-      <div className="border border-line bg-surface p-3 flex items-center">
+      <div className="border border-line bg-surface p-3 flex items-center rounded-control">
         <MagnifyingGlass className="w-4 h-4 text-ink-muted mr-3 ml-2" />
-        <input 
-          type="text" 
+        <input
+          type="text"
+          aria-label="Search personnel"
           placeholder={
-            activeTab === 'guards' ? "Search by guard name or LESP..." : 
-            activeTab === 'inspectors' ? "Search by inspector name..." : 
+            activeTab === 'guards' ? "Search by guard name or LESP..." :
+            activeTab === 'inspectors' ? "Search by inspector name..." :
             "Search by inspector name or access key..."
-          } 
+          }
           className="flex-1 outline-none text-sm font-medium text-ink bg-transparent placeholder-ink-muted"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -466,545 +402,123 @@ export default function PersonnelPage() {
       </div>
 
       {/* Main Table Area */}
-      <div className="border border-line bg-surface rounded-card overflow-x-auto">
-        {activeTab === 'guards' && (
-          <table className="w-full text-left border-collapse min-w-[900px]">
-            <thead>
-              <tr className="bg-canvas border-b border-line text-xs text-ink-muted">
-                <th className="p-4 font-bold border-r border-line">Guard Name</th>
-                <th className="p-4 font-bold border-r border-line">LESP Number</th>
-                <th className="p-4 font-bold border-r border-line">Expiration Date</th>
-                <th className="p-4 font-bold border-r border-line">Assigned Branch</th>
-                <th className="p-4 font-bold border-r border-line">License Status</th>
-                <th className="p-4 font-bold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {isLoading ? (
-                <tr><td colSpan={6} className="p-12 text-center text-ink-muted text-xs">Loading HR database...</td></tr>
-              ) : filteredGuards.length === 0 ? (
-                <tr><td colSpan={6} className="p-12 text-center text-ink-muted text-xs">No guard records found.</td></tr>
-              ) : (
-                filteredGuards.map((guard) => {
-                  const status = getExpiryStatus(guard.lesp_expiry_date);
-                  return (
-                    <tr key={guard.id} className={`hover:bg-sunken transition-colors duration-200 ${!guard.is_active && 'opacity-50'}`}>
-                      <td className="p-4 text-sm font-bold text-ink border-r border-line">{guard.guard_name}</td>
-                      <td className="p-4 text-xs font-mono text-ink-muted border-r border-line">{guard.lesp_number}</td>
-                      <td className="p-4 text-xs text-ink border-r border-line">{new Date(guard.lesp_expiry_date).toLocaleDateString()}</td>
-                      <td className="p-4 text-sm font-bold text-ink border-r border-line">{guard.assigned_branch || 'Floating'}</td>
-                      <td className="p-4 border-r border-line">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-control text-xs font-bold border ${status.color}`}>
-                          <status.icon weight="fill" className="w-3.5 h-3.5 shrink-0" /> {status.label}
-                        </span>
-                      </td>
-                      <td className="p-4 text-right flex justify-end space-x-2">
-                        {isSuperadmin ? (
-                          <>
-                            <button 
-                              onClick={() => { setEditGuardData(guard); setIsEditGuardModalOpen(true); }}
-                              className="p-1.5 text-ink-muted hover:text-ink hover:bg-sunken rounded-control transition-colors duration-200"
-                              title="Edit Guard Details"
-                            >
-                              <PencilSimple className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => { setGuardToAssign(guard); setSelectedBranch(guard.assigned_branch || 'UNASSIGNED'); setIsAssignModalOpen(true); }} className="p-1.5 text-ink-muted hover:text-ink hover:bg-sunken rounded-control transition-colors duration-200" title="Deploy to Detachment">
-                              <MapPin className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => { setEntityToDelete({ id: guard.id, name: guard.guard_name, type: 'guard' }); setDeleteConfirmText(''); }} className="p-1.5 text-ink-muted hover:text-danger-ink hover:bg-danger-bg rounded-control transition-colors duration-200" title="Delete Guard">
-                              <Trash className="w-4 h-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <button disabled className="p-1.5 text-shell-muted cursor-not-allowed"><Lock className="w-4 h-4" /></button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        )}
-
-        {activeTab === 'inspectors' && (
-          <table className="w-full text-left border-collapse min-w-[900px]">
-            <thead>
-              <tr className="bg-canvas border-b border-line text-xs text-ink-muted">
-                <th className="p-4 font-bold border-r border-line">Inspector Name</th>
-                <th className="p-4 font-bold border-r border-line">Contact Number</th>
-                <th className="p-4 font-bold border-r border-line">Assigned Detachment(s)</th>
-                <th className="p-4 font-bold border-r border-line">Joined Date</th>
-                <th className="p-4 font-bold border-r border-line">Status</th>
-                <th className="p-4 font-bold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {isLoading ? (
-                <tr><td colSpan={6} className="p-12 text-center text-ink-muted text-xs">Loading Inspectors database...</td></tr>
-              ) : filteredInspectors.length === 0 ? (
-                <tr><td colSpan={6} className="p-12 text-center text-ink-muted text-xs">No inspectors found.</td></tr>
-              ) : (
-                filteredInspectors.map((inspector) => (
-                  <tr key={inspector.id} className={`transition-colors duration-200 hover:bg-sunken ${!inspector.is_active && 'bg-canvas opacity-60'}`}>
-                    <td className="p-4 text-sm font-bold text-ink border-r border-line">
-                      {inspector.full_name}
-                    </td>
-                    <td className="p-4 text-xs text-ink-muted border-r border-line">{inspector.contact_number || 'N/A'}</td>
-                    
-                    <td className="p-4 border-r border-line">
-                      {inspector.detachments && inspector.detachments.length > 0 ? (
-                        <div className="flex flex-col gap-1.5">
-                          {inspector.detachments.map((det, idx) => (
-                            <span key={idx} className="flex items-center text-xs font-bold text-ink bg-surface border border-line px-2 py-0.5 rounded-control w-max">
-                              {det.branch_name}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-ink-muted">Unassigned</span>
-                      )}
-                    </td>
-
-                    <td className="p-4 text-xs font-mono text-ink-muted border-r border-line">{new Date(inspector.created_at).toLocaleDateString()}</td>
-                    <td className="p-4 border-r border-line">
-                      <span className={`inline-flex px-1.5 py-0.5 rounded-control text-xs font-bold border ${inspector.is_active ? 'bg-surface border-line text-ink' : 'bg-sunken border-line text-ink-muted'}`}>
-                        {inspector.is_active ? 'ACTIVE' : 'DEACTIVATED'}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right flex justify-end space-x-2">
-                      {isSuperadmin ? (
-                        <>
-                          <button 
-                            onClick={() => { setEditInspectorData(inspector); setIsEditInspectorModalOpen(true); }}
-                            className="p-1.5 text-ink-muted hover:text-ink hover:bg-sunken rounded-control transition-colors duration-200"
-                            title="Edit Inspector Details"
-                          >
-                            <PencilSimple className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setInspectorToAssign(inspector);
-                              setSelectedDetachments(branchOptions.filter(b => b.assigned_inspector_id === inspector.id));
-                              setDetachmentSearch('');
-                              setIsAssignInspectorModalOpen(true);
-                            }}
-                            className="p-1.5 text-ink-muted hover:text-ink hover:bg-sunken rounded-control transition-colors duration-200"
-                            title="Assign to Detachments"
-                          >
-                            <MapPin className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => toggleInspectorStatus(inspector.id, inspector.is_active)}
-                            className={`p-1.5 rounded-control transition-colors duration-200 ${inspector.is_active ? 'text-ink-muted hover:text-danger-ink hover:bg-danger-bg' : 'text-ink-muted hover:text-ink hover:bg-sunken'}`} 
-                            title={inspector.is_active ? "Deactivate Inspector" : "Reactivate Inspector"}
-                          >
-                            {inspector.is_active ? <Prohibit className="w-4 h-4" /> : <Power className="w-4 h-4" />}
-                          </button>
-                          <button 
-                            onClick={() => { setEntityToDelete({ id: inspector.id, name: inspector.full_name, type: 'inspector' }); setDeleteConfirmText(''); }}
-                            className="p-1.5 text-ink-muted hover:text-danger-ink hover:bg-danger-bg rounded-control transition-colors duration-200" 
-                            title="Delete Inspector"
-                          >
-                            <Trash className="w-4 h-4" />
-                          </button>
-                        </>
-                      ) : (
-                        <button disabled className="p-1.5 text-shell-muted cursor-not-allowed"><Lock className="w-4 h-4" /></button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
-
-        {activeTab === 'keys' && (
-          <table className="w-full text-left border-collapse min-w-[900px]">
-            <thead>
-              <tr className="bg-canvas border-b border-line text-xs text-ink-muted">
-                <th className="p-4 font-bold border-r border-line">Access Key</th>
-                <th className="p-4 font-bold border-r border-line">Assigned Inspector</th>
-                <th className="p-4 font-bold border-r border-line">Generated By</th>
-                <th className="p-4 font-bold border-r border-line">Generated On</th>
-                <th className="p-4 font-bold border-r border-line">Status</th>
-                <th className="p-4 font-bold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {isLoading ? (
-                <tr><td colSpan={6} className="p-12 text-center text-ink-muted text-xs">Loading provisioning database...</td></tr>
-              ) : filteredKeys.length === 0 ? (
-                <tr><td colSpan={6} className="p-12 text-center text-ink-muted text-xs">No access keys generated yet.</td></tr>
-              ) : (
-                filteredKeys.map((key) => (
-                  <tr key={key.id} className="hover:bg-sunken transition-colors duration-200">
-                    <td className="p-4 text-sm font-mono font-medium text-ink border-r border-line">{key.access_key}</td>
-                    <td className="p-4 text-sm font-bold text-ink border-r border-line">{key.assigned_to}</td>
-                    <td className="p-4 text-xs text-ink-muted border-r border-line">{key.created_by}</td>
-                    <td className="p-4 text-xs font-mono text-ink-muted border-r border-line">{new Date(key.created_at).toLocaleString()}</td>
-                    <td className="p-4 border-r border-line">
-                      {key.is_used ? (
-                        <span className="inline-flex px-1.5 py-0.5 rounded-control text-xs font-bold bg-sunken text-ink-muted border border-line">
-                          USED
-                        </span>
-                      ) : (
-                        <span className="inline-flex px-1.5 py-0.5 rounded-control text-xs font-bold bg-surface text-ink border border-line">
-                          PENDING
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-4 text-right flex justify-end space-x-1">
-                      {isSuperadmin ? (
-                        <button 
-                          onClick={() => { setEntityToDelete({ id: key.id, name: `Access Key ${key.access_key}`, type: 'key' }); setDeleteConfirmText(''); }}
-                          className="p-1.5 text-ink-muted hover:text-danger-ink hover:bg-danger-bg rounded-control transition-colors duration-200" 
-                          title="Delete Key"
-                        >
-                          <Trash className="w-4 h-4" />
-                        </button>
-                      ) : (
-                        <button disabled className="p-1.5 text-shell-muted cursor-not-allowed"><Lock className="w-4 h-4" /></button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* === MODALS === */}
-      
-      {/* EDIT GUARD MODAL */}
-      {isEditGuardModalOpen && editGuardData && isSuperadmin && (
-        <Modal
-          open
-          onClose={() => setIsEditGuardModalOpen(false)}
-          title={<><PencilSimple className="w-4 h-4" /> Edit Guard Profile</>}
-          size="md"
-        >
-          <form onSubmit={handleUpdateGuard} className="p-6 space-y-5 bg-canvas">
-            <div>
-              <label className="block text-xs font-bold text-ink-muted mb-2">Full Legal Name</label>
-              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={editGuardData.guard_name} onChange={e => setEditGuardData({...editGuardData, guard_name: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-ink-muted mb-2">LESP License Number</label>
-              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={editGuardData.lesp_number} onChange={e => setEditGuardData({...editGuardData, lesp_number: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-ink-muted mb-2">LESP Expiry Date</label>
-              <input required type="date" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink transition-colors duration-200" value={editGuardData.lesp_expiry_date} onChange={e => setEditGuardData({...editGuardData, lesp_expiry_date: e.target.value})} />
-            </div>
-            <div className="pt-2">
-              <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Changes</button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* EDIT INSPECTOR MODAL */}
-      {isEditInspectorModalOpen && editInspectorData && isSuperadmin && (
-        <Modal
-          open
-          onClose={() => setIsEditInspectorModalOpen(false)}
-          title={<><PencilSimple className="w-4 h-4" /> Edit Inspector Profile</>}
-          size="md"
-        >
-          <form onSubmit={handleUpdateInspector} className="p-6 space-y-5 bg-canvas">
-            <div>
-              <label className="block text-xs font-bold text-ink-muted mb-2">Full Legal Name</label>
-              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={editInspectorData.full_name} onChange={e => setEditInspectorData({...editInspectorData, full_name: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-ink-muted mb-2">Contact Number</label>
-              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={editInspectorData.contact_number || ''} onChange={e => setEditInspectorData({...editInspectorData, contact_number: e.target.value})} />
-            </div>
-            <div className="pt-2">
-              <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Changes</button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* Deploy Guard Modal */}
-      {isAssignModalOpen && guardToAssign && isSuperadmin && (
-        <Modal
-          open
-          onClose={() => setIsAssignModalOpen(false)}
-          title={<><MapPin className="w-4 h-4" /> Deploy Guard</>}
-          size="sm"
-        >
-          <form onSubmit={handleAssignBranch} className="p-6 space-y-5 bg-canvas">
-            <div className="bg-surface p-4 border border-line">
-              <p className="text-xs text-ink-muted mb-1">Target Personnel</p>
-              <p className="font-bold text-ink text-sm">{guardToAssign.guard_name}</p>
-              <p className="text-xs text-ink-muted mt-1">LESP: {guardToAssign.lesp_number}</p>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-ink-muted mb-2">Assign Detachment</label>
-              <select 
-                className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface cursor-pointer"
-                value={selectedBranch} 
-                onChange={(e) => setSelectedBranch(e.target.value)}
-              >
-                <option value="UNASSIGNED">-- Floating / Unassigned --</option>
-                {branchOptions.map((b, i) => <option key={i} value={b.branch_name}>{b.branch_name}</option>)}
-              </select>
-            </div>
-            <div className="pt-2">
-              <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
-                Confirm Deployment
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* Register Guard Modal */}
-      {isAddModalOpen && isSuperadmin && (
-        <Modal
-          open
-          onClose={() => setIsAddModalOpen(false)}
-          title={<><User className="w-4 h-4" /> Register Security Guard</>}
-          size="md"
-        >
-          <form onSubmit={handleAddGuard} className="p-6 space-y-5 bg-canvas">
-            <div>
-              <label className="block text-xs font-bold text-ink-muted mb-2">Full Legal Name</label>
-              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newGuard.guard_name} onChange={e => setNewGuard({...newGuard, guard_name: e.target.value})} placeholder="e.g. Dela Cruz, Juan" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-ink-muted mb-2">LESP License Number</label>
-              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newGuard.lesp_number} onChange={e => setNewGuard({...newGuard, lesp_number: e.target.value})} placeholder="LESP-12345" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-ink-muted mb-2">LESP Expiry Date</label>
-              <input required type="date" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink transition-colors duration-200" value={newGuard.lesp_expiry_date} onChange={e => setNewGuard({...newGuard, lesp_expiry_date: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-ink-muted mb-2">Initial Assignment</label>
-              <select className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink cursor-pointer" value={newGuard.assigned_branch} onChange={(e) => setNewGuard({...newGuard, assigned_branch: e.target.value})}>
-                <option value="UNASSIGNED">-- Floating / Unassigned --</option>
-                {branchOptions.map((b, i) => <option key={i} value={b.branch_name}>{b.branch_name}</option>)}
-              </select>
-            </div>
-            <div className="pt-2">
-              <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Guard Record</button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* Register Inspector Modal */}
-      {isAddInspectorModalOpen && isSuperadmin && (
-        <Modal
-          open
-          onClose={() => setIsAddInspectorModalOpen(false)}
-          title={<><User className="w-4 h-4" /> Register Field Inspector</>}
-          size="md"
-        >
-          <form onSubmit={handleAddInspector} className="p-6 space-y-5 bg-canvas">
-            <div>
-              <label className="block text-xs font-bold text-ink-muted mb-2">Full Legal Name</label>
-              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newInspector.full_name} onChange={e => setNewInspector({...newInspector, full_name: e.target.value})} placeholder="e.g. Inspector Alpha" />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-ink-muted mb-2">Contact Number</label>
-              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newInspector.contact_number} onChange={e => setNewInspector({...newInspector, contact_number: e.target.value})} placeholder="0917-123-4567" />
-            </div>
-            <div className="pt-2">
-              <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Inspector Record</button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* === MODAL: DISPATCH INSPECTOR TO DETACHMENTS === */}
-      {isAssignInspectorModalOpen && inspectorToAssign && isSuperadmin && (
-        <Modal
-          open
-          onClose={() => setIsAssignInspectorModalOpen(false)}
-          title={<><MapPin className="w-4 h-4" /> Dispatch Inspector</>}
-          size="md"
-          overflow="visible"
-        >
-          
-          <form onSubmit={handleAssignInspectorToDetachments} className="p-6 space-y-6 overflow-visible bg-canvas">
-            <div className="bg-surface p-4 border border-line">
-              <p className="text-xs text-ink-muted mb-1">Target Personnel</p>
-              <p className="font-bold text-ink text-sm">{inspectorToAssign.full_name}</p>
-              <p className="text-[11px] text-ink-muted mt-1">{inspectorToAssign.contact_number || 'No contact number'}</p>
-            </div>
-
-            <div className="space-y-5">
-              <div className="border-t border-line pt-5">
-                <label className="block text-xs font-bold text-ink-muted mb-2">Deploy to Detachments</label>
-                
-                {/* Selected Detachments Multi-Pill Container */}
-                <div className="flex flex-wrap gap-2 mb-3 min-h-[42px] p-2 bg-surface border border-line">
-                  {selectedDetachments.length === 0 && <span className="text-xs text-ink-muted py-1 px-1">No assigned detachments.</span>}
-                  {selectedDetachments.map(b => (
-                    <span key={b.id} className="flex items-center text-xs font-bold text-ink bg-sunken pl-2 pr-1 py-1 rounded-control border border-line">
-                      {b.branch_name}
-                      <button type="button" onClick={() => handleRemoveDetachmentFromSelection(b.id)} className="ml-2 text-ink-muted hover:text-ink hover:bg-sunken p-0.5 transition-colors duration-200">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-
-                {/* Multi-Select Detachment Combo-Box */}
-                <div className="relative">
-                  <MagnifyingGlass className="w-4 h-4 text-ink-muted absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    placeholder="Search and assign detachments..."
-                    className="w-full pl-9 pr-4 py-2.5 border border-line rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface"
-                    value={detachmentSearch}
-                    onChange={(e) => setDetachmentSearch(e.target.value)}
-                  />
-                  {detachmentSearch && (
-                    <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-line max-h-48 overflow-y-auto z-50">
-                      {branchOptions
-                        .filter(b => b.branch_name.toLowerCase().includes(detachmentSearch.toLowerCase()))
-                        .filter(b => !selectedDetachments.find(sd => sd.id === b.id))
-                        .map(b => (
-                          <button
-                            key={b.id}
-                            type="button"
-                            onClick={() => handleAddDetachmentToSelection(b)}
-                            className="w-full text-left px-4 py-3 hover:bg-sunken border-b border-line last:border-0 flex flex-col transition-colors duration-200"
-                          >
-                            <span className="text-sm font-bold text-ink">{b.branch_name}</span>
-                            {b.assigned_inspector_id && (
-                              <span className="text-xs text-ink-muted mt-1">
-                                Currently monitored by: {b.inspector?.full_name}
-                              </span>
-                            )}
-                          </button>
-                      ))}
-                      {branchOptions.filter(b => b.branch_name.toLowerCase().includes(detachmentSearch.toLowerCase()) && !selectedDetachments.find(sd => sd.id === b.id)).length === 0 && (
-                          <div className="p-3 text-xs text-ink-muted text-center">No matching detachments available.</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
-                Confirm Dispatch
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* Generate Access Key Modal */}
-      {isKeyModalOpen && isSuperadmin && (
-        <Modal
-          open
-          onClose={closeKeyModal}
-          title={<><Key className="w-4 h-4" /> Device Provisioning</>}
-          size="md"
-        >
-          
-          <div className="p-6 bg-canvas">
-            {!newlyGeneratedKey ? (
-              <form onSubmit={handleGenerateKey} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-ink-muted mb-2">Inspector's Name</label>
-                  <p className="text-[11px] text-ink-muted mb-3">Select the inspector you are generating this key for.</p>
-                  <select 
-                    required
-                    className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface cursor-pointer" 
-                    value={newKeyAssignee} 
-                    onChange={e => setNewKeyAssignee(e.target.value)} 
-                  >
-                    <option value="" disabled>-- Select Inspector --</option>
-                    {inspectors.map((ins, i) => (
-                      <option key={i} value={ins.full_name}>{ins.full_name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="pt-2">
-                  <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
-                    Generate Key
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="text-center space-y-6">
-                <div className="bg-surface text-ink p-4 border border-line">
-                  <p className="text-xs font-bold">Key Generated Successfully</p>
-                </div>
-                <p className="text-sm text-ink-muted leading-relaxed">Provide this exact code to <strong className="text-ink">{newKeyAssignee}</strong>. It can only be used once.</p>
-                
-                <div className="bg-surface p-6 border border-line relative group">
-                  <p className="text-3xl font-bold text-ink">{newlyGeneratedKey}</p>
-                  <button 
-                    onClick={() => navigator.clipboard.writeText(newlyGeneratedKey)}
-                    className="absolute top-2 right-2 p-2 text-ink-muted hover:text-ink hover:bg-sunken transition-colors duration-200"
-                    title="Copy to Clipboard"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
-                </div>
-                
-                <div className="pt-2">
-                  <button onClick={closeKeyModal} className="w-full bg-surface border border-line text-ink text-xs font-bold py-3 rounded-control hover:bg-sunken transition-colors duration-200">
-                    Done
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </Modal>
-      )}
-
-      {/* Delete Entity Modal */}
-      {entityToDelete && isSuperadmin && (
-        <Modal
-          open
-          onClose={() => { setEntityToDelete(null); setDeleteConfirmText(''); }}
-          title={<><Warning className="w-4 h-4" /> Danger: Permanent Deletion</>}
-          size="md"
-          tone="danger"
-        >
-          
-          <form onSubmit={handleDeleteEntity} className="p-6 space-y-5 bg-canvas">
-            <p className="text-ink text-sm leading-relaxed">
-              You are about to permanently delete <strong className="text-ink">{entityToDelete.name}</strong>. This action cannot be undone.
-            </p>
-            
-            <div className="bg-danger-bg border border-danger-ink/20 p-4 text-xs text-danger-ink text-center">
-              Type <strong className="font-bold">DELETE</strong> to execute.
-            </div>
-            
-            <input 
-              type="text" 
-              required
-              className="w-full border border-line p-3 outline-none text-ink bg-surface placeholder-ink-muted focus:border-danger-ink focus:ring-1 focus:ring-danger-ink font-bold text-center text-sm rounded-control" 
-              placeholder="DELETE"
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
+      <Reveal>
+        <div className="border border-line bg-surface rounded-card overflow-x-auto">
+          {activeTab === 'guards' && (
+            <GuardsTable
+              guards={filteredGuards}
+              isLoading={isLoading}
+              isSuperadmin={isSuperadmin}
+              getExpiryStatus={getExpiryStatus}
+              onEdit={(guard) => setEditGuardData(guard)}
+              onDeploy={(guard) => { setGuardToAssign(guard); setSelectedBranch(guard.assigned_branch || 'UNASSIGNED'); }}
+              onDelete={(target) => { setEntityToDelete(target); setDeleteConfirmText(''); }}
             />
-            
-            <div className="flex gap-3 pt-4">
-              <button type="button" onClick={() => { setEntityToDelete(null); setDeleteConfirmText(''); }} className="flex-1 bg-surface border border-line text-ink text-xs font-bold py-3 rounded-control hover:bg-sunken transition-colors duration-200">
-                Cancel
-              </button>
-              <button type="submit" disabled={deleteConfirmText !== 'DELETE'} className={`flex-1 text-xs font-bold py-3 rounded-control transition-colors duration-200 border ${deleteConfirmText === 'DELETE' ? 'bg-danger-ink hover:bg-danger-ink-hover border-danger-ink text-surface' : 'bg-sunken border-line text-ink-muted cursor-not-allowed'}`}>
-                Confirm Delete
-              </button>
-            </div>
-          </form>
-        </Modal>
+          )}
+
+          {activeTab === 'inspectors' && (
+            <InspectorsTable
+              inspectors={filteredInspectors}
+              isLoading={isLoading}
+              isSuperadmin={isSuperadmin}
+              onEdit={(inspector) => setEditInspectorData(inspector)}
+              onAssign={(inspector) => {
+                setInspectorToAssign(inspector);
+                setSelectedDetachments(branchOptions.filter(b => b.assigned_inspector_id === inspector.id));
+                setDetachmentSearch('');
+              }}
+              onToggleStatus={toggleInspectorStatus}
+              onDelete={(target) => { setEntityToDelete(target); setDeleteConfirmText(''); }}
+            />
+          )}
+
+          {activeTab === 'keys' && (
+            <KeysTable
+              keys={filteredKeys}
+              isLoading={isLoading}
+              isSuperadmin={isSuperadmin}
+              onDelete={(target) => { setEntityToDelete(target); setDeleteConfirmText(''); }}
+            />
+          )}
+        </div>
+      </Reveal>
+
+      {/* === MODALS ===
+        * Each stays behind its own isSuperadmin check so the privilege gate is
+        * visible at the call site rather than buried in a component. */}
+
+      {isSuperadmin && (
+        <>
+          <EditGuardModal
+            guard={editGuardData}
+            onClose={() => setEditGuardData(null)}
+            onChange={setEditGuardData}
+            onSubmit={handleUpdateGuard}
+          />
+
+          <EditInspectorModal
+            inspector={editInspectorData}
+            onClose={() => setEditInspectorData(null)}
+            onChange={setEditInspectorData}
+            onSubmit={handleUpdateInspector}
+          />
+
+          <DeployGuardModal
+            guard={guardToAssign}
+            branchOptions={branchOptions}
+            selectedBranch={selectedBranch}
+            onSelectBranch={setSelectedBranch}
+            onClose={() => setGuardToAssign(null)}
+            onSubmit={handleAssignBranch}
+          />
+
+          <RegisterGuardModal
+            open={isAddModalOpen}
+            value={newGuard}
+            onChange={setNewGuard}
+            branchOptions={branchOptions}
+            onClose={() => setIsAddModalOpen(false)}
+            onSubmit={handleAddGuard}
+          />
+
+          <RegisterInspectorModal
+            open={isAddInspectorModalOpen}
+            value={newInspector}
+            onChange={setNewInspector}
+            onClose={() => setIsAddInspectorModalOpen(false)}
+            onSubmit={handleAddInspector}
+          />
+
+          <DispatchInspectorModal
+            inspector={inspectorToAssign}
+            branchOptions={branchOptions}
+            selectedDetachments={selectedDetachments}
+            search={detachmentSearch}
+            onSearchChange={setDetachmentSearch}
+            onAdd={handleAddDetachmentToSelection}
+            onRemove={handleRemoveDetachmentFromSelection}
+            onClose={() => setInspectorToAssign(null)}
+            onSubmit={handleAssignInspectorToDetachments}
+          />
+
+          <ProvisioningModal
+            open={isKeyModalOpen}
+            inspectors={inspectors}
+            assignee={newKeyAssignee}
+            onAssigneeChange={setNewKeyAssignee}
+            generatedKey={newlyGeneratedKey}
+            onClose={closeKeyModal}
+            onSubmit={handleGenerateKey}
+          />
+
+          <DeleteEntityModal
+            target={entityToDelete}
+            confirmText={deleteConfirmText}
+            onConfirmTextChange={setDeleteConfirmText}
+            onClose={() => { setEntityToDelete(null); setDeleteConfirmText(''); }}
+            onSubmit={handleDeleteEntity}
+          />
+        </>
       )}
 
     </div>
