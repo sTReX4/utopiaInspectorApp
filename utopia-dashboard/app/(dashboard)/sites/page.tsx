@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Eye, Lock, MagnifyingGlass, MapPin, MapTrifold, Plus, Power, Printer, Prohibit, QrCode, ShieldCheck, Trash, User, UserPlus, Warning, X } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
+import Modal from '@/app/components/modal';
 import dynamic from 'next/dynamic';
 
 const LocationPicker = dynamic(() => import('@/app/components/locationPicker'), { 
@@ -414,155 +415,159 @@ export default function SitesPage() {
 
       {/* 1. Assign Inspector & Guards Modal */}
       {isAssignModalOpen && siteToAssign && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
-          <div className="bg-surface rounded-control border border-line shadow-none w-full max-w-md overflow-visible flex flex-col">
-            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-ink tracking-tight flex items-center gap-2">
-                <UserPlus className="w-4 h-4" /> Dispatch Personnel
-              </h3>
-              <button onClick={() => setIsAssignModalOpen(false)} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
+        <Modal
+          open
+          onClose={() => setIsAssignModalOpen(false)}
+          title={<><UserPlus className="w-4 h-4" /> Dispatch Personnel</>}
+          size="md"
+          overflow="visible"
+        >
+          
+          <form onSubmit={handleAssignPersonnel} className="p-6 space-y-6 overflow-visible bg-canvas">
+            <div className="bg-surface p-4 border border-line">
+              <p className="text-xs text-ink-muted mb-1">Target Detachment</p>
+              <p className="font-bold text-ink text-sm">{siteToAssign.branch_name}</p>
+              <p className="text-xs text-ink-muted mt-1">{siteToAssign.branch_code}</p>
             </div>
-            
-            <form onSubmit={handleAssignPersonnel} className="p-6 space-y-6 overflow-visible bg-canvas">
-              <div className="bg-surface p-4 border border-line">
-                <p className="text-xs text-ink-muted mb-1">Target Detachment</p>
-                <p className="font-bold text-ink text-sm">{siteToAssign.branch_name}</p>
-                <p className="text-xs text-ink-muted mt-1">{siteToAssign.branch_code}</p>
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-ink-muted mb-2">Select Roving Inspector</label>
+                <select 
+                  className="w-full border border-line p-2.5 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface cursor-pointer"
+                  value={selectedInspectorId}
+                  onChange={(e) => setSelectedInspectorId(e.target.value)}
+                >
+                  <option value="UNASSIGNED">-- Leave Unassigned --</option>
+                  {inspectors.map((inspector) => (
+                    <option key={inspector.id} value={inspector.id}>
+                      {inspector.full_name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-xs font-bold text-ink-muted mb-2">Select Roving Inspector</label>
-                  <select 
-                    className="w-full border border-line p-2.5 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface cursor-pointer"
-                    value={selectedInspectorId}
-                    onChange={(e) => setSelectedInspectorId(e.target.value)}
-                  >
-                    <option value="UNASSIGNED">-- Leave Unassigned --</option>
-                    {inspectors.map((inspector) => (
-                      <option key={inspector.id} value={inspector.id}>
-                        {inspector.full_name}
-                      </option>
-                    ))}
-                  </select>
+              <div className="border-t border-line pt-5">
+                <label className="block text-xs font-bold text-ink-muted mb-2">Deploy Guards to Detachment</label>
+                
+                <div className="flex flex-wrap gap-2 mb-3 min-h-[42px] p-2 bg-surface border border-line">
+                  {selectedGuards.length === 0 && <span className="text-xs text-ink-muted py-1 px-1">No guards deployed.</span>}
+                  {selectedGuards.map(g => (
+                    <span key={g.id} className="flex items-center text-xs font-bold text-ink bg-sunken pl-2 pr-1 py-1 rounded-control border border-line">
+                      {g.guard_name}
+                      <button type="button" onClick={() => handleRemoveGuardFromSelection(g.id)} className="ml-2 text-ink-muted hover:text-ink hover:bg-sunken p-0.5 transition-colors duration-200">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
                 </div>
 
-                <div className="border-t border-line pt-5">
-                  <label className="block text-xs font-bold text-ink-muted mb-2">Deploy Guards to Detachment</label>
-                  
-                  <div className="flex flex-wrap gap-2 mb-3 min-h-[42px] p-2 bg-surface border border-line">
-                    {selectedGuards.length === 0 && <span className="text-xs text-ink-muted py-1 px-1">No guards deployed.</span>}
-                    {selectedGuards.map(g => (
-                      <span key={g.id} className="flex items-center text-xs font-bold text-ink bg-sunken pl-2 pr-1 py-1 rounded-control border border-line">
-                        {g.guard_name}
-                        <button type="button" onClick={() => handleRemoveGuardFromSelection(g.id)} className="ml-2 text-ink-muted hover:text-ink hover:bg-sunken p-0.5 transition-colors duration-200">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="relative">
-                    <MagnifyingGlass className="w-4 h-4 text-ink-muted absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      placeholder="Search and add guards..."
-                      className="w-full pl-9 pr-4 py-2.5 border border-line rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface"
-                      value={guardSearch}
-                      onChange={(e) => setGuardSearch(e.target.value)}
-                    />
-                    {guardSearch && (
-                      <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-line max-h-48 overflow-y-auto z-50">
-                        {allGuards
-                          .filter(g => g.guard_name.toLowerCase().includes(guardSearch.toLowerCase()) || (g.assigned_branch && g.assigned_branch.toLowerCase().includes(guardSearch.toLowerCase())))
-                          .filter(g => !selectedGuards.find(sg => sg.id === g.id))
-                          .map(g => (
-                            <button
-                              key={g.id}
-                              type="button"
-                              onClick={() => handleAddGuardToSelection(g)}
-                              className="w-full text-left px-4 py-3 hover:bg-sunken border-b border-line last:border-0 flex flex-col transition-colors duration-200"
-                            >
-                              <span className="text-sm font-bold text-ink">{g.guard_name}</span>
-                              {g.assigned_branch && (
-                                <span className="text-xs text-ink-muted mt-1">
-                                  Currently at: {g.assigned_branch}
-                                </span>
-                              )}
-                            </button>
-                        ))}
-                        {allGuards.filter(g => g.guard_name.toLowerCase().includes(guardSearch.toLowerCase()) && !selectedGuards.find(sg => sg.id === g.id)).length === 0 && (
-                            <div className="p-3 text-xs text-ink-muted text-center">No matching guards available.</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                <div className="relative">
+                  <MagnifyingGlass className="w-4 h-4 text-ink-muted absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Search and add guards..."
+                    className="w-full pl-9 pr-4 py-2.5 border border-line rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface"
+                    value={guardSearch}
+                    onChange={(e) => setGuardSearch(e.target.value)}
+                  />
+                  {guardSearch && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-line max-h-48 overflow-y-auto z-50">
+                      {allGuards
+                        .filter(g => g.guard_name.toLowerCase().includes(guardSearch.toLowerCase()) || (g.assigned_branch && g.assigned_branch.toLowerCase().includes(guardSearch.toLowerCase())))
+                        .filter(g => !selectedGuards.find(sg => sg.id === g.id))
+                        .map(g => (
+                          <button
+                            key={g.id}
+                            type="button"
+                            onClick={() => handleAddGuardToSelection(g)}
+                            className="w-full text-left px-4 py-3 hover:bg-sunken border-b border-line last:border-0 flex flex-col transition-colors duration-200"
+                          >
+                            <span className="text-sm font-bold text-ink">{g.guard_name}</span>
+                            {g.assigned_branch && (
+                              <span className="text-xs text-ink-muted mt-1">
+                                Currently at: {g.assigned_branch}
+                              </span>
+                            )}
+                          </button>
+                      ))}
+                      {allGuards.filter(g => g.guard_name.toLowerCase().includes(guardSearch.toLowerCase()) && !selectedGuards.find(sg => sg.id === g.id)).length === 0 && (
+                          <div className="p-3 text-xs text-ink-muted text-center">No matching guards available.</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
+            </div>
 
-              <div className="pt-2">
-                <button type="submit" className="w-full bg-ink text-surface text-sm font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
-                  Confirm Assignment
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <div className="pt-2">
+              <button type="submit" className="w-full bg-ink text-surface text-sm font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
+                Confirm Assignment
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* 2. Add New Site Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
-          <div className="bg-surface rounded-control border border-line shadow-none w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-ink tracking-tight">Register New Detachment</h3>
-              <button onClick={() => setIsAddModalOpen(false)} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
-            </div>
-            
-            <form onSubmit={handleAddSite} className="p-6 flex flex-col md:flex-row gap-6 overflow-y-auto bg-canvas">
-              <div className="w-full md:w-1/2 space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-ink-muted mb-2">Branch Code (Unique)</label>
-                  <input required type="text" placeholder="e.g. BDO-001" className="w-full border border-line p-2.5 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newSite.code} onChange={e => setNewSite({...newSite, code: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-ink-muted mb-2">Branch Name</label>
-                  <input required type="text" placeholder="e.g. BDO Makati Ave" className="w-full border border-line p-2.5 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newSite.name} onChange={e => setNewSite({...newSite, name: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-ink-muted mb-2">Full Address / Location</label>
-                  <input required type="text" placeholder="e.g. Makati City, Metro Manila" className="w-full border border-line p-2.5 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newSite.location} onChange={e => setNewSite({...newSite, location: e.target.value})} />
-                </div>
+        <Modal
+          open
+          onClose={() => setIsAddModalOpen(false)}
+          title="Register New Detachment"
+          size="3xl"
+          className="max-h-[90vh]"
+        >
+          
+          <form onSubmit={handleAddSite} className="p-6 flex flex-col md:flex-row gap-6 overflow-y-auto bg-canvas">
+            <div className="w-full md:w-1/2 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-ink-muted mb-2">Branch Code (Unique)</label>
+                <input required type="text" placeholder="e.g. BDO-001" className="w-full border border-line p-2.5 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newSite.code} onChange={e => setNewSite({...newSite, code: e.target.value})} />
               </div>
-
-              <div className="w-full md:w-1/2 flex flex-col">
-                <label className="block text-xs font-bold text-ink-muted mb-2">Pinpoint Location</label>
-                <div className="flex-1 min-h-[250px] border border-line bg-surface">
-                  <LocationPicker 
-                    position={newSite.coordinates} 
-                    setPosition={(pos) => setNewSite({...newSite, coordinates: pos})} 
-                  />
-                </div>
-                <div className="mt-3 p-3 bg-surface border border-line text-xs text-center text-ink">
-                  {newSite.coordinates 
-                    ? `Lat: ${newSite.coordinates.lat.toFixed(5)}, Lng: ${newSite.coordinates.lng.toFixed(5)}` 
-                    : "No location selected"}
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-ink-muted mb-2">Branch Name</label>
+                <input required type="text" placeholder="e.g. BDO Makati Ave" className="w-full border border-line p-2.5 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newSite.name} onChange={e => setNewSite({...newSite, name: e.target.value})} />
               </div>
-            </form>
-
-            <div className="p-5 border-t border-line bg-surface shrink-0">
-              <button onClick={handleAddSite} type="submit" className="w-full bg-ink text-surface text-sm font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
-                Save & Register Detachment
-              </button>
+              <div>
+                <label className="block text-xs font-bold text-ink-muted mb-2">Full Address / Location</label>
+                <input required type="text" placeholder="e.g. Makati City, Metro Manila" className="w-full border border-line p-2.5 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newSite.location} onChange={e => setNewSite({...newSite, location: e.target.value})} />
+              </div>
             </div>
+
+            <div className="w-full md:w-1/2 flex flex-col">
+              <label className="block text-xs font-bold text-ink-muted mb-2">Pinpoint Location</label>
+              <div className="flex-1 min-h-[250px] border border-line bg-surface">
+                <LocationPicker 
+                  position={newSite.coordinates} 
+                  setPosition={(pos) => setNewSite({...newSite, coordinates: pos})} 
+                />
+              </div>
+              <div className="mt-3 p-3 bg-surface border border-line text-xs text-center text-ink">
+                {newSite.coordinates 
+                  ? `Lat: ${newSite.coordinates.lat.toFixed(5)}, Lng: ${newSite.coordinates.lng.toFixed(5)}` 
+                  : "No location selected"}
+              </div>
+            </div>
+          </form>
+
+          <div className="p-5 border-t border-line bg-surface shrink-0">
+            <button onClick={handleAddSite} type="submit" className="w-full bg-ink text-surface text-sm font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
+              Save & Register Detachment
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* 3. QR Code Generator Modal */}
       {selectedSiteForQR && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
+        <Modal
+          open
+          onClose={() => setSelectedSiteForQR(null)}
+          title="Verification QR Code"
+          size="sm"
+          className="print:border-none" headerClassName="print:hidden"
+        >
           <style media="print">
             {`
               @page { size: auto; margin: 0; }
@@ -585,124 +590,113 @@ export default function SitesPage() {
             `}
           </style>
 
-          <div className="bg-surface border border-line rounded-control w-full max-w-sm flex flex-col print:border-none">
+          <div id="qr-print-area" className="p-8 flex flex-col items-center justify-center space-y-6 bg-canvas print:bg-white">
+            <div className="text-center">
+              <h2 className="text-xl font-bold text-ink tracking-tight">{selectedSiteForQR.branch_name}</h2>
+              <p className="text-sm text-ink-muted mt-2">{selectedSiteForQR.branch_code}</p>
+            </div>
             
-            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0 print:hidden">
-              <h3 className="text-base font-bold text-ink tracking-tight">Verification QR Code</h3>
-              <button onClick={() => setSelectedSiteForQR(null)} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
+            <div className="bg-surface p-6 border border-line print:border-none">
+              <QRCodeSVG 
+                value={JSON.stringify({
+                  code: selectedSiteForQR.branch_code,
+                  name: selectedSiteForQR.branch_name,
+                  location: selectedSiteForQR.branch_location
+                })} 
+                size={220} 
+                level="H" 
+                includeMargin={true} 
+              />
             </div>
 
-            <div id="qr-print-area" className="p-8 flex flex-col items-center justify-center space-y-6 bg-canvas print:bg-white">
-              <div className="text-center">
-                <h2 className="text-xl font-bold text-ink tracking-tight">{selectedSiteForQR.branch_name}</h2>
-                <p className="text-sm text-ink-muted mt-2">{selectedSiteForQR.branch_code}</p>
-              </div>
-              
-              <div className="bg-surface p-6 border border-line print:border-none">
-                <QRCodeSVG 
-                  value={JSON.stringify({
-                    code: selectedSiteForQR.branch_code,
-                    name: selectedSiteForQR.branch_name,
-                    location: selectedSiteForQR.branch_location
-                  })} 
-                  size={220} 
-                  level="H" 
-                  includeMargin={true} 
-                />
-              </div>
+            <p className="text-xs text-ink-muted text-center leading-relaxed print:mt-4 print:text-black max-w-xs">
+              Scan this code using the Utopia Inspector App to verify arrival at <span className="font-bold print:text-black">{selectedSiteForQR.branch_code}</span>.
+            </p>
 
-              <p className="text-xs text-ink-muted text-center leading-relaxed print:mt-4 print:text-black max-w-xs">
-                Scan this code using the Utopia Inspector App to verify arrival at <span className="font-bold print:text-black">{selectedSiteForQR.branch_code}</span>.
-              </p>
-
-              <button 
-                onClick={() => window.print()}
-                className="w-full mt-4 bg-ink hover:bg-shell-hover text-surface text-sm font-bold py-3 rounded-control flex items-center justify-center transition-colors duration-200 print:hidden"
-              >
-                <Printer className="w-4 h-4 mr-2" />
-                Print Document
-              </button>
-            </div>
+            <button 
+              onClick={() => window.print()}
+              className="w-full mt-4 bg-ink hover:bg-shell-hover text-surface text-sm font-bold py-3 rounded-control flex items-center justify-center transition-colors duration-200 print:hidden"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Print Document
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* 4. View Map Location Modal */}
       {selectedSiteForMap && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
-          <div className="bg-surface rounded-control border border-line w-full max-w-2xl overflow-hidden flex flex-col">
-            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-ink tracking-tight">GPS Location</h3>
-              <button onClick={() => setSelectedSiteForMap(null)} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
+        <Modal
+          open
+          onClose={() => setSelectedSiteForMap(null)}
+          title="GPS Location"
+          size="2xl"
+        >
+          <div className="p-6 flex flex-col space-y-4 bg-canvas">
+            <div className="bg-surface p-4 border border-line">
+              <h2 className="text-sm font-bold text-ink">{selectedSiteForMap.branch_name}</h2>
+              <p className="text-xs text-ink-muted mt-1">{selectedSiteForMap.branch_location}</p>
             </div>
-            <div className="p-6 flex flex-col space-y-4 bg-canvas">
-              <div className="bg-surface p-4 border border-line">
-                <h2 className="text-sm font-bold text-ink">{selectedSiteForMap.branch_name}</h2>
-                <p className="text-xs text-ink-muted mt-1">{selectedSiteForMap.branch_location}</p>
-              </div>
-              <div className="h-72 w-full bg-surface border border-line">
-                {selectedSiteForMap.latitude && selectedSiteForMap.longitude ? (
-                  <LocationPicker 
-                    position={{ lat: selectedSiteForMap.latitude, lng: selectedSiteForMap.longitude }} 
-                    setPosition={() => {}} 
-                  />
-                ) : (
-                  <div className="h-full w-full flex flex-col items-center justify-center text-ink-muted text-xs">
-                    <MapPin className="w-6 h-6 text-shell-muted mb-2" />
-                    <span>No Coordinates Recorded</span>
-                  </div>
-                )}
-              </div>
-              {selectedSiteForMap.latitude && (
-                <div className="bg-surface p-3 border border-line text-xs text-ink text-center">
-                  Lat: {selectedSiteForMap.latitude} | Lng: {selectedSiteForMap.longitude}
+            <div className="h-72 w-full bg-surface border border-line">
+              {selectedSiteForMap.latitude && selectedSiteForMap.longitude ? (
+                <LocationPicker 
+                  position={{ lat: selectedSiteForMap.latitude, lng: selectedSiteForMap.longitude }} 
+                  setPosition={() => {}} 
+                />
+              ) : (
+                <div className="h-full w-full flex flex-col items-center justify-center text-ink-muted text-xs">
+                  <MapPin className="w-6 h-6 text-shell-muted mb-2" />
+                  <span>No Coordinates Recorded</span>
                 </div>
               )}
             </div>
+            {selectedSiteForMap.latitude && (
+              <div className="bg-surface p-3 border border-line text-xs text-ink text-center">
+                Lat: {selectedSiteForMap.latitude} | Lng: {selectedSiteForMap.longitude}
+              </div>
+            )}
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* 5. Delete Detachment Modal */}
       {siteToDelete && isSuperadmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
-          <div className="bg-surface border border-line rounded-control w-full max-w-md overflow-hidden flex flex-col">
-            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-danger-ink tracking-tight flex items-center">
-                <Warning className="w-4 h-4 mr-2" /> Danger: Permanent Deletion
-              </h3>
-              <button onClick={() => { setSiteToDelete(null); setDeleteConfirmText(''); }} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
+        <Modal
+          open
+          onClose={() => { setSiteToDelete(null); setDeleteConfirmText(''); }}
+          title={<><Warning className="w-4 h-4" /> Danger: Permanent Deletion</>}
+          size="md"
+          tone="danger"
+        >
+          
+          <form onSubmit={handleDeleteSite} className="p-6 space-y-5 bg-canvas">
+            <p className="text-ink text-sm leading-relaxed">
+              You are about to permanently delete <strong className="text-ink">{siteToDelete.branch_name}</strong>.
+            </p>
+            
+            <div className="bg-danger-bg border border-danger-ink/20 p-4 text-xs text-danger-ink text-center">
+              Type <strong className="font-bold">DELETE</strong> to execute.
             </div>
             
-            <form onSubmit={handleDeleteSite} className="p-6 space-y-5 bg-canvas">
-              <p className="text-ink text-sm leading-relaxed">
-                You are about to permanently delete <strong className="text-ink">{siteToDelete.branch_name}</strong>.
-              </p>
-              
-              <div className="bg-danger-bg border border-danger-ink/20 p-4 text-xs text-danger-ink text-center">
-                Type <strong className="font-bold">DELETE</strong> to execute.
-              </div>
-              
-              <input 
-                type="text" 
-                required
-                className="w-full border border-line p-3 outline-none text-ink bg-surface placeholder-ink-muted focus:border-danger-ink focus:ring-1 focus:ring-danger-ink font-bold text-center text-sm rounded-control" 
-                placeholder="DELETE"
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-              />
-              
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => { setSiteToDelete(null); setDeleteConfirmText(''); }} className="flex-1 bg-surface border border-line text-ink text-xs font-bold py-3 rounded-control hover:bg-sunken transition-colors duration-200">
-                  Cancel
-                </button>
-                <button type="submit" disabled={deleteConfirmText !== 'DELETE'} className={`flex-1 text-xs font-bold py-3 rounded-control transition-colors duration-200 border ${deleteConfirmText === 'DELETE' ? 'bg-danger-ink hover:bg-danger-ink-hover border-danger-ink text-surface' : 'bg-sunken border-line text-ink-muted cursor-not-allowed'}`}>
-                  Confirm Delete
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <input 
+              type="text" 
+              required
+              className="w-full border border-line p-3 outline-none text-ink bg-surface placeholder-ink-muted focus:border-danger-ink focus:ring-1 focus:ring-danger-ink font-bold text-center text-sm rounded-control" 
+              placeholder="DELETE"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+            />
+            
+            <div className="flex gap-3 pt-4">
+              <button type="button" onClick={() => { setSiteToDelete(null); setDeleteConfirmText(''); }} className="flex-1 bg-surface border border-line text-ink text-xs font-bold py-3 rounded-control hover:bg-sunken transition-colors duration-200">
+                Cancel
+              </button>
+              <button type="submit" disabled={deleteConfirmText !== 'DELETE'} className={`flex-1 text-xs font-bold py-3 rounded-control transition-colors duration-200 border ${deleteConfirmText === 'DELETE' ? 'bg-danger-ink hover:bg-danger-ink-hover border-danger-ink text-surface' : 'bg-sunken border-line text-ink-muted cursor-not-allowed'}`}>
+                Confirm Delete
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Briefcase, CheckCircle, Copy, Key, Lock, MagnifyingGlass, MapPin, PencilSimple, Plus, Power, Prohibit, ShieldCheck, ShieldSlash, ShieldWarning, Trash, User, Warning, X, XCircle } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
+import Modal from '@/app/components/modal';
 
 interface Guard {
   id: string;
@@ -679,353 +680,331 @@ export default function PersonnelPage() {
       
       {/* EDIT GUARD MODAL */}
       {isEditGuardModalOpen && editGuardData && isSuperadmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
-          <div className="bg-surface rounded-control border border-line shadow-none w-full max-w-md overflow-hidden flex flex-col">
-            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-ink tracking-tight flex items-center">
-                <PencilSimple className="w-4 h-4 mr-2" /> Edit Guard Profile
-              </h3>
-              <button onClick={() => setIsEditGuardModalOpen(false)} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
+        <Modal
+          open
+          onClose={() => setIsEditGuardModalOpen(false)}
+          title={<><PencilSimple className="w-4 h-4" /> Edit Guard Profile</>}
+          size="md"
+        >
+          <form onSubmit={handleUpdateGuard} className="p-6 space-y-5 bg-canvas">
+            <div>
+              <label className="block text-xs font-bold text-ink-muted mb-2">Full Legal Name</label>
+              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={editGuardData.guard_name} onChange={e => setEditGuardData({...editGuardData, guard_name: e.target.value})} />
             </div>
-            <form onSubmit={handleUpdateGuard} className="p-6 space-y-5 bg-canvas">
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-2">Full Legal Name</label>
-                <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={editGuardData.guard_name} onChange={e => setEditGuardData({...editGuardData, guard_name: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-2">LESP License Number</label>
-                <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={editGuardData.lesp_number} onChange={e => setEditGuardData({...editGuardData, lesp_number: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-2">LESP Expiry Date</label>
-                <input required type="date" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink transition-colors duration-200" value={editGuardData.lesp_expiry_date} onChange={e => setEditGuardData({...editGuardData, lesp_expiry_date: e.target.value})} />
-              </div>
-              <div className="pt-2">
-                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Changes</button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <div>
+              <label className="block text-xs font-bold text-ink-muted mb-2">LESP License Number</label>
+              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={editGuardData.lesp_number} onChange={e => setEditGuardData({...editGuardData, lesp_number: e.target.value})} />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-ink-muted mb-2">LESP Expiry Date</label>
+              <input required type="date" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink transition-colors duration-200" value={editGuardData.lesp_expiry_date} onChange={e => setEditGuardData({...editGuardData, lesp_expiry_date: e.target.value})} />
+            </div>
+            <div className="pt-2">
+              <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Changes</button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* EDIT INSPECTOR MODAL */}
       {isEditInspectorModalOpen && editInspectorData && isSuperadmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
-          <div className="bg-surface rounded-control border border-line shadow-none w-full max-w-md overflow-hidden flex flex-col">
-            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-ink tracking-tight flex items-center">
-                <PencilSimple className="w-4 h-4 mr-2" /> Edit Inspector Profile
-              </h3>
-              <button onClick={() => setIsEditInspectorModalOpen(false)} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
+        <Modal
+          open
+          onClose={() => setIsEditInspectorModalOpen(false)}
+          title={<><PencilSimple className="w-4 h-4" /> Edit Inspector Profile</>}
+          size="md"
+        >
+          <form onSubmit={handleUpdateInspector} className="p-6 space-y-5 bg-canvas">
+            <div>
+              <label className="block text-xs font-bold text-ink-muted mb-2">Full Legal Name</label>
+              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={editInspectorData.full_name} onChange={e => setEditInspectorData({...editInspectorData, full_name: e.target.value})} />
             </div>
-            <form onSubmit={handleUpdateInspector} className="p-6 space-y-5 bg-canvas">
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-2">Full Legal Name</label>
-                <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={editInspectorData.full_name} onChange={e => setEditInspectorData({...editInspectorData, full_name: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-2">Contact Number</label>
-                <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={editInspectorData.contact_number || ''} onChange={e => setEditInspectorData({...editInspectorData, contact_number: e.target.value})} />
-              </div>
-              <div className="pt-2">
-                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Changes</button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <div>
+              <label className="block text-xs font-bold text-ink-muted mb-2">Contact Number</label>
+              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={editInspectorData.contact_number || ''} onChange={e => setEditInspectorData({...editInspectorData, contact_number: e.target.value})} />
+            </div>
+            <div className="pt-2">
+              <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Changes</button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* Deploy Guard Modal */}
       {isAssignModalOpen && guardToAssign && isSuperadmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
-           <div className="bg-surface rounded-control border border-line shadow-none w-full max-w-sm overflow-hidden flex flex-col">
-            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-ink tracking-tight flex items-center gap-2">
-                <MapPin className="w-4 h-4" /> Deploy Guard
-              </h3>
-              <button onClick={() => setIsAssignModalOpen(false)} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
+        <Modal
+          open
+          onClose={() => setIsAssignModalOpen(false)}
+          title={<><MapPin className="w-4 h-4" /> Deploy Guard</>}
+          size="sm"
+        >
+          <form onSubmit={handleAssignBranch} className="p-6 space-y-5 bg-canvas">
+            <div className="bg-surface p-4 border border-line">
+              <p className="text-xs text-ink-muted mb-1">Target Personnel</p>
+              <p className="font-bold text-ink text-sm">{guardToAssign.guard_name}</p>
+              <p className="text-xs text-ink-muted mt-1">LESP: {guardToAssign.lesp_number}</p>
             </div>
-            <form onSubmit={handleAssignBranch} className="p-6 space-y-5 bg-canvas">
-              <div className="bg-surface p-4 border border-line">
-                <p className="text-xs text-ink-muted mb-1">Target Personnel</p>
-                <p className="font-bold text-ink text-sm">{guardToAssign.guard_name}</p>
-                <p className="text-xs text-ink-muted mt-1">LESP: {guardToAssign.lesp_number}</p>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-2">Assign Detachment</label>
-                <select 
-                  className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface cursor-pointer"
-                  value={selectedBranch} 
-                  onChange={(e) => setSelectedBranch(e.target.value)}
-                >
-                  <option value="UNASSIGNED">-- Floating / Unassigned --</option>
-                  {branchOptions.map((b, i) => <option key={i} value={b.branch_name}>{b.branch_name}</option>)}
-                </select>
-              </div>
-              <div className="pt-2">
-                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
-                  Confirm Deployment
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <div>
+              <label className="block text-xs font-bold text-ink-muted mb-2">Assign Detachment</label>
+              <select 
+                className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface cursor-pointer"
+                value={selectedBranch} 
+                onChange={(e) => setSelectedBranch(e.target.value)}
+              >
+                <option value="UNASSIGNED">-- Floating / Unassigned --</option>
+                {branchOptions.map((b, i) => <option key={i} value={b.branch_name}>{b.branch_name}</option>)}
+              </select>
+            </div>
+            <div className="pt-2">
+              <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
+                Confirm Deployment
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* Register Guard Modal */}
       {isAddModalOpen && isSuperadmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
-           <div className="bg-surface rounded-control border border-line shadow-none w-full max-w-md overflow-hidden flex flex-col">
-            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-ink tracking-tight flex items-center">
-                <User className="w-4 h-4 mr-2" /> Register Security Guard
-              </h3>
-              <button onClick={() => setIsAddModalOpen(false)} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
+        <Modal
+          open
+          onClose={() => setIsAddModalOpen(false)}
+          title={<><User className="w-4 h-4" /> Register Security Guard</>}
+          size="md"
+        >
+          <form onSubmit={handleAddGuard} className="p-6 space-y-5 bg-canvas">
+            <div>
+              <label className="block text-xs font-bold text-ink-muted mb-2">Full Legal Name</label>
+              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newGuard.guard_name} onChange={e => setNewGuard({...newGuard, guard_name: e.target.value})} placeholder="e.g. Dela Cruz, Juan" />
             </div>
-            <form onSubmit={handleAddGuard} className="p-6 space-y-5 bg-canvas">
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-2">Full Legal Name</label>
-                <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newGuard.guard_name} onChange={e => setNewGuard({...newGuard, guard_name: e.target.value})} placeholder="e.g. Dela Cruz, Juan" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-2">LESP License Number</label>
-                <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newGuard.lesp_number} onChange={e => setNewGuard({...newGuard, lesp_number: e.target.value})} placeholder="LESP-12345" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-2">LESP Expiry Date</label>
-                <input required type="date" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink transition-colors duration-200" value={newGuard.lesp_expiry_date} onChange={e => setNewGuard({...newGuard, lesp_expiry_date: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-2">Initial Assignment</label>
-                <select className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink cursor-pointer" value={newGuard.assigned_branch} onChange={(e) => setNewGuard({...newGuard, assigned_branch: e.target.value})}>
-                  <option value="UNASSIGNED">-- Floating / Unassigned --</option>
-                  {branchOptions.map((b, i) => <option key={i} value={b.branch_name}>{b.branch_name}</option>)}
-                </select>
-              </div>
-              <div className="pt-2">
-                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Guard Record</button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <div>
+              <label className="block text-xs font-bold text-ink-muted mb-2">LESP License Number</label>
+              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newGuard.lesp_number} onChange={e => setNewGuard({...newGuard, lesp_number: e.target.value})} placeholder="LESP-12345" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-ink-muted mb-2">LESP Expiry Date</label>
+              <input required type="date" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink transition-colors duration-200" value={newGuard.lesp_expiry_date} onChange={e => setNewGuard({...newGuard, lesp_expiry_date: e.target.value})} />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-ink-muted mb-2">Initial Assignment</label>
+              <select className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink cursor-pointer" value={newGuard.assigned_branch} onChange={(e) => setNewGuard({...newGuard, assigned_branch: e.target.value})}>
+                <option value="UNASSIGNED">-- Floating / Unassigned --</option>
+                {branchOptions.map((b, i) => <option key={i} value={b.branch_name}>{b.branch_name}</option>)}
+              </select>
+            </div>
+            <div className="pt-2">
+              <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Guard Record</button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* Register Inspector Modal */}
       {isAddInspectorModalOpen && isSuperadmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
-           <div className="bg-surface rounded-control border border-line shadow-none w-full max-w-md overflow-hidden flex flex-col">
-            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-ink tracking-tight flex items-center">
-                <User className="w-4 h-4 mr-2" /> Register Field Inspector
-              </h3>
-              <button onClick={() => setIsAddInspectorModalOpen(false)} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
+        <Modal
+          open
+          onClose={() => setIsAddInspectorModalOpen(false)}
+          title={<><User className="w-4 h-4" /> Register Field Inspector</>}
+          size="md"
+        >
+          <form onSubmit={handleAddInspector} className="p-6 space-y-5 bg-canvas">
+            <div>
+              <label className="block text-xs font-bold text-ink-muted mb-2">Full Legal Name</label>
+              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newInspector.full_name} onChange={e => setNewInspector({...newInspector, full_name: e.target.value})} placeholder="e.g. Inspector Alpha" />
             </div>
-            <form onSubmit={handleAddInspector} className="p-6 space-y-5 bg-canvas">
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-2">Full Legal Name</label>
-                <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newInspector.full_name} onChange={e => setNewInspector({...newInspector, full_name: e.target.value})} placeholder="e.g. Inspector Alpha" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-ink-muted mb-2">Contact Number</label>
-                <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newInspector.contact_number} onChange={e => setNewInspector({...newInspector, contact_number: e.target.value})} placeholder="0917-123-4567" />
-              </div>
-              <div className="pt-2">
-                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Inspector Record</button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <div>
+              <label className="block text-xs font-bold text-ink-muted mb-2">Contact Number</label>
+              <input required type="text" className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink bg-surface text-sm font-medium text-ink" value={newInspector.contact_number} onChange={e => setNewInspector({...newInspector, contact_number: e.target.value})} placeholder="0917-123-4567" />
+            </div>
+            <div className="pt-2">
+              <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">Save Inspector Record</button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* === MODAL: DISPATCH INSPECTOR TO DETACHMENTS === */}
       {isAssignInspectorModalOpen && inspectorToAssign && isSuperadmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
-          <div className="bg-surface rounded-control border border-line shadow-none w-full max-w-md overflow-visible flex flex-col">
-            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-ink tracking-tight flex items-center gap-2">
-                <MapPin className="w-4 h-4" /> Dispatch Inspector
-              </h3>
-              <button onClick={() => setIsAssignInspectorModalOpen(false)} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
+        <Modal
+          open
+          onClose={() => setIsAssignInspectorModalOpen(false)}
+          title={<><MapPin className="w-4 h-4" /> Dispatch Inspector</>}
+          size="md"
+          overflow="visible"
+        >
+          
+          <form onSubmit={handleAssignInspectorToDetachments} className="p-6 space-y-6 overflow-visible bg-canvas">
+            <div className="bg-surface p-4 border border-line">
+              <p className="text-xs text-ink-muted mb-1">Target Personnel</p>
+              <p className="font-bold text-ink text-sm">{inspectorToAssign.full_name}</p>
+              <p className="text-[11px] text-ink-muted mt-1">{inspectorToAssign.contact_number || 'No contact number'}</p>
             </div>
-            
-            <form onSubmit={handleAssignInspectorToDetachments} className="p-6 space-y-6 overflow-visible bg-canvas">
-              <div className="bg-surface p-4 border border-line">
-                <p className="text-xs text-ink-muted mb-1">Target Personnel</p>
-                <p className="font-bold text-ink text-sm">{inspectorToAssign.full_name}</p>
-                <p className="text-[11px] text-ink-muted mt-1">{inspectorToAssign.contact_number || 'No contact number'}</p>
-              </div>
 
-              <div className="space-y-5">
-                <div className="border-t border-line pt-5">
-                  <label className="block text-xs font-bold text-ink-muted mb-2">Deploy to Detachments</label>
-                  
-                  {/* Selected Detachments Multi-Pill Container */}
-                  <div className="flex flex-wrap gap-2 mb-3 min-h-[42px] p-2 bg-surface border border-line">
-                    {selectedDetachments.length === 0 && <span className="text-xs text-ink-muted py-1 px-1">No assigned detachments.</span>}
-                    {selectedDetachments.map(b => (
-                      <span key={b.id} className="flex items-center text-xs font-bold text-ink bg-sunken pl-2 pr-1 py-1 rounded-control border border-line">
-                        {b.branch_name}
-                        <button type="button" onClick={() => handleRemoveDetachmentFromSelection(b.id)} className="ml-2 text-ink-muted hover:text-ink hover:bg-sunken p-0.5 transition-colors duration-200">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
+            <div className="space-y-5">
+              <div className="border-t border-line pt-5">
+                <label className="block text-xs font-bold text-ink-muted mb-2">Deploy to Detachments</label>
+                
+                {/* Selected Detachments Multi-Pill Container */}
+                <div className="flex flex-wrap gap-2 mb-3 min-h-[42px] p-2 bg-surface border border-line">
+                  {selectedDetachments.length === 0 && <span className="text-xs text-ink-muted py-1 px-1">No assigned detachments.</span>}
+                  {selectedDetachments.map(b => (
+                    <span key={b.id} className="flex items-center text-xs font-bold text-ink bg-sunken pl-2 pr-1 py-1 rounded-control border border-line">
+                      {b.branch_name}
+                      <button type="button" onClick={() => handleRemoveDetachmentFromSelection(b.id)} className="ml-2 text-ink-muted hover:text-ink hover:bg-sunken p-0.5 transition-colors duration-200">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
 
-                  {/* Multi-Select Detachment Combo-Box */}
-                  <div className="relative">
-                    <MagnifyingGlass className="w-4 h-4 text-ink-muted absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      placeholder="Search and assign detachments..."
-                      className="w-full pl-9 pr-4 py-2.5 border border-line rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface"
-                      value={detachmentSearch}
-                      onChange={(e) => setDetachmentSearch(e.target.value)}
-                    />
-                    {detachmentSearch && (
-                      <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-line max-h-48 overflow-y-auto z-50">
-                        {branchOptions
-                          .filter(b => b.branch_name.toLowerCase().includes(detachmentSearch.toLowerCase()))
-                          .filter(b => !selectedDetachments.find(sd => sd.id === b.id))
-                          .map(b => (
-                            <button
-                              key={b.id}
-                              type="button"
-                              onClick={() => handleAddDetachmentToSelection(b)}
-                              className="w-full text-left px-4 py-3 hover:bg-sunken border-b border-line last:border-0 flex flex-col transition-colors duration-200"
-                            >
-                              <span className="text-sm font-bold text-ink">{b.branch_name}</span>
-                              {b.assigned_inspector_id && (
-                                <span className="text-xs text-ink-muted mt-1">
-                                  Currently monitored by: {b.inspector?.full_name}
-                                </span>
-                              )}
-                            </button>
-                        ))}
-                        {branchOptions.filter(b => b.branch_name.toLowerCase().includes(detachmentSearch.toLowerCase()) && !selectedDetachments.find(sd => sd.id === b.id)).length === 0 && (
-                            <div className="p-3 text-xs text-ink-muted text-center">No matching detachments available.</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                {/* Multi-Select Detachment Combo-Box */}
+                <div className="relative">
+                  <MagnifyingGlass className="w-4 h-4 text-ink-muted absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Search and assign detachments..."
+                    className="w-full pl-9 pr-4 py-2.5 border border-line rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface"
+                    value={detachmentSearch}
+                    onChange={(e) => setDetachmentSearch(e.target.value)}
+                  />
+                  {detachmentSearch && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-surface border border-line max-h-48 overflow-y-auto z-50">
+                      {branchOptions
+                        .filter(b => b.branch_name.toLowerCase().includes(detachmentSearch.toLowerCase()))
+                        .filter(b => !selectedDetachments.find(sd => sd.id === b.id))
+                        .map(b => (
+                          <button
+                            key={b.id}
+                            type="button"
+                            onClick={() => handleAddDetachmentToSelection(b)}
+                            className="w-full text-left px-4 py-3 hover:bg-sunken border-b border-line last:border-0 flex flex-col transition-colors duration-200"
+                          >
+                            <span className="text-sm font-bold text-ink">{b.branch_name}</span>
+                            {b.assigned_inspector_id && (
+                              <span className="text-xs text-ink-muted mt-1">
+                                Currently monitored by: {b.inspector?.full_name}
+                              </span>
+                            )}
+                          </button>
+                      ))}
+                      {branchOptions.filter(b => b.branch_name.toLowerCase().includes(detachmentSearch.toLowerCase()) && !selectedDetachments.find(sd => sd.id === b.id)).length === 0 && (
+                          <div className="p-3 text-xs text-ink-muted text-center">No matching detachments available.</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
+            </div>
 
-              <div className="pt-2">
-                <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
-                  Confirm Dispatch
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <div className="pt-2">
+              <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
+                Confirm Dispatch
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* Generate Access Key Modal */}
       {isKeyModalOpen && isSuperadmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
-          <div className="bg-surface rounded-control border border-line shadow-none w-full max-w-md overflow-hidden flex flex-col">
-            <div className="bg-surface border-b border-line p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-ink tracking-tight flex items-center">
-                <Key className="w-4 h-4 mr-2" /> Device Provisioning
-              </h3>
-              <button onClick={closeKeyModal} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
-            </div>
-            
-            <div className="p-6 bg-canvas">
-              {!newlyGeneratedKey ? (
-                <form onSubmit={handleGenerateKey} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-ink-muted mb-2">Inspector's Name</label>
-                    <p className="text-[11px] text-ink-muted mb-3">Select the inspector you are generating this key for.</p>
-                    <select 
-                      required
-                      className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface cursor-pointer" 
-                      value={newKeyAssignee} 
-                      onChange={e => setNewKeyAssignee(e.target.value)} 
-                    >
-                      <option value="" disabled>-- Select Inspector --</option>
-                      {inspectors.map((ins, i) => (
-                        <option key={i} value={ins.full_name}>{ins.full_name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="pt-2">
-                    <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
-                      Generate Key
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div className="text-center space-y-6">
-                  <div className="bg-surface text-ink p-4 border border-line">
-                    <p className="text-xs font-bold">Key Generated Successfully</p>
-                  </div>
-                  <p className="text-sm text-ink-muted leading-relaxed">Provide this exact code to <strong className="text-ink">{newKeyAssignee}</strong>. It can only be used once.</p>
-                  
-                  <div className="bg-surface p-6 border border-line relative group">
-                    <p className="text-3xl font-bold text-ink">{newlyGeneratedKey}</p>
-                    <button 
-                      onClick={() => navigator.clipboard.writeText(newlyGeneratedKey)}
-                      className="absolute top-2 right-2 p-2 text-ink-muted hover:text-ink hover:bg-sunken transition-colors duration-200"
-                      title="Copy to Clipboard"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                  </div>
-                  
-                  <div className="pt-2">
-                    <button onClick={closeKeyModal} className="w-full bg-surface border border-line text-ink text-xs font-bold py-3 rounded-control hover:bg-sunken transition-colors duration-200">
-                      Done
-                    </button>
-                  </div>
+        <Modal
+          open
+          onClose={closeKeyModal}
+          title={<><Key className="w-4 h-4" /> Device Provisioning</>}
+          size="md"
+        >
+          
+          <div className="p-6 bg-canvas">
+            {!newlyGeneratedKey ? (
+              <form onSubmit={handleGenerateKey} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-ink-muted mb-2">Inspector's Name</label>
+                  <p className="text-[11px] text-ink-muted mb-3">Select the inspector you are generating this key for.</p>
+                  <select 
+                    required
+                    className="w-full border border-line p-3 rounded-control outline-none focus:border-ink focus:ring-1 focus:ring-info-ink text-sm font-medium text-ink bg-surface cursor-pointer" 
+                    value={newKeyAssignee} 
+                    onChange={e => setNewKeyAssignee(e.target.value)} 
+                  >
+                    <option value="" disabled>-- Select Inspector --</option>
+                    {inspectors.map((ins, i) => (
+                      <option key={i} value={ins.full_name}>{ins.full_name}</option>
+                    ))}
+                  </select>
                 </div>
-              )}
-            </div>
+                <div className="pt-2">
+                  <button type="submit" className="w-full bg-ink text-surface text-xs font-bold py-3 rounded-control hover:bg-shell-hover transition-colors duration-200">
+                    Generate Key
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="text-center space-y-6">
+                <div className="bg-surface text-ink p-4 border border-line">
+                  <p className="text-xs font-bold">Key Generated Successfully</p>
+                </div>
+                <p className="text-sm text-ink-muted leading-relaxed">Provide this exact code to <strong className="text-ink">{newKeyAssignee}</strong>. It can only be used once.</p>
+                
+                <div className="bg-surface p-6 border border-line relative group">
+                  <p className="text-3xl font-bold text-ink">{newlyGeneratedKey}</p>
+                  <button 
+                    onClick={() => navigator.clipboard.writeText(newlyGeneratedKey)}
+                    className="absolute top-2 right-2 p-2 text-ink-muted hover:text-ink hover:bg-sunken transition-colors duration-200"
+                    title="Copy to Clipboard"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="pt-2">
+                  <button onClick={closeKeyModal} className="w-full bg-surface border border-line text-ink text-xs font-bold py-3 rounded-control hover:bg-sunken transition-colors duration-200">
+                    Done
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Delete Entity Modal */}
       {entityToDelete && isSuperadmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 transition-colors duration-200">
-          <div className="bg-surface rounded-control border border-line shadow-none w-full max-w-md overflow-hidden flex flex-col">
-            <div className="bg-surface border-b border-danger-ink/20 p-5 flex justify-between items-center shrink-0">
-              <h3 className="text-base font-bold text-danger-ink tracking-tight flex items-center">
-                <Warning className="w-4 h-4 mr-2" /> Danger: Permanent Deletion
-              </h3>
-              <button onClick={() => { setEntityToDelete(null); setDeleteConfirmText(''); }} aria-label="Close" className="text-ink-muted hover:text-ink transition-colors duration-200 p-1 rounded-control"><X className="w-5 h-5" /></button>
+        <Modal
+          open
+          onClose={() => { setEntityToDelete(null); setDeleteConfirmText(''); }}
+          title={<><Warning className="w-4 h-4" /> Danger: Permanent Deletion</>}
+          size="md"
+          tone="danger"
+        >
+          
+          <form onSubmit={handleDeleteEntity} className="p-6 space-y-5 bg-canvas">
+            <p className="text-ink text-sm leading-relaxed">
+              You are about to permanently delete <strong className="text-ink">{entityToDelete.name}</strong>. This action cannot be undone.
+            </p>
+            
+            <div className="bg-danger-bg border border-danger-ink/20 p-4 text-xs text-danger-ink text-center">
+              Type <strong className="font-bold">DELETE</strong> to execute.
             </div>
             
-            <form onSubmit={handleDeleteEntity} className="p-6 space-y-5 bg-canvas">
-              <p className="text-ink text-sm leading-relaxed">
-                You are about to permanently delete <strong className="text-ink">{entityToDelete.name}</strong>. This action cannot be undone.
-              </p>
-              
-              <div className="bg-danger-bg border border-danger-ink/20 p-4 text-xs text-danger-ink text-center">
-                Type <strong className="font-bold">DELETE</strong> to execute.
-              </div>
-              
-              <input 
-                type="text" 
-                required
-                className="w-full border border-line p-3 outline-none text-ink bg-surface placeholder-ink-muted focus:border-danger-ink focus:ring-1 focus:ring-danger-ink font-bold text-center text-sm rounded-control" 
-                placeholder="DELETE"
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-              />
-              
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => { setEntityToDelete(null); setDeleteConfirmText(''); }} className="flex-1 bg-surface border border-line text-ink text-xs font-bold py-3 rounded-control hover:bg-sunken transition-colors duration-200">
-                  Cancel
-                </button>
-                <button type="submit" disabled={deleteConfirmText !== 'DELETE'} className={`flex-1 text-xs font-bold py-3 rounded-control transition-colors duration-200 border ${deleteConfirmText === 'DELETE' ? 'bg-danger-ink hover:bg-danger-ink-hover border-danger-ink text-surface' : 'bg-sunken border-line text-ink-muted cursor-not-allowed'}`}>
-                  Confirm Delete
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <input 
+              type="text" 
+              required
+              className="w-full border border-line p-3 outline-none text-ink bg-surface placeholder-ink-muted focus:border-danger-ink focus:ring-1 focus:ring-danger-ink font-bold text-center text-sm rounded-control" 
+              placeholder="DELETE"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+            />
+            
+            <div className="flex gap-3 pt-4">
+              <button type="button" onClick={() => { setEntityToDelete(null); setDeleteConfirmText(''); }} className="flex-1 bg-surface border border-line text-ink text-xs font-bold py-3 rounded-control hover:bg-sunken transition-colors duration-200">
+                Cancel
+              </button>
+              <button type="submit" disabled={deleteConfirmText !== 'DELETE'} className={`flex-1 text-xs font-bold py-3 rounded-control transition-colors duration-200 border ${deleteConfirmText === 'DELETE' ? 'bg-danger-ink hover:bg-danger-ink-hover border-danger-ink text-surface' : 'bg-sunken border-line text-ink-muted cursor-not-allowed'}`}>
+                Confirm Delete
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
     </div>
