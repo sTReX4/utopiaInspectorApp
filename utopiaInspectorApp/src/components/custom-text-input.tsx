@@ -1,7 +1,7 @@
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 interface CustomTextInputProps {
-    label: string;
+    label?: string;
     value: string;
     onChangeText: (text: string) => void;
     multiline?: boolean;
@@ -12,13 +12,13 @@ interface CustomTextInputProps {
 export default function CustomTextInput({ label, value, onChangeText, multiline = false, placeholder, hint }: CustomTextInputProps) {
     return (
         <View style={styles.container}>
-            <Text style={styles.label}>{label}</Text>
+            {label ? <Text style={styles.label}>{label}</Text> : null}
             <TextInput
                 style={[styles.input, multiline && styles.textArea]}
                 value={value}
                 onChangeText={onChangeText}
                 multiline={multiline}
-                placeholder={placeholder ?? `Enter ${label}...`}
+                placeholder={placeholder ?? (label ? `Enter ${label}...` : undefined)}
                 placeholderTextColor="#999"
             />
             {hint ? <Text style={styles.hint}>{hint}</Text> : null}

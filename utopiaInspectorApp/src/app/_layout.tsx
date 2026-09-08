@@ -32,7 +32,7 @@ export default function Layout() {
       {/* Global Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>Security</Text>
+          <Text style={styles.eyebrow}>Security ⛉</Text>
           <Text style={styles.title}>Utopia</Text>
         </View>
         <View style={styles.headerRight}>
