@@ -9,6 +9,7 @@ export default function ProfileScreen() {
   const [userName, setUserName] = useState<string>('Inspector');
   const [lastSignIn, setLastSignIn] = useState<string>('Unknown');
   const [metrics, setMetrics] = useState({ assignments: 0, audits: 0 });
+  const [assignedSites, setAssignedSites] = useState<any[]>([]); // New state for detachment data
   const [isLoading, setIsLoading] = useState(true);
 
   useFocusEffect(
@@ -25,11 +26,16 @@ export default function ProfileScreen() {
             setLastSignIn(new Date(user.last_sign_in_at).toLocaleString());
           }
 
-          // Fetch active detachment assignments
-          const { count: assignmentCount } = await supabase
+          // Fetch the actual detachment data instead of just the count
+          const { data: sitesData, error: sitesError } = await supabase
             .from('detachments')
-            .select('*', { count: 'exact', head: true })
-            .eq('assigned_inspector_id', user.id);
+            .select('branch_code, branch_name, branch_location')
+            .eq('assigned_inspector_id', user.id)
+            .eq('is_active', true);
+
+          if (!sitesError && sitesData) {
+            setAssignedSites(sitesData);
+          }
 
           // Placeholder for total audits completed
           const { count: auditCount } = await supabase
@@ -38,7 +44,7 @@ export default function ProfileScreen() {
             .eq('inspector_id', user.id);
 
           setMetrics({
-            assignments: assignmentCount || 0,
+            assignments: sitesData ? sitesData.length : 0,
             audits: auditCount || 0
           });
         }
@@ -97,6 +103,27 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* NEW: Assigned Detachments Section */}
+      <Text style={styles.sectionTitle}>Current Deployments</Text>
+      <View style={styles.sectionGroup}>
+        {assignedSites.length === 0 ? (
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>No active detachments assigned.</Text>
+          </View>
+        ) : (
+          assignedSites.map((site, index) => (
+            <View key={index}>
+              <View style={styles.assignmentCard}>
+                <Text style={styles.branchName}>{site.branch_name}</Text>
+                <Text style={styles.branchCode}>{site.branch_code}</Text>
+                <Text style={styles.branchLocation}>{site.branch_location}</Text>
+              </View>
+              {index < assignedSites.length - 1 && <View style={styles.separator} />}
+            </View>
+          ))
+        )}
+      </View>
+
       {/* Security & Authentication */}
       <Text style={styles.sectionTitle}>Security & Access</Text>
       <View style={styles.sectionGroup}>
@@ -113,20 +140,6 @@ export default function ProfileScreen() {
         <TouchableOpacity style={styles.rowItem} onPress={() => Alert.alert('Feature', 'MFA Setup goes here')}>
           <Text style={styles.rowText}>Two-Factor Authentication</Text>
           <Text style={styles.statusBadge}>Disabled</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* App Preferences */}
-      <Text style={styles.sectionTitle}>App Preferences</Text>
-      <View style={styles.sectionGroup}>
-        <TouchableOpacity style={styles.rowItem} onPress={() => Alert.alert('Feature', 'Notification toggles go here')}>
-          <Text style={styles.rowText}>Push Notifications</Text>
-          <Text style={styles.rowChevron}>›</Text>
-        </TouchableOpacity>
-        <View style={styles.separator} />
-        <TouchableOpacity style={styles.rowItem} onPress={() => Alert.alert('Feature', 'Offline Sync settings go here')}>
-          <Text style={styles.rowText}>Offline Sync Behavior</Text>
-          <Text style={styles.rowChevron}>›</Text>
         </TouchableOpacity>
       </View>
 
@@ -164,6 +177,11 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 12, fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, marginLeft: 4 },
   sectionGroup: { backgroundColor: '#fff', borderRadius: 12, marginBottom: 24, borderWidth: 1, borderColor: '#e2e8f0', overflow: 'hidden' },
   
+  assignmentCard: { padding: 16, backgroundColor: '#fff' },
+  branchName: { fontSize: 15, fontWeight: 'bold', color: '#0f172a', marginBottom: 2 },
+  branchCode: { fontSize: 12, color: '#64748b', fontFamily: 'monospace', marginBottom: 6 },
+  branchLocation: { fontSize: 13, color: '#334155' },
+
   rowItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16 },
   rowText: { fontSize: 15, color: '#334155', fontWeight: '500' },
   rowChevron: { fontSize: 18, color: '#cbd5e1', fontWeight: 'bold' },

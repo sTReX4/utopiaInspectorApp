@@ -1,13 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Animated } from "react-native";
 import { useRouter, Href, useFocusEffect } from "expo-router";
-import { supabase } from '../lib/supabase'; // Make sure this path matches your project structure
-
-const HISTORY = [
-  { date: "Sep 4", event: "Full network audit initiated", result: "12 anomalies", flag: true },
-  { date: "Sep 3", event: "Detachment sync — Unit 7", result: "Clean", flag: false },
-  { date: "Sep 3", event: "Auth policy update deployed", result: "Applied", flag: false },
-];
+import { supabase } from '../lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
 
 const TUTORIAL_STEPS = [
   { title: "Status & Alerts", text: "Monitor ongoing audits and system anomalies in real-time." },
@@ -20,62 +15,113 @@ export default function HomepageScreen() {
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const [tutorialStep, setTutorialStep] = useState(0); 
 
-  // --- STEP 1: Add the State ---
-  const [assignedCount, setAssignedCount] = useState(0);
+  // --- States for Deployment & Stats ---
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [assignedSites, setAssignedSites] = useState<any[]>([]);
+  const [activeSite, setActiveSite] = useState<any>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [stats, setStats] = useState({
     detachments: "0",
     progress: "0%",
     status: "0/0"
   });
 
-  // --- STEP 2: Add the Fetch Logic ---
+  // --- Fetch Logic ---
   useFocusEffect(
     React.useCallback(() => {
-      const fetchDashboardStats = async () => {
+      let isActive = true;
+
+      const fetchDashboardData = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // Get total assigned detachments
-        const { count: totalAssigned, error: detachmentError } = await supabase
+        console.log("MOBILE APP USER ID:", user.id);
+
+        // 1. Get all assigned detachments
+        const { data: sites } = await supabase
           .from('detachments')
-          .select('*', { count: 'exact', head: true })
-          .eq('assigned_inspector_id', user.id);
+          .select('*')
+          .eq('assigned_inspector_id', user.id)
+          .eq('is_active', true);
 
-        // ---> PUT THE LOGS RIGHT HERE <---
-        console.log("Logged In User ID:", user.id);
-        console.log("Total Assigned Sites:", totalAssigned);
-        console.log("Any Errors?:", detachmentError);
-        // ---------------------------------
+        const safeSites = sites || [];
+        if (isActive) setAssignedSites(safeSites);
 
-        if (detachmentError || totalAssigned === null) return;
-        setAssignedCount(totalAssigned);
+        // Auto-select the first site if none is selected
+        const currentActiveSite = activeSite || (safeSites.length > 0 ? safeSites[0] : null);
+        if (isActive && !activeSite && safeSites.length > 0) {
+          setActiveSite(safeSites[0]);
+        }
 
-        // Get completed audits for today (Note: update 'audits' to your actual table name)
+        // 2. Calculate Stats
+        const totalDetachments = safeSites.length;
+        let guardsCount = 0;
+        let auditsCount = 0;
+        let progressPercent = 0;
+
         const today = new Date().toISOString().split('T')[0];
-        const { count: completedToday } = await supabase
+
+        // Fetch all audits submitted by this inspector today
+        const { data: todayAudits } = await supabase
           .from('audits') 
-          .select('*', { count: 'exact', head: true })
+          .select('branch_name') 
           .eq('inspector_id', user.id)
           .gte('created_at', `${today}T00:00:00Z`);
 
-        const completed = completedToday || 0;
-        
-        // Calculate Progress
-        let progressPercent = 0;
-        if (totalAssigned > 0) {
-          progressPercent = Math.round((completed / totalAssigned) * 100);
+        const safeAudits = todayAudits || [];
+
+        // Progress Calculation: Percentage of detachments audited today
+        const auditedBranchNames = new Set(safeAudits.map(a => a.branch_name));
+        const auditedDetachmentsCount = safeSites.filter(s => auditedBranchNames.has(s.branch_name)).length;
+
+        if (totalDetachments > 0) {
+          progressPercent = Math.round((auditedDetachmentsCount / totalDetachments) * 100);
         }
 
-        // Update the stats state
-        setStats({
-          detachments: totalAssigned.toString(),
-          progress: `${progressPercent}%`,
-          status: `${completed}/${totalAssigned}`
-        });
+        // Status Calculation: Guard vs Audit ratio for the CURRENT deployment
+        if (currentActiveSite) {
+          const { count: gCount } = await supabase
+            .from('guards')
+            .select('*', { count: 'exact', head: true })
+            .eq('assigned_branch', currentActiveSite.branch_name)
+            .eq('is_active', true);
+          
+          guardsCount = gCount || 0;
+          auditsCount = safeAudits.filter(a => a.branch_name === currentActiveSite.branch_name).length;
+        }
+        const { data: historyData } = await supabase
+          .from('audits') // Change this if you have a dedicated 'activity_logs' table
+          .select('branch_name, created_at, status') 
+          .eq('inspector_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(3);
+
+        if (isActive && historyData) {
+          // Format the database rows to match the UI design
+          const formattedHistory = historyData.map((item) => {
+            const dateObj = new Date(item.created_at);
+            return {
+              date: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+              event: `Audit submitted — ${item.branch_name}`,
+              flag: item.status === 'flagged', // Adjust based on how you mark anomalies
+            };
+          });
+          setRecentActivity(formattedHistory);
+        }
+
+        if (isActive) {
+          setStats({
+            detachments: totalDetachments.toString(),
+            progress: `${progressPercent}%`,
+            status: `${auditsCount}/${guardsCount}`
+          });
+        }
       };
 
-      fetchDashboardStats();
-    }, [])
+      fetchDashboardData();
+
+      return () => { isActive = false; };
+    }, [activeSite]) // Re-run calculations if the inspector switches deployments
   );
 
   useEffect(() => {
@@ -96,7 +142,6 @@ export default function HomepageScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Welcome Notification */}
       <Animated.View style={[styles.welcomeBanner, { transform: [{ translateY: slideAnim }] }]}>
         <Text style={styles.welcomeText}>Welcome back, Inspector</Text>
         <TouchableOpacity onPress={() => setTutorialStep(1)} style={{ marginTop: 4 }}>
@@ -109,43 +154,86 @@ export default function HomepageScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* --- STEP 3A: Updated Alert Banner --- */}
-        {/* CHANGE THIS LINE RIGHT HERE: */}
-        {assignedCount >= 0 && (
-          <TouchableOpacity 
+        {/* --- 1. Current Deployment Boxes --- */}
+       <Text style={styles.sectionTitle}>Current Deployment</Text>
+        {activeSite ? (
+          <View style={styles.deploymentRow}>
+            <View style={styles.deploymentBox}>
+              <Text style={styles.depLabel}>Branch</Text>
+              <Text style={styles.depValue} numberOfLines={1}>{activeSite.branch_name}</Text>
+            </View>
+            {/* Removed the Branch Code box, leaving only Branch and Location */}
+            <View style={styles.deploymentBox}>
+              <Text style={styles.depLabel}>Location</Text>
+              <Text style={styles.depValue} numberOfLines={1}>{activeSite.branch_location}</Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.emptyDeployment}>
+             <Text style={styles.emptyText}>No Active Deployment</Text>
+          </View>
+        )}
+
+        {/* --- 2. Detachment Alert Banner --- */}
+        <TouchableOpacity 
           activeOpacity={0.8}
-          onPress={() => router.push('/detachment-list')} 
+          onPress={() => setIsDropdownOpen(!isDropdownOpen)} 
+          style={{ zIndex: 20 }}
         >
           <View style={[
             styles.alertBanner, 
-            assignedCount > 0 ? styles.alertBannerActive : styles.alertBannerInactive,
+            assignedSites.length > 0 ? styles.alertBannerActive : styles.alertBannerInactive,
+            isDropdownOpen && styles.alertBannerOpen,
             tutorialStep === 1 && styles.highlightedElement
           ]}>
             <View style={[
               styles.pulseDot, 
-              assignedCount > 0 ? styles.pulseDotActive : styles.pulseDotInactive
+              assignedSites.length > 0 ? styles.pulseDotActive : styles.pulseDotInactive
             ]} />
             
             <View style={{ flex: 1 }}>
-              <Text style={[
-                styles.alertTitle,
-                assignedCount > 0 && { color: '#ef4444' } // Red title text when active
-              ]}>
-                Detachment Alert
+              {/* Now displaying Branch Code and Location directly in the alert banner */}
+              <Text style={[styles.alertTitle, assignedSites.length > 0 && { color: '#ef4444' }]}>
+                {activeSite ? activeSite.branch_code : 'Detachment Alert'}
               </Text>
               <Text style={styles.alertSub}>
-                {assignedCount > 0 
-                  ? `Notice: You have ${assignedCount} assigned detachment(s)`
-                  : `No pending assignments`}
+                {activeSite 
+                  ? activeSite.branch_location
+                  : 'No pending assignments'}
               </Text>
             </View>
 
-            <Text style={{ color: '#555', fontSize: 18 }}>›</Text>
+            <Ionicons 
+              name={isDropdownOpen ? "chevron-up" : "chevron-down"} 
+              size={20} 
+              color={assignedSites.length > 0 ? "#ef4444" : "#555"} 
+            />
           </View>
         </TouchableOpacity>
 
+        {/* --- 3. Dropdown Menu for Switching Sites --- */}
+        {isDropdownOpen && assignedSites.length > 0 && (
+          <View style={styles.dropdownContainer}>
+            <Text style={styles.dropdownHeader}>Switch Active Detachment:</Text>
+            {assignedSites.map(site => (
+              <TouchableOpacity 
+                key={site.id} 
+                style={[styles.dropdownItem, activeSite?.id === site.id && styles.dropdownItemActive]}
+                onPress={() => {
+                  setActiveSite(site);
+                  setIsDropdownOpen(false);
+                }}
+              >
+                <Text style={[styles.dropdownItemText, activeSite?.id === site.id && { color: '#c9a84c' }]}>
+                  {site.branch_name} <Text style={{color: '#555'}}>({site.branch_code})</Text>
+                </Text>
+                {activeSite?.id === site.id && <Ionicons name="checkmark" size={16} color="#c9a84c" />}
+              </TouchableOpacity>
+            ))}
+          </View>
         )}
-        {/* --- STEP 3B: Updated Stat Row --- */}
+
+        {/* --- 4. Stat Row --- */}
         <View style={styles.statRow}>
           {[
             { label: "Detachments", value: stats.detachments },
@@ -184,13 +272,19 @@ export default function HomepageScreen() {
         {/* Recent activity */}
         <Text style={styles.sectionTitle}>Recent Activity</Text>
         <View style={[styles.historyContainer, tutorialStep === 3 && styles.highlightedElement]}>
-          {HISTORY.map((h, i) => (
-            <View key={i} style={styles.historyRow}>
-              <View style={[styles.historyDot, h.flag ? { backgroundColor: "#fff" } : { backgroundColor: "#333" }]} />
-              <Text style={styles.historyEvent} numberOfLines={1}>{h.event}</Text>
-              <Text style={styles.historyDate}>{h.date}</Text>
+          {recentActivity.length > 0 ? (
+            recentActivity.map((h, i) => (
+              <View key={i} style={styles.historyRow}>
+                <View style={[styles.historyDot, h.flag ? { backgroundColor: "#ef4444" } : { backgroundColor: "#159a83" }]} />
+                <Text style={styles.historyEvent} numberOfLines={1}>{h.event}</Text>
+                <Text style={styles.historyDate}>{h.date}</Text>
+              </View>
+            ))
+          ) : (
+            <View style={{ padding: 16, alignItems: 'center' }}>
+              <Text style={{ color: '#555', fontSize: 12, fontFamily: 'monospace' }}>NO RECENT ACTIVITY</Text>
             </View>
-          ))}
+          )}
         </View>
       </ScrollView>
 
@@ -225,33 +319,63 @@ const styles = StyleSheet.create({
   },
   welcomeText: { color: '#e8e8e8', fontSize: 13, fontWeight: '500' },
 
+  sectionTitle: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 2, color: '#555', fontFamily: 'monospace', marginBottom: 12 },
+
+  // Current Deployment Styles
+  deploymentRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, gap: 8 },
+  deploymentBox: { flex: 1, backgroundColor: '#111', borderWidth: 1, borderColor: '#1e1e1e', padding: 12, borderRadius: 6, alignItems: 'center' },
+  depLabel: { fontSize: 9, textTransform: 'uppercase', color: '#555', fontFamily: 'monospace', marginBottom: 4 },
+  depValue: { fontSize: 12, fontWeight: '600', color: '#e8e8e8', textAlign: 'center' },
+  emptyDeployment: { backgroundColor: '#111', borderWidth: 1, borderColor: '#1e1e1e', padding: 16, borderRadius: 6, alignItems: 'center', marginBottom: 20 },
+  emptyText: { color: '#555', fontSize: 12, fontFamily: 'monospace', textTransform: 'uppercase' },
+
+  // Alert Banner Styles
   alertBanner: { 
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#111', 
     borderLeftWidth: 2, padding: 14, marginBottom: 20 
   },
+  alertBannerOpen: {
+    marginBottom: 0, 
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
   alertBannerActive: {
-    borderLeftColor: '#ef4444', // Red border
-    shadowColor: '#ef4444', // Red glow
+    borderLeftColor: '#ef4444', 
+    shadowColor: '#ef4444', 
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 10,
-    elevation: 8, // Required for Android glow
+    elevation: 8, 
   },
-  alertBannerInactive: {
-    borderLeftColor: '#333', // Dull border when no assignments
-  },
+  alertBannerInactive: { borderLeftColor: '#333' },
   pulseDot: { width: 8, height: 8, borderRadius: 4, marginRight: 12 },
-  pulseDotActive: { backgroundColor: '#ef4444' }, // Red dot
-  pulseDotInactive: { backgroundColor: '#333' }, // Dull dot
+  pulseDotActive: { backgroundColor: '#ef4444' },
+  pulseDotInactive: { backgroundColor: '#333' },
   alertTitle: { fontSize: 13, fontWeight: '500', color: '#e8e8e8' },
   alertSub: { fontSize: 11, color: '#555', fontFamily: 'monospace', marginTop: 4 },
+
+  // Dropdown Styles
+  dropdownContainer: { 
+    backgroundColor: '#0a0a0a', 
+    borderWidth: 1, 
+    borderColor: '#1e1e1e', 
+    borderTopWidth: 0, 
+    borderBottomLeftRadius: 8, 
+    borderBottomRightRadius: 8, 
+    marginBottom: 20, 
+    padding: 8, 
+    zIndex: 10 
+  },
+  dropdownHeader: { fontSize: 10, color: '#555', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, marginLeft: 8, marginTop: 4, fontFamily: 'monospace' },
+  dropdownItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: 4, marginBottom: 2 },
+  dropdownItemActive: { backgroundColor: '#111', borderColor: '#1e1e1e', borderWidth: 1 },
+  dropdownItemText: { fontSize: 13, color: '#888', fontWeight: '500' },
 
   statRow: { flexDirection: 'row', backgroundColor: '#1a1a1a', marginBottom: 24 },
   statBox: { flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', paddingVertical: 18 },
   statValue: { fontSize: 22, fontWeight: '600', color: '#e8e8e8', marginBottom: 6 },
   statLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 2, color: '#555', fontFamily: 'monospace' },
 
-  sectionTitle: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 2, color: '#555', fontFamily: 'monospace', marginBottom: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 28 },
   actionCard: { 
     width: '48%', backgroundColor: '#111', borderWidth: 1, borderColor: '#1e1e1e', 
