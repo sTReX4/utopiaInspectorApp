@@ -91,7 +91,6 @@ export default function Layout() {
 
 // 2. The StyleSheet can now access the COLORS object
 const styles = StyleSheet.create({
-<<<<<<< HEAD
   container: { 
     flex: 1, 
     backgroundColor: COLORS.navy 
@@ -99,11 +98,6 @@ const styles = StyleSheet.create({
   content: { 
     flex: 1 
   },
-=======
-  container: { flex: 1, backgroundColor: "#050505" },
-  content: { flex: 1 },
-  overlay: { ...StyleSheet.absoluteFill, zIndex: 90 },
->>>>>>> 88597bc842b099be3758a718032ec2a5b6894a92
   
   // Header
   header: { 
