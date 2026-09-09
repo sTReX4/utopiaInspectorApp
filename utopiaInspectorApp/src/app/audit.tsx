@@ -20,6 +20,8 @@ import * as Network from 'expo-network';
 import { saveAuditLocally } from '../lib/sqlite';
 import { triggerAtomicSync } from '../lib/syncManager';
 import { loadGuardsForBranch, RosterSource } from '../lib/guardRoster';
+import { getInspectorId } from '../lib/inspectorAccount';
+import { API_BASE_URL } from '../lib/api';
 
 const NAME_HISTORY_FILE = FileSystem.documentDirectory + 'nameHistory.json';
 
@@ -172,6 +174,9 @@ export default function AuditFormScreen() {
     const [incidentRemarks, setIncidentRemarks] = useState('');
 
     const [inspectorName, setInspectorName] = useState<string>('Unknown Inspector');
+    /* The roster row id, which is what audits.inspector_id and the daily
+     * progress tracker are keyed on. Null only if the gate never cached it. */
+    const [inspectorId, setInspectorId] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchIdentity = async () => {
@@ -180,6 +185,7 @@ export default function AuditFormScreen() {
                 if (storedName) {
                     setInspectorName(storedName);
                 }
+                setInspectorId(await getInspectorId());
             } catch (error) {
                 console.error("Failed to load inspector identity", error);
             }
@@ -327,6 +333,7 @@ export default function AuditFormScreen() {
             branch_name: branchName,
             branch_location: branchLocation,
             inspector_name: inspectorName,
+            inspector_id: inspectorId,
             inspector_in_time: timeIn,
             inspector_out_time: new Date().toISOString(),
             gps_coordinates: location
@@ -429,7 +436,7 @@ export default function AuditFormScreen() {
 
         // --- STANDARD ONLINE TRANSMISSION ---
         try {
-            const API_URL = 'https://utopia-inspector-app.vercel.app/api/audits';
+            const API_URL = `${API_BASE_URL}/api/audits`;
             
             const response = await fetch(API_URL, {
                 method: 'POST',

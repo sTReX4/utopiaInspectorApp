@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { ActivityIndicator, Image, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
+import { ApiError } from '@/lib/api';
+import { clearInspectorIdentity, resolveGateRoute } from '@/lib/inspectorAccount';
 
 export default function IndexScreen() {
     const router = useRouter();
@@ -12,23 +13,28 @@ export default function IndexScreen() {
             try {
                 // 1. Check if the user is currently logged in via Supabase Auth
                 const { data: { session } } = await supabase.auth.getSession();
-                
+
                 if (!session) {
                     router.replace('/login');
                     return;
                 }
 
-                // 2. Check if the device is securely provisioned
-                const isProvisioned = await AsyncStorage.getItem('device_provisioned');
-                
-                if (isProvisioned === 'true') {
-                    router.replace('/homepage' as any);
-                } else {
-                    router.replace('/provision');
-                }
+                /* 2. Ask operations whether this inspector has been cleared.
+                 * The access-key prompt is gone: approval now lives in the
+                 * inspectors record, and the server is the one who reads it. */
+                const { route } = await resolveGateRoute();
+                router.replace(route as any);
             } catch (error) {
+                // A rejected token is a dead session, not a denied approval.
+                if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+                    await supabase.auth.signOut();
+                    await clearInspectorIdentity();
+                    router.replace('/login');
+                    return;
+                }
+
                 console.error("Routing Error", error);
-                router.replace('/login');
+                router.replace('/awaiting-approval' as any);
             }
         };
 
@@ -42,7 +48,7 @@ export default function IndexScreen() {
                 <View style={styles.outerShell}>
                     <View style={styles.card}>
                         <Image source={require('../../imgfolder/download-removebg-preview.png')} style={styles.logo} resizeMode="contain" />
-                        
+
                         <View style={styles.securityBadge}>
                             <View style={styles.securityDot} />
                             <Text style={styles.securityBadgeText}>SECURE BOOT</Text>
@@ -52,7 +58,7 @@ export default function IndexScreen() {
                             <Text style={styles.eyebrow}>UTOPIA OPERATIONS</Text>
                             <Text style={styles.title}>System Init</Text>
                             <Text style={styles.subtitle}>Verifying cryptographic identity...</Text>
-                            
+
                             <ActivityIndicator size="large" color="#3f73c4" style={{ marginTop: 20 }} />
                         </View>
 

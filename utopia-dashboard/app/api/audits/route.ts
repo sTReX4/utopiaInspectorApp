@@ -1,16 +1,23 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
+/* Ingestion for the mobile offline queue. This runs on the service key, not
+ * the anon client: audits is under RLS, and the only writer allowed through is
+ * the server. A failure here is safe — syncManager keeps the record in SQLite
+ * and retries. */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const { data, error } = await supabase.from('audits').insert([
+    const { data, error } = await supabaseAdmin.from('audits').insert([
       {
         branch_code: body.branch_code,
         branch_name: body.branch_name,
         branch_location: body.branch_location,
         inspector_name: body.inspector_name,
+        /* Queued payloads written before this column existed still sync; they
+         * just land unattributed rather than being rejected. */
+        inspector_id: body.inspector_id ?? null,
         time_in: body.inspector_in_time,
         time_out: body.inspector_out_time,
         gps_latitude: body.gps_coordinates?.latitude || null,

@@ -23,13 +23,16 @@ test.describe('Personnel & Provisioning - HR & Device Management', () => {
     await expect(hrRestrictedBtn).toBeVisible();
     await expect(hrRestrictedBtn).toBeDisabled();
 
-    // 4. Switch to Device Provisioning Tab
-    await page.click('button:has-text("Device Provisioning")');
-    
-    // 5. Verify Keys Tab is Locked
-    const provisioningRestrictedBtn = page.getByRole('button', { name: /Provisioning Restricted/i });
-    await expect(provisioningRestrictedBtn).toBeVisible();
-    await expect(provisioningRestrictedBtn).toBeDisabled();
+    // 4. Switch to the Roving Inspectors tab, which now hosts the approval queue
+    await page.click('button:has-text("Roving Inspectors")');
+
+    // 5. Verify inspector onboarding is Locked for admins
+    const inspectorRestrictedBtn = page.getByRole('button', { name: /HR Access Required/i });
+    await expect(inspectorRestrictedBtn).toBeVisible();
+    await expect(inspectorRestrictedBtn).toBeDisabled();
+
+    // 6. The Device Provisioning tab is retired along with the access keys
+    await expect(page.getByRole('button', { name: /Device Provisioning/i })).toHaveCount(0);
   });
 
   test('Superadmin Role: Delete modal rigorously enforces case-sensitive validation', async ({ page }) => {

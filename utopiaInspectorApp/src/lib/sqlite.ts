@@ -46,6 +46,18 @@ const openConnection = async (): Promise<SQLite.SQLiteDatabase> => {
             id INTEGER PRIMARY KEY CHECK (id = 1),
             refreshed_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS assigned_detachments (
+            id TEXT PRIMARY KEY,
+            branch_code TEXT NOT NULL,
+            branch_name TEXT NOT NULL,
+            branch_location TEXT,
+            latitude REAL,
+            longitude REAL
+        );
+        CREATE TABLE IF NOT EXISTS routing_meta (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            refreshed_at TEXT NOT NULL
+        );
     `);
 
     return db;
@@ -143,6 +155,72 @@ export const getRosterRefreshedAt = async (): Promise<string | null> => {
     const db = await getDBConnection();
     const row = await db.getFirstAsync<{ refreshed_at: string }>(
         'SELECT refreshed_at FROM roster_meta WHERE id = 1'
+    );
+    return row?.refreshed_at ?? null;
+};
+
+/**
+ * One stop on the inspector's route, mirrored from `detachments` for offline
+ * use. Only the fields the field screens actually render are kept.
+ */
+export interface CachedDetachment {
+    id: string;
+    branch_code: string;
+    branch_name: string;
+    branch_location: string | null;
+    latitude: number | null;
+    longitude: number | null;
+}
+
+/**
+ * Replaces the cached route in one transaction.
+ *
+ * Same contract as the guard roster: this is only reached with a list the
+ * server actually returned, so a dead zone leaves yesterday's route on the
+ * device rather than blanking the inspector's assignments.
+ */
+export const replaceAssignedDetachments = async (detachments: CachedDetachment[]) => {
+    const db = await getDBConnection();
+
+    await db.withExclusiveTransactionAsync(async (txn) => {
+        await txn.runAsync('DELETE FROM assigned_detachments');
+
+        for (const detachment of detachments) {
+            await txn.runAsync(
+                `INSERT OR REPLACE INTO assigned_detachments
+                   (id, branch_code, branch_name, branch_location, latitude, longitude)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                detachment.id,
+                detachment.branch_code,
+                detachment.branch_name,
+                detachment.branch_location ?? null,
+                detachment.latitude ?? null,
+                detachment.longitude ?? null
+            );
+        }
+
+        await txn.runAsync(
+            `INSERT INTO routing_meta (id, refreshed_at) VALUES (1, ?)
+             ON CONFLICT(id) DO UPDATE SET refreshed_at = excluded.refreshed_at`,
+            new Date().toISOString()
+        );
+    });
+};
+
+export const getCachedAssignedDetachments = async (): Promise<CachedDetachment[]> => {
+    const db = await getDBConnection();
+    return await db.getAllAsync<CachedDetachment>(
+        `SELECT id, branch_code, branch_name, branch_location, latitude, longitude
+         FROM assigned_detachments
+         ORDER BY branch_name ASC`
+    );
+};
+
+/** When the cached route was last downloaded, so the UI can show its age. */
+export const getRoutingRefreshedAt = async (): Promise<string | null> => {
+    const db = await getDBConnection();
+    const row = await db.getFirstAsync<{ refreshed_at: string }>(
+        'SELECT refreshed_at FROM routing_meta WHERE id = 1'
     );
     return row?.refreshed_at ?? null;
 };

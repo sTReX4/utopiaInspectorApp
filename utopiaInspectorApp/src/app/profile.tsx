@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import { getInspectorId } from '../lib/inspectorAccount';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -25,22 +26,26 @@ export default function ProfileScreen() {
             setLastSignIn(new Date(user.last_sign_in_at).toLocaleString());
           }
 
-          // Fetch active detachment assignments
-          const { count: assignmentCount } = await supabase
-            .from('detachments')
-            .select('*', { count: 'exact', head: true })
-            .eq('assigned_inspector_id', user.id);
+          /* Both columns are foreign keys to inspectors.id, which is not the
+           * auth id these queries used to pass. */
+          const inspectorId = await getInspectorId();
 
-          // Placeholder for total audits completed
-          const { count: auditCount } = await supabase
-            .from('audits')
-            .select('*', { count: 'exact', head: true })
-            .eq('inspector_id', user.id);
+          if (inspectorId) {
+            const { count: assignmentCount } = await supabase
+              .from('detachments')
+              .select('*', { count: 'exact', head: true })
+              .eq('assigned_inspector_id', inspectorId);
 
-          setMetrics({
-            assignments: assignmentCount || 0,
-            audits: auditCount || 0
-          });
+            const { count: auditCount } = await supabase
+              .from('audits')
+              .select('*', { count: 'exact', head: true })
+              .eq('inspector_id', inspectorId);
+
+            setMetrics({
+              assignments: assignmentCount || 0,
+              audits: auditCount || 0
+            });
+          }
         }
         setIsLoading(false);
       };

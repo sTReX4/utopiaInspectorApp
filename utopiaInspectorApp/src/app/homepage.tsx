@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Animated } from "react-native";
-import { useRouter, Href, useFocusEffect } from "expo-router";
-import { supabase } from '../lib/supabase'; // Make sure this path matches your project structure
+import { useRouter, Href } from "expo-router";
+import { useDailyRouting } from '@/hooks/use-daily-routing';
 
 const HISTORY = [
   { date: "Sep 4", event: "Full network audit initiated", result: "12 anomalies", flag: true },
@@ -20,63 +20,22 @@ export default function HomepageScreen() {
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const [tutorialStep, setTutorialStep] = useState(0); 
 
-  // --- STEP 1: Add the State ---
-  const [assignedCount, setAssignedCount] = useState(0);
-  const [stats, setStats] = useState({
-    detachments: "0",
-    progress: "0%",
-    status: "0/0"
-  });
+  /* Today's route, keyed on the inspectors row id rather than the auth id and
+   * counting queued offline audits alongside synced ones. */
+  const { routing, isLoading } = useDailyRouting();
 
-  // --- STEP 2: Add the Fetch Logic ---
-  useFocusEffect(
-    React.useCallback(() => {
-      const fetchDashboardStats = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+  const totalAssigned = routing?.totalAssigned ?? 0;
+  const completedToday = routing?.completedToday ?? 0;
+  const remaining = Math.max(totalAssigned - completedToday, 0);
+  const progressPercent = totalAssigned > 0 ? Math.round((completedToday / totalAssigned) * 100) : 0;
+  const pendingSyncCount = routing?.stops.filter((stop) => stop.isPendingSync).length ?? 0;
+  const isServingCache = routing?.source === 'cache';
 
-        // Get total assigned detachments
-        const { count: totalAssigned, error: detachmentError } = await supabase
-          .from('detachments')
-          .select('*', { count: 'exact', head: true })
-          .eq('assigned_inspector_id', user.id);
-
-        // ---> PUT THE LOGS RIGHT HERE <---
-        console.log("Logged In User ID:", user.id);
-        console.log("Total Assigned Sites:", totalAssigned);
-        console.log("Any Errors?:", detachmentError);
-        // ---------------------------------
-
-        if (detachmentError || totalAssigned === null) return;
-        setAssignedCount(totalAssigned);
-
-        // Get completed audits for today (Note: update 'audits' to your actual table name)
-        const today = new Date().toISOString().split('T')[0];
-        const { count: completedToday } = await supabase
-          .from('audits') 
-          .select('*', { count: 'exact', head: true })
-          .eq('inspector_id', user.id)
-          .gte('created_at', `${today}T00:00:00Z`);
-
-        const completed = completedToday || 0;
-        
-        // Calculate Progress
-        let progressPercent = 0;
-        if (totalAssigned > 0) {
-          progressPercent = Math.round((completed / totalAssigned) * 100);
-        }
-
-        // Update the stats state
-        setStats({
-          detachments: totalAssigned.toString(),
-          progress: `${progressPercent}%`,
-          status: `${completed}/${totalAssigned}`
-        });
-      };
-
-      fetchDashboardStats();
-    }, [])
-  );
+  const stats = {
+    detachments: totalAssigned.toString(),
+    progress: `${progressPercent}%`,
+    status: `${completedToday}/${totalAssigned}`,
+  };
 
   useEffect(() => {
     Animated.sequence([
@@ -109,33 +68,74 @@ export default function HomepageScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* --- STEP 3A: Updated Alert Banner --- */}
-        {/* CHANGE THIS LINE RIGHT HERE: */}
-        {assignedCount >= 0 && (
-          <TouchableOpacity 
+        {/* --- Daily Progress: the day's headline number --- */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => router.push('/detachment-list')}
+        >
+          <View style={styles.progressCard}>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressLabel}>Daily Progress</Text>
+              {isServingCache ? (
+                <Text style={styles.progressOffline}>OFFLINE</Text>
+              ) : null}
+            </View>
+
+            <View style={styles.progressFigureRow}>
+              <Text style={styles.progressFigure}>
+                {isLoading ? '—' : completedToday}
+                <Text style={styles.progressFigureTotal}>{isLoading ? '' : ` / ${totalAssigned}`}</Text>
+              </Text>
+              <Text style={styles.progressPercent}>{isLoading ? '' : `${progressPercent}%`}</Text>
+            </View>
+
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+            </View>
+
+            <Text style={styles.progressCaption}>
+              {isLoading
+                ? 'Loading your route…'
+                : totalAssigned === 0
+                  ? 'No detachments assigned to you yet'
+                  : remaining === 0
+                    ? 'Route complete — every detachment inspected today'
+                    : `${remaining} detachment${remaining === 1 ? '' : 's'} left to inspect today`}
+            </Text>
+
+            {pendingSyncCount > 0 ? (
+              <Text style={styles.progressPending}>
+                {pendingSyncCount} counted from the offline queue, not yet synced
+              </Text>
+            ) : null}
+          </View>
+        </TouchableOpacity>
+
+        {/* --- Detachment Alert --- */}
+        <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => router.push('/detachment-list')} 
+          onPress={() => router.push('/detachment-list')}
         >
           <View style={[
-            styles.alertBanner, 
-            assignedCount > 0 ? styles.alertBannerActive : styles.alertBannerInactive,
+            styles.alertBanner,
+            totalAssigned > 0 ? styles.alertBannerActive : styles.alertBannerInactive,
             tutorialStep === 1 && styles.highlightedElement
           ]}>
             <View style={[
-              styles.pulseDot, 
-              assignedCount > 0 ? styles.pulseDotActive : styles.pulseDotInactive
+              styles.pulseDot,
+              totalAssigned > 0 ? styles.pulseDotActive : styles.pulseDotInactive
             ]} />
-            
+
             <View style={{ flex: 1 }}>
               <Text style={[
                 styles.alertTitle,
-                assignedCount > 0 && { color: '#ef4444' } // Red title text when active
+                totalAssigned > 0 && { color: '#ef4444' } // Red title text when active
               ]}>
                 Detachment Alert
               </Text>
               <Text style={styles.alertSub}>
-                {assignedCount > 0 
-                  ? `Notice: You have ${assignedCount} assigned detachment(s)`
+                {totalAssigned > 0
+                  ? `Notice: You have ${totalAssigned} assigned detachment(s)`
                   : `No pending assignments`}
               </Text>
             </View>
@@ -143,8 +143,6 @@ export default function HomepageScreen() {
             <Text style={{ color: '#555', fontSize: 18 }}>›</Text>
           </View>
         </TouchableOpacity>
-
-        )}
         {/* --- STEP 3B: Updated Stat Row --- */}
         <View style={styles.statRow}>
           {[
@@ -225,9 +223,31 @@ const styles = StyleSheet.create({
   },
   welcomeText: { color: '#e8e8e8', fontSize: 13, fontWeight: '500' },
 
-  alertBanner: { 
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#111', 
-    borderLeftWidth: 2, padding: 14, marginBottom: 20 
+  progressCard: {
+    backgroundColor: '#111', borderWidth: 1, borderColor: '#1e1e1e',
+    padding: 18, marginBottom: 14
+  },
+  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  progressLabel: {
+    fontSize: 10, textTransform: 'uppercase', letterSpacing: 2,
+    color: '#555', fontFamily: 'monospace'
+  },
+  progressOffline: {
+    fontSize: 9, letterSpacing: 1.5, color: '#c9a84c', fontFamily: 'monospace',
+    borderWidth: 1, borderColor: '#3a3121', paddingHorizontal: 6, paddingVertical: 2
+  },
+  progressFigureRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  progressFigure: { fontSize: 44, fontWeight: '700', color: '#e8e8e8', letterSpacing: -1 },
+  progressFigureTotal: { fontSize: 24, fontWeight: '500', color: '#555' },
+  progressPercent: { fontSize: 15, fontWeight: '600', color: '#c9a84c', fontFamily: 'monospace' },
+  progressTrack: { height: 4, backgroundColor: '#1e1e1e', marginTop: 14, marginBottom: 10 },
+  progressFill: { height: 4, backgroundColor: '#c9a84c' },
+  progressCaption: { fontSize: 11, color: '#777', fontFamily: 'monospace' },
+  progressPending: { fontSize: 10, color: '#c9a84c', fontFamily: 'monospace', marginTop: 6 },
+
+  alertBanner: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#111',
+    borderLeftWidth: 2, padding: 14, marginBottom: 20
   },
   alertBannerActive: {
     borderLeftColor: '#ef4444', // Red border

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Key, Lock, MagnifyingGlass, Plus, User, CheckCircle, Warning, XCircle } from '@phosphor-icons/react';
+import { Lock, MagnifyingGlass, Plus, User, CheckCircle, Warning, XCircle } from '@phosphor-icons/react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
 import Reveal from '@/app/components/reveal';
@@ -11,14 +11,13 @@ import type { BranchOption, DeleteTarget, Guard, Inspector } from './types';
 
 import GuardsTable from './_components/guards-table';
 import InspectorsTable from './_components/inspectors-table';
-import KeysTable from './_components/keys-table';
+import PendingApprovalsTable from './_components/pending-approvals-table';
 import EditGuardModal from './_components/edit-guard-modal';
 import EditInspectorModal from './_components/edit-inspector-modal';
 import DeployGuardModal from './_components/deploy-guard-modal';
 import RegisterGuardModal from './_components/register-guard-modal';
 import RegisterInspectorModal from './_components/register-inspector-modal';
 import DispatchInspectorModal from './_components/dispatch-inspector-modal';
-import ProvisioningModal from './_components/provisioning-modal';
 import DeleteEntityModal from './_components/delete-entity-modal';
 
 export default function PersonnelPage() {
@@ -26,12 +25,12 @@ export default function PersonnelPage() {
   const isSuperadmin = role === 'superadmin';
 
   const {
-    guards, keys, inspectors, branchOptions, isLoading,
-    setGuards, setKeys, setInspectors, setBranchOptions,
+    guards, inspectors, branchOptions, isLoading,
+    setGuards, setInspectors, setBranchOptions,
   } = usePersonnelData();
 
-  // --- 3-TIER TAB SYSTEM ---
-  const [activeTab, setActiveTab] = useState<'guards' | 'inspectors' | 'keys'>('guards');
+  // --- 2-TIER TAB SYSTEM ---
+  const [activeTab, setActiveTab] = useState<'guards' | 'inspectors'>('guards');
   const [searchQuery, setSearchQuery] = useState('');
 
   // --- GUARD MODALS ---
@@ -43,11 +42,6 @@ export default function PersonnelPage() {
   const [guardToAssign, setGuardToAssign] = useState<Guard | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<string>('');
 
-  // --- KEY GENERATOR MODALS ---
-  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
-  const [newKeyAssignee, setNewKeyAssignee] = useState('');
-  const [newlyGeneratedKey, setNewlyGeneratedKey] = useState<string | null>(null);
-
   // --- INSPECTOR MODALS ---
   const [isAddInspectorModalOpen, setIsAddInspectorModalOpen] = useState(false);
   const [newInspector, setNewInspector] = useState({ full_name: '', contact_number: '' });
@@ -57,6 +51,9 @@ export default function PersonnelPage() {
   const [inspectorToAssign, setInspectorToAssign] = useState<Inspector | null>(null);
   const [selectedDetachments, setSelectedDetachments] = useState<BranchOption[]>([]);
   const [detachmentSearch, setDetachmentSearch] = useState('');
+
+  // --- ONBOARDING QUEUE ---
+  const [decidingId, setDecidingId] = useState<string | null>(null);
 
   const [entityToDelete, setEntityToDelete] = useState<DeleteTarget | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -125,10 +122,15 @@ export default function PersonnelPage() {
     e.preventDefault();
     if (!isSuperadmin) return;
 
+    /* A record opened here is created by operations, so it skips the queue.
+     * It stays unlinked until the inspector signs up with a matching account. */
     const { data, error } = await supabase.from('inspectors').insert([{
         full_name: newInspector.full_name,
         contact_number: newInspector.contact_number,
-        is_active: true
+        status: 'approved',
+        is_active: true,
+        approved_at: new Date().toISOString(),
+        approved_by: user?.email || 'System Admin'
     }]).select().single();
 
     if (error) {
@@ -169,6 +171,49 @@ export default function PersonnelPage() {
     const { error } = await supabase.from('inspectors').update({ is_active: !currentStatus }).eq('id', id);
     if (!error) {
       setInspectors(inspectors.map(ins => ins.id === id ? { ...ins, is_active: !currentStatus } : ins));
+    }
+  };
+
+  /* Approvals go through the API route, not the browser client: the write has
+   * to clear a server-side superadmin check before the service key flips a
+   * flag that unlocks a field device. */
+  const handleApprovalDecision = async (inspector: Inspector, decision: 'approve' | 'reject') => {
+    if (!isSuperadmin || decidingId) return;
+
+    if (decision === 'reject' && !window.confirm(`Reject the access request from "${inspector.full_name}"?\n\nThey stay locked out of the inspector app.`)) {
+      return;
+    }
+
+    setDecidingId(inspector.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('Your session expired. Sign in again to review approvals.');
+        return;
+      }
+
+      const response = await fetch('/api/inspectors/approve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ inspectorId: inspector.id, decision }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        alert(result.error || 'Could not update the inspector record.');
+        return;
+      }
+
+      setInspectors(inspectors.map(ins => ins.id === inspector.id ? { ...ins, ...result.inspector } : ins));
+    } catch (error) {
+      console.error('Approval request failed:', error);
+      alert('Could not reach the approval service. Check your connection and retry.');
+    } finally {
+      setDecidingId(null);
     }
   };
 
@@ -232,44 +277,11 @@ export default function PersonnelPage() {
     setInspectorToAssign(null);
   };
 
-  // --- KEY GENERATOR LOGIC ---
-  const handleGenerateKey = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isSuperadmin || !newKeyAssignee.trim()) return;
-
-    const uniqueCode = `UTP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-
-    const { data, error } = await supabase.from('inspector_keys').insert([{
-        access_key: uniqueCode,
-        assigned_to: newKeyAssignee,
-        created_by: user?.email || 'System Admin',
-        is_used: false
-    }]).select().single();
-
-    if (error) {
-      alert("Error generating key.");
-      console.error(error);
-      return;
-    }
-
-    setKeys([data, ...keys]);
-    setNewlyGeneratedKey(uniqueCode);
-  };
-
-  const closeKeyModal = () => {
-    setIsKeyModalOpen(false);
-    setNewlyGeneratedKey(null);
-    setNewKeyAssignee('');
-  };
-
   const handleDeleteEntity = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSuperadmin || !entityToDelete || deleteConfirmText !== 'DELETE') return;
 
-    let table = '';
-    if (entityToDelete.type === 'guard') table = 'guards';
-    else if (entityToDelete.type === 'inspector') table = 'inspectors';
-    else if (entityToDelete.type === 'key') table = 'inspector_keys';
+    const table = entityToDelete.type === 'guard' ? 'guards' : 'inspectors';
 
     const { error } = await supabase.from(table).delete().eq('id', entityToDelete.id);
 
@@ -281,12 +293,8 @@ export default function PersonnelPage() {
 
     if (entityToDelete.type === 'guard') {
       setGuards(guards.filter(g => g.id !== entityToDelete.id));
-    } else if (entityToDelete.type === 'inspector') {
+    } else {
       setInspectors(inspectors.filter(i => i.id !== entityToDelete.id));
-      await supabase.from('inspector_keys').delete().eq('assigned_to', entityToDelete.name);
-      setKeys(keys.filter(k => k.assigned_to !== entityToDelete.name));
-    } else if (entityToDelete.type === 'key') {
-      setKeys(keys.filter(k => k.id !== entityToDelete.id));
     }
 
     setEntityToDelete(null);
@@ -305,8 +313,12 @@ export default function PersonnelPage() {
   };
 
   const filteredGuards = guards.filter(g => g.guard_name.toLowerCase().includes(searchQuery.toLowerCase()) || g.lesp_number.toLowerCase().includes(searchQuery.toLowerCase()));
-  const filteredKeys = keys.filter(k => k.assigned_to.toLowerCase().includes(searchQuery.toLowerCase()) || k.access_key.toLowerCase().includes(searchQuery.toLowerCase()));
-  const filteredInspectors = inspectors.filter(i => i.full_name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  /* Applicants sit in their own queue above the roster, so the roster table
+   * only carries records operations has already decided on. */
+  const matchesSearch = (i: Inspector) => i.full_name.toLowerCase().includes(searchQuery.toLowerCase());
+  const pendingInspectors = inspectors.filter(i => i.status === 'pending' && matchesSearch(i));
+  const filteredInspectors = inspectors.filter(i => i.status !== 'pending' && matchesSearch(i));
 
   if (authLoading) return (
     <div className="flex h-[50vh] items-center justify-center">
@@ -324,7 +336,7 @@ export default function PersonnelPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-line pb-5">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-ink">Personnel &amp; Provisioning</h1>
-          <p className="text-sm text-ink-muted mt-1">Manage human resources and provision inspector mobile devices.</p>
+          <p className="text-sm text-ink-muted mt-1">Manage human resources and clear inspectors for field duty.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -352,26 +364,14 @@ export default function PersonnelPage() {
             )
           )}
 
-          {activeTab === 'keys' && (
-            isSuperadmin ? (
-              <button onClick={() => setIsKeyModalOpen(true)} className={primaryAction}>
-                <Key className="w-4 h-4 mr-2" /> Generate Access Key
-              </button>
-            ) : (
-              <button disabled className={lockedAction}>
-                <Lock className="w-4 h-4 mr-2" /> Provisioning Restricted
-              </button>
-            )
-          )}
         </div>
       </div>
 
-      {/* 3-TIER TABS */}
+      {/* TABS */}
       <div className="flex space-x-8 border-b border-line">
         {([
           ['guards', 'Security Guards'],
           ['inspectors', 'Roving Inspectors'],
-          ['keys', 'Device Provisioning'],
         ] as const).map(([tab, label]) => (
           <button
             key={tab}
@@ -380,6 +380,11 @@ export default function PersonnelPage() {
             className={`pb-3 text-xs font-bold transition-colors duration-200 whitespace-nowrap ${activeTab === tab ? 'border-b-2 border-ink text-ink' : 'text-ink-muted hover:text-ink border-b-2 border-transparent'}`}
           >
             {label}
+            {tab === 'inspectors' && pendingInspectors.length > 0 && (
+              <span className="ml-2 inline-flex items-center rounded-control border border-warn-ink/20 bg-warn-bg px-1.5 py-0.5 text-warn-ink">
+                {pendingInspectors.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -392,14 +397,24 @@ export default function PersonnelPage() {
           aria-label="Search personnel"
           placeholder={
             activeTab === 'guards' ? "Search by guard name or LESP..." :
-            activeTab === 'inspectors' ? "Search by inspector name..." :
-            "Search by inspector name or access key..."
+            "Search by inspector name..."
           }
           className="flex-1 outline-none text-sm font-medium text-ink bg-transparent placeholder-ink-muted"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
+
+      {/* Onboarding Queue — inspectors held on the mobile lock screen */}
+      {activeTab === 'inspectors' && (
+        <PendingApprovalsTable
+          inspectors={pendingInspectors}
+          isLoading={isLoading}
+          isSuperadmin={isSuperadmin}
+          decidingId={decidingId}
+          onDecide={handleApprovalDecision}
+        />
+      )}
 
       {/* Main Table Area */}
       <Reveal>
@@ -432,14 +447,6 @@ export default function PersonnelPage() {
             />
           )}
 
-          {activeTab === 'keys' && (
-            <KeysTable
-              keys={filteredKeys}
-              isLoading={isLoading}
-              isSuperadmin={isSuperadmin}
-              onDelete={(target) => { setEntityToDelete(target); setDeleteConfirmText(''); }}
-            />
-          )}
         </div>
       </Reveal>
 
@@ -499,16 +506,6 @@ export default function PersonnelPage() {
             onRemove={handleRemoveDetachmentFromSelection}
             onClose={() => setInspectorToAssign(null)}
             onSubmit={handleAssignInspectorToDetachments}
-          />
-
-          <ProvisioningModal
-            open={isKeyModalOpen}
-            inspectors={inspectors}
-            assignee={newKeyAssignee}
-            onAssigneeChange={setNewKeyAssignee}
-            generatedKey={newlyGeneratedKey}
-            onClose={closeKeyModal}
-            onSubmit={handleGenerateKey}
           />
 
           <DeleteEntityModal

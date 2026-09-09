@@ -3,9 +3,10 @@ import * as Notifications from 'expo-notifications';
 import { DeviceEventEmitter } from 'react-native';
 import { getPendingAudits, removeSyncedAudit } from './sqlite';
 import { refreshGuardRoster } from './guardRoster';
+import { API_BASE_URL } from './api';
 
 
-const API_URL = 'https://utopia-inspector-app.vercel.app/api/audits';
+const API_URL = `${API_BASE_URL}/api/audits`;
 
 // Ensure notifications show even when the app is open
 Notifications.setNotificationHandler({

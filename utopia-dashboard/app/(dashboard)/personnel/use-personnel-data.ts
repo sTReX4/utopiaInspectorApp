@@ -2,16 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { BranchOption, Guard, Inspector, InspectorKey } from './types';
+import type { BranchOption, Guard, Inspector } from './types';
 
 /*
- * The four roster reads for this page. Queries are unchanged from when they
+ * The three roster reads for this page. Queries are unchanged from when they
  * lived inline; this only moves them off the component so the page is about
  * layout and the modals can ask for exactly the refresh they need.
  */
 export function usePersonnelData() {
   const [guards, setGuards] = useState<Guard[]>([]);
-  const [keys, setKeys] = useState<InspectorKey[]>([]);
   const [inspectors, setInspectors] = useState<Inspector[]>([]);
   const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,11 +28,6 @@ export function usePersonnelData() {
     if (data) setBranchOptions(data as any);
   }, []);
 
-  const fetchKeys = useCallback(async () => {
-    const { data } = await supabase.from('inspector_keys').select('*').order('created_at', { ascending: false });
-    if (data) setKeys(data);
-  }, []);
-
   const fetchInspectors = useCallback(async () => {
     const { data } = await supabase
       .from('inspectors')
@@ -44,9 +38,9 @@ export function usePersonnelData() {
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
-    await Promise.all([fetchGuards(), fetchBranches(), fetchKeys(), fetchInspectors()]);
+    await Promise.all([fetchGuards(), fetchBranches(), fetchInspectors()]);
     setIsLoading(false);
-  }, [fetchGuards, fetchBranches, fetchKeys, fetchInspectors]);
+  }, [fetchGuards, fetchBranches, fetchInspectors]);
 
   useEffect(() => {
     fetchData();
@@ -54,7 +48,6 @@ export function usePersonnelData() {
 
   return {
     guards,
-    keys,
     inspectors,
     branchOptions,
     isLoading,
@@ -62,13 +55,11 @@ export function usePersonnelData() {
      * after a write, rather than re-reading the whole roster. Exposing the
      * setters keeps those handlers exactly as they were. */
     setGuards,
-    setKeys,
     setInspectors,
     setBranchOptions,
     fetchData,
     fetchGuards,
     fetchBranches,
-    fetchKeys,
     fetchInspectors,
   };
 }
