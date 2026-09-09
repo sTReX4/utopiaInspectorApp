@@ -10,12 +10,24 @@ export default function DetachmentList() {
   const [selectedDetachment, setSelectedDetachment] = useState<any>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
+  // Add these changes inside your loadDetachments function
   const loadDetachments = async () => {
     setLoading(true);
-    // Replace 'detachments' with your actual table name if it differs (e.g., 'sites')
+    
+    // 1. Get the current logged-in user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error("User not authenticated");
+      setLoading(false);
+      return;
+    }
+
+    // 2. Filter detachments by assigned_inspector_id
     const { data, error } = await supabase
       .from('detachments')
       .select('*')
+      .eq('assigned_inspector_id', user.id) // <-- THIS IS THE MISSING LINK
       .order('branch_name', { ascending: true });
 
     if (!error && data) {
@@ -25,22 +37,17 @@ export default function DetachmentList() {
     }
     setLoading(false);
   };
-
-  useEffect(() => {
-    loadDetachments();
-  }, []);
-
-  const handlePress = (detachment: any) => {
-    setSelectedDetachment(detachment);
-    setModalVisible(true);
-  };
-
+  
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Text style={styles.emptyText}>No detachments available.</Text>
       <Text style={styles.emptySubtext}>Add a detachment to see it listed here.</Text>
     </View>
   );
+
+  function handlePress(item: any): void {
+    throw new Error('Function not implemented.');
+  }
 
   return (
     <View style={styles.container}>

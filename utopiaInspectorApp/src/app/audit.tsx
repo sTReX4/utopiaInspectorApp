@@ -1063,11 +1063,24 @@ export default function AuditFormScreen() {
     );
 }
 
+const colors = {
+    cloud: '#f8fafc',
+    white: '#ffffff',
+    navy: '#0f172a',
+    charcoal: '#334155',
+    steel: '#64748b',
+    silver: '#cbd5e1',
+    fog: '#e2e8f0',
+    mist: '#f1f5f9',
+    overlay: 'rgba(15, 23, 42, 0.75)',
+    overlaySoft: 'rgba(15, 23, 42, 0.08)',
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#f5f5f5'
+    backgroundColor: colors.cloud
   },
   contentContainer: {
     paddingBottom: 120,
@@ -1077,12 +1090,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
+    color: colors.navy,
   },
   subHeader: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 20,
-    color: '#333',
+    color: colors.navy,
   },
 
   // Slide Animation Inline Hint Styles
@@ -1097,37 +1111,37 @@ const styles = StyleSheet.create({
   labelTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.navy,
   },
   hintButton: {
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
   exclamation: {
-    color: '#F97316',
+    color: colors.navy,
     fontSize: 16,
     fontWeight: 'bold',
   },
   message: {
-    backgroundColor: 'rgba(249, 115, 22, 0.5)',
+    backgroundColor: colors.navy,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
     marginLeft: 4,
-    flexShrink: 1, 
+    flexShrink: 1,
   },
   messageText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     fontWeight: '600',
   },
 
   checkboxGroup: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     padding: 15,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.fog,
     marginBottom: 15,
   },
   checkboxRow: {
@@ -1144,7 +1158,7 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     marginLeft: 10,
     fontSize: 16,
-    color: '#333',
+    color: colors.charcoal,
   },
   radioGroup: {
     flexDirection: 'row',
@@ -1155,23 +1169,23 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     marginHorizontal: 4,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.fog,
     borderRadius: 5,
     alignItems: 'center',
   },
   radioButtonActive: {
-    backgroundColor: '#0056b3',
-    borderColor: '#0056b3',
+    backgroundColor: colors.navy,
+    borderColor: colors.navy,
   },
   radioText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#555',
+    color: colors.steel,
   },
   radioTextActive: {
-    color: '#fff',
+    color: colors.white,
   },
   buttonContainer: {
     marginBottom: 60,
@@ -1180,61 +1194,67 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
+    backgroundColor: colors.navy,
   },
   submitButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 18,
     fontWeight: 'bold',
   },
   clearButtonContainer: {
     padding: 10,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
   },
+  // Destructive action: outline + bold weight carries the emphasis, no red
   clearButton: {
     padding: 10,
-    backgroundColor: '#dc3545',
+    backgroundColor: colors.white,
     borderRadius: 5,
+    borderWidth: 2,
+    borderColor: colors.navy,
     alignItems: 'center',
   },
   clearButtonText: {
-    color: '#fff',
+    color: colors.navy,
     fontSize: 16,
     fontWeight: 'bold',
   },
   dropdownButton: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     padding: 15,
     borderRadius: 5,
     borderWidth: 2,
-    borderColor: '#dc3545',
+    borderColor: colors.navy,
     alignItems: 'center',
     marginBottom: 20,
   },
-  dropdownText: { fontSize: 16, fontWeight: 'bold', color: '#dc3545' },
+  dropdownText: { fontSize: 16, fontWeight: 'bold', color: colors.navy },
   violationSection: {
-    backgroundColor: '#ffe6e6',
+    backgroundColor: colors.mist,
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.fog,
   },
-  signatureTriggerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15, backgroundColor: '#fff', padding: 15, borderRadius: 5, borderWidth: 1, borderColor: '#ccc' },
-  triggerLabel: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  triggerButton: { paddingVertical: 10, paddingHorizontal: 15, backgroundColor: '#f0f0f0', borderRadius: 5, borderWidth: 1, borderColor: '#aaa' },
-  triggerButtonSuccess: { backgroundColor: '#28a745' },
-  triggerButtonText: { fontSize: 14, fontWeight: 'bold', color: '#333' },
-  
+  signatureTriggerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15, backgroundColor: colors.white, padding: 15, borderRadius: 5, borderWidth: 1, borderColor: colors.fog },
+  triggerLabel: { fontSize: 16, fontWeight: 'bold', color: colors.navy },
+  triggerButton: { paddingVertical: 10, paddingHorizontal: 15, backgroundColor: colors.mist, borderRadius: 5, borderWidth: 1, borderColor: colors.silver },
+  triggerButtonSuccess: { backgroundColor: colors.navy, borderColor: colors.navy },
+  triggerButtonText: { fontSize: 14, fontWeight: 'bold', color: colors.charcoal },
+
   // Camera Overlay Enhanced Styles
   scannerOverlay: {
     position: 'absolute',
     bottom: 50,
     left: 20,
     right: 20,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: colors.overlay,
     padding: 15,
     borderRadius: 10,
   },
   scannerText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
@@ -1243,45 +1263,45 @@ const styles = StyleSheet.create({
   scanLine: {
     width: '100%',
     height: 3,
-    backgroundColor: '#28a745',
-    shadowColor: '#28a745',
+    backgroundColor: colors.white,
+    shadowColor: colors.white,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.9,
     shadowRadius: 10,
     elevation: 5,
   },
   torchButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 24,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#fff',
+    borderColor: colors.white,
     alignSelf: 'center',
   },
   torchButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
     fontWeight: 'bold',
   },
 
   detachmentHeader: {
-    backgroundColor: '#e9ecef',
+    backgroundColor: colors.mist,
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
     borderLeftWidth: 5,
-    borderLeftColor: '#28a745',
+    borderLeftColor: colors.navy,
   },
   detachmentTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.navy,
   },
   detachmentSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: colors.steel,
     marginTop: 5,
   },
   overlay: {
@@ -1293,7 +1313,7 @@ const styles = StyleSheet.create({
   },
   unfocusedContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: colors.overlaySoft,
   },
   middleContainer: {
     flexDirection: 'row',
@@ -1301,7 +1321,7 @@ const styles = StyleSheet.create({
   },
   focusedContainer: {
     flex: 2,
-    borderColor: '#fff',
+    borderColor: colors.white,
     borderWidth: 2,
     borderRadius: 12,
     backgroundColor: 'transparent',
@@ -1309,7 +1329,7 @@ const styles = StyleSheet.create({
   },
   bottomContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: colors.overlaySoft,
     justifyContent: 'center',
     alignItems: 'center',
     paddingTop: 40,
@@ -1321,15 +1341,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: '#333',
+    color: colors.navy,
   },
   nameRow: {
     flexDirection: 'row',
     gap: 8,
   },
   suggestionList: {
-    backgroundColor: '#fff',
-    borderColor: '#ccc',
+    backgroundColor: colors.white,
+    borderColor: colors.fog,
     borderWidth: 1,
     borderRadius: 8,
     padding: 10,
@@ -1339,17 +1359,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     marginBottom: 8,
-    color: '#333',
+    color: colors.navy,
   },
   suggestionItem: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 6,
-    backgroundColor: '#f4f6f8',
+    backgroundColor: colors.mist,
     marginBottom: 8,
   },
   suggestionText: {
-    color: '#222',
+    color: colors.charcoal,
     fontSize: 15,
   },
 });

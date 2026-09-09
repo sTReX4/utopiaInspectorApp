@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Animated } from "react-native";
-import { useRouter, Href } from "expo-router";
+import { useRouter, Href, useFocusEffect } from "expo-router";
+import { supabase } from '../lib/supabase'; // Make sure this path matches your project structure
 
 const HISTORY = [
   { date: "Sep 4", event: "Full network audit initiated", result: "12 anomalies", flag: true },
@@ -17,9 +18,65 @@ const TUTORIAL_STEPS = [
 export default function HomepageScreen() {
   const router = useRouter();
   const slideAnim = useRef(new Animated.Value(-100)).current;
-  
-  // Set to 1 to auto-start the tutorial on first load, or trigger via a button
   const [tutorialStep, setTutorialStep] = useState(0); 
+
+  // --- STEP 1: Add the State ---
+  const [assignedCount, setAssignedCount] = useState(0);
+  const [stats, setStats] = useState({
+    detachments: "0",
+    progress: "0%",
+    status: "0/0"
+  });
+
+  // --- STEP 2: Add the Fetch Logic ---
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchDashboardStats = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Get total assigned detachments
+        const { count: totalAssigned, error: detachmentError } = await supabase
+          .from('detachments')
+          .select('*', { count: 'exact', head: true })
+          .eq('assigned_inspector_id', user.id);
+
+        // ---> PUT THE LOGS RIGHT HERE <---
+        console.log("Logged In User ID:", user.id);
+        console.log("Total Assigned Sites:", totalAssigned);
+        console.log("Any Errors?:", detachmentError);
+        // ---------------------------------
+
+        if (detachmentError || totalAssigned === null) return;
+        setAssignedCount(totalAssigned);
+
+        // Get completed audits for today (Note: update 'audits' to your actual table name)
+        const today = new Date().toISOString().split('T')[0];
+        const { count: completedToday } = await supabase
+          .from('audits') 
+          .select('*', { count: 'exact', head: true })
+          .eq('inspector_id', user.id)
+          .gte('created_at', `${today}T00:00:00Z`);
+
+        const completed = completedToday || 0;
+        
+        // Calculate Progress
+        let progressPercent = 0;
+        if (totalAssigned > 0) {
+          progressPercent = Math.round((completed / totalAssigned) * 100);
+        }
+
+        // Update the stats state
+        setStats({
+          detachments: totalAssigned.toString(),
+          progress: `${progressPercent}%`,
+          status: `${completed}/${totalAssigned}`
+        });
+      };
+
+      fetchDashboardStats();
+    }, [])
+  );
 
   useEffect(() => {
     Animated.sequence([
@@ -33,7 +90,7 @@ export default function HomepageScreen() {
     if (tutorialStep < TUTORIAL_STEPS.length) {
       setTutorialStep(tutorialStep + 1);
     } else {
-      setTutorialStep(0); // End tutorial
+      setTutorialStep(0); 
     }
   };
 
@@ -42,34 +99,58 @@ export default function HomepageScreen() {
       {/* Welcome Notification */}
       <Animated.View style={[styles.welcomeBanner, { transform: [{ translateY: slideAnim }] }]}>
         <Text style={styles.welcomeText}>Welcome back, Inspector</Text>
-        {/* Hidden button to manually trigger tutorial for testing */}
         <TouchableOpacity onPress={() => setTutorialStep(1)} style={{ marginTop: 4 }}>
           <Text style={{ color: '#c9a84c', fontSize: 10 }}>Start Tour</Text>
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Main Content */}
       <ScrollView 
         contentContainerStyle={styles.scrollContent} 
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Alert banner */}
-        <View style={[styles.alertBanner, tutorialStep === 1 && styles.highlightedElement]}>
-          <View style={styles.pulseDot} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.alertTitle}>Active audit in progress</Text>
-            <Text style={styles.alertSub}>AUD-2847 · 02:14:33</Text>
-          </View>
-          <Text style={{ color: '#555', fontSize: 18 }}>›</Text>
-        </View>
+        {/* --- STEP 3A: Updated Alert Banner --- */}
+        {/* CHANGE THIS LINE RIGHT HERE: */}
+        {assignedCount >= 0 && (
+          <TouchableOpacity 
+          activeOpacity={0.8}
+          onPress={() => router.push('/detachment-list')} 
+        >
+          <View style={[
+            styles.alertBanner, 
+            assignedCount > 0 ? styles.alertBannerActive : styles.alertBannerInactive,
+            tutorialStep === 1 && styles.highlightedElement
+          ]}>
+            <View style={[
+              styles.pulseDot, 
+              assignedCount > 0 ? styles.pulseDotActive : styles.pulseDotInactive
+            ]} />
+            
+            <View style={{ flex: 1 }}>
+              <Text style={[
+                styles.alertTitle,
+                assignedCount > 0 && { color: '#ef4444' } // Red title text when active
+              ]}>
+                Detachment Alert
+              </Text>
+              <Text style={styles.alertSub}>
+                {assignedCount > 0 
+                  ? `Notice: You have ${assignedCount} assigned detachment(s)`
+                  : `No pending assignments`}
+              </Text>
+            </View>
 
-        {/* Stat row */}
+            <Text style={{ color: '#555', fontSize: 18 }}>›</Text>
+          </View>
+        </TouchableOpacity>
+
+        )}
+        {/* --- STEP 3B: Updated Stat Row --- */}
         <View style={styles.statRow}>
           {[
-            { label: "Audits", value: "3" },
-            { label: "Blocked", value: "147" },
-            { label: "Score", value: "94%" },
+            { label: "Detachments", value: stats.detachments },
+            { label: "Progress", value: stats.progress },
+            { label: "Status", value: stats.status },
           ].map((s, idx) => (
             <View key={s.label} style={[styles.statBox, idx === 1 && { marginHorizontal: 1 }]}>
               <Text style={styles.statValue}>{s.value}</Text>
@@ -84,8 +165,6 @@ export default function HomepageScreen() {
           {[
             { label: "Digital Audit", sub: "Run full scan", route: "/audit", icon: "◈" },
             { label: "History", sub: "View event log", route: "/history", icon: "≡" },
-            { label: "Detachments", sub: "Manage units", route: "/sites", icon: "◉" },
-            { label: "Escalations", sub: "Configure app", route: "/escalations", icon: "!" },
           ].map((a) => (
             <TouchableOpacity
               key={a.label}
@@ -148,9 +227,22 @@ const styles = StyleSheet.create({
 
   alertBanner: { 
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#111', 
-    borderLeftWidth: 2, borderLeftColor: '#e8e8e8', padding: 14, marginBottom: 20 
+    borderLeftWidth: 2, padding: 14, marginBottom: 20 
   },
-  pulseDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff', marginRight: 12 },
+  alertBannerActive: {
+    borderLeftColor: '#ef4444', // Red border
+    shadowColor: '#ef4444', // Red glow
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 8, // Required for Android glow
+  },
+  alertBannerInactive: {
+    borderLeftColor: '#333', // Dull border when no assignments
+  },
+  pulseDot: { width: 8, height: 8, borderRadius: 4, marginRight: 12 },
+  pulseDotActive: { backgroundColor: '#ef4444' }, // Red dot
+  pulseDotInactive: { backgroundColor: '#333' }, // Dull dot
   alertTitle: { fontSize: 13, fontWeight: '500', color: '#e8e8e8' },
   alertSub: { fontSize: 11, color: '#555', fontFamily: 'monospace', marginTop: 4 },
 
@@ -175,7 +267,6 @@ const styles = StyleSheet.create({
   historyEvent: { flex: 1, fontSize: 13, color: '#e8e8e8', marginRight: 12 },
   historyDate: { fontSize: 11, color: '#555', fontFamily: 'monospace' },
 
-  // Tutorial Styles
   tutorialOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
@@ -191,11 +282,10 @@ const styles = StyleSheet.create({
   tutorialButton: { backgroundColor: '#fff', paddingVertical: 12, borderRadius: 4, alignItems: 'center' },
   tutorialButtonText: { color: '#000', fontSize: 14, fontWeight: '600' },
   
-  // Highlight currently active tutorial element
   highlightedElement: {
     borderColor: '#c9a84c',
     borderWidth: 1,
-    zIndex: 101, // brings element above the overlay slightly if combined with precise absolute positioning
+    zIndex: 101, 
     backgroundColor: '#1a1a1a'
   }
 });
