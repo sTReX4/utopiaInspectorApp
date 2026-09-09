@@ -13,7 +13,7 @@ export type GateRoute = '/login' | '/homepage' | '/awaiting-approval';
 /** Opens the HR record behind a freshly created auth user. Server-side write:
  *  the device never gets to choose its own approval status. */
 export async function registerInspector(fullName: string, contactNumber: string) {
-  return authorizedFetch<{ success: boolean; alreadyRegistered: boolean }>(
+  return authorizedFetch<{ success: boolean; alreadyRegistered: boolean; adopted: boolean }>(
     '/api/inspectors/register',
     {
       method: 'POST',

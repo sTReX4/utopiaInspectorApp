@@ -50,8 +50,63 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       alreadyRegistered: true,
+      adopted: false,
       inspector: existing,
     });
+  }
+
+  /* Operations may have pre-registered this person from the console, which
+   * leaves a record carrying their HR details but no account. Claim it instead
+   * of opening a second row for the same human.
+   *
+   * Adoption always drops the record back to pending, even though the console
+   * created it as approved. Sign-up proves control of the mailbox only when
+   * email confirmation is on, so inheriting cleared field access off a known
+   * address is not something to hand out automatically -- a supervisor still
+   * clicks Approve. */
+  const email = user.email?.trim().toLowerCase() ?? null;
+
+  if (email) {
+    const { data: preRegistered } = await supabaseAdmin
+      .from('inspectors')
+      .select('id')
+      .is('auth_id', null)
+      .ilike('email', email)
+      .order('created_at', { ascending: true })
+      .limit(1);
+
+    const candidate = preRegistered?.[0];
+
+    if (candidate) {
+      const { data: adopted } = await supabaseAdmin
+        .from('inspectors')
+        .update({
+          auth_id: user.id,
+          /* full_name is left as operations entered it -- that is the vetted
+           * HR spelling. The number the inspector just typed on their own
+           * handset is the more current one, so that does get taken. */
+          contact_number: contactNumber,
+          email,
+          status: 'pending',
+          is_active: false,
+          approved_at: null,
+          approved_by: null,
+        })
+        .eq('id', candidate.id)
+        .is('auth_id', null) // Lost race: someone else claimed it first.
+        .select('id, full_name, status, is_active')
+        .maybeSingle();
+
+      if (adopted) {
+        return NextResponse.json({
+          success: true,
+          alreadyRegistered: false,
+          adopted: true,
+          inspector: adopted,
+        });
+      }
+      // Race lost or the update failed; fall through and open a fresh record.
+    }
   }
 
   const { data, error } = await supabaseAdmin
@@ -77,6 +132,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     success: true,
     alreadyRegistered: false,
+    adopted: false,
     inspector: data as Pick<InspectorRow, 'id' | 'full_name' | 'status' | 'is_active'>,
   });
 }

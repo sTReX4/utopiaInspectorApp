@@ -44,7 +44,7 @@ export default function PersonnelPage() {
 
   // --- INSPECTOR MODALS ---
   const [isAddInspectorModalOpen, setIsAddInspectorModalOpen] = useState(false);
-  const [newInspector, setNewInspector] = useState({ full_name: '', contact_number: '' });
+  const [newInspector, setNewInspector] = useState({ full_name: '', contact_number: '', email: '' });
 
   const [editInspectorData, setEditInspectorData] = useState<Inspector | null>(null);
 
@@ -122,11 +122,14 @@ export default function PersonnelPage() {
     e.preventDefault();
     if (!isSuperadmin) return;
 
-    /* A record opened here is created by operations, so it skips the queue.
-     * It stays unlinked until the inspector signs up with a matching account. */
+    /* A record opened here is pre-registration, not clearance: it carries the
+     * HR details but no account. The email is the join key — signing up with
+     * it claims this row instead of creating a duplicate, and the sign-up then
+     * enters Pending Approvals like any other. */
     const { data, error } = await supabase.from('inspectors').insert([{
         full_name: newInspector.full_name,
-        contact_number: newInspector.contact_number,
+        contact_number: newInspector.contact_number.replace(/\D/g, ''),
+        email: newInspector.email.trim().toLowerCase(),
         status: 'approved',
         is_active: true,
         approved_at: new Date().toISOString(),
@@ -141,7 +144,7 @@ export default function PersonnelPage() {
 
     setInspectors([...inspectors, data].sort((a, b) => a.full_name.localeCompare(b.full_name)));
     setIsAddInspectorModalOpen(false);
-    setNewInspector({ full_name: '', contact_number: '' });
+    setNewInspector({ full_name: '', contact_number: '', email: '' });
   };
 
   const handleUpdateInspector = async (e: React.FormEvent) => {
