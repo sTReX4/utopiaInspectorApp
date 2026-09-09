@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
-import { getInspectorId } from '../lib/inspectorAccount';
+import { getInspectorId, signOutInspector } from '../lib/inspectorAccount';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -55,12 +55,10 @@ export default function ProfileScreen() {
   );
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      Alert.alert('Error', error.message);
-    } else {
-      router.replace('/login');
-    }
+    // Clears the cached name, roster id and clearance alongside the session,
+    // so the next person on this handset does not inherit them.
+    await signOutInspector();
+    router.replace('/login');
   };
 
   if (isLoading) {

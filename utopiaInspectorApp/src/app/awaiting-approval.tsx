@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { supabase } from '@/lib/supabase';
 import { ApiError, isOffline } from '@/lib/api';
-import { clearInspectorIdentity, fetchClearance, getCachedClearance, isCleared, registerInspector } from '@/lib/inspectorAccount';
+import { fetchClearance, getCachedClearance, isCleared, registerInspector, signOutInspector } from '@/lib/inspectorAccount';
 import type { InspectorClearance } from '@/lib/types';
 import { PHONE_LENGTH, digitsOnly, validateFullName, validatePhone } from '@/lib/validation';
 
@@ -11,7 +11,8 @@ const primaryColor = '#3f73c4';
 const POLL_INTERVAL_MS = 20000;
 
 /* The lock screen an inspector sits on between signing up and being cleared by
- * operations. Nothing in the field app is reachable from here. */
+ * operations. Nothing in the field app is reachable from here -- the global
+ * header and its dropdown are suppressed on this route for that reason. */
 export default function AwaitingApprovalScreen() {
     const router = useRouter();
     const [clearance, setClearance] = useState<InspectorClearance | null>(null);
@@ -48,8 +49,7 @@ export default function AwaitingApprovalScreen() {
             if (!isMounted.current) return;
 
             if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-                await supabase.auth.signOut();
-                await clearInspectorIdentity();
+                await signOutInspector();
                 router.replace('/login');
                 return;
             }
@@ -76,8 +76,7 @@ export default function AwaitingApprovalScreen() {
     }, [check]);
 
     const handleSignOut = async () => {
-        await supabase.auth.signOut();
-        await clearInspectorIdentity();
+        await signOutInspector();
         router.replace('/login');
     };
 
@@ -122,93 +121,103 @@ export default function AwaitingApprovalScreen() {
                 : 'Your account is in the Operations approval queue. This screen unlocks the moment a supervisor clears you for field duty.';
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
             <KeyboardAvoidingView
                 style={styles.flex}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-                    <View style={styles.flex}>
-                        <View style={styles.outerShell}>
-                            <View style={styles.card}>
-                                <Image source={require('../../imgfolder/download-removebg-preview.png')} style={styles.logo} resizeMode="contain" />
+                {/* The card grows with its content instead of being pinned to a
+                  * fixed height. The registration form pushed the old fixed card
+                  * past the viewport, which collapsed the footer's auto margin
+                  * on top of the sign-out button and swallowed its taps. */}
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                >
+                    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                        <View style={styles.card}>
+                            <Image source={require('../../imgfolder/download-removebg-preview.png')} style={styles.logo} resizeMode="contain" />
 
-                                <View style={[styles.securityBadge, wasRejected && styles.badgeDanger]}>
-                                    <View style={[styles.securityDot, wasRejected && styles.dotDanger]} />
-                                    <Text style={[styles.securityBadgeText, wasRejected && styles.badgeTextDanger]}>
-                                        {wasRejected ? 'ACCESS DENIED' : 'AWAITING CLEARANCE'}
-                                    </Text>
+                            <View style={[styles.securityBadge, wasRejected && styles.badgeDanger]}>
+                                <View style={[styles.securityDot, wasRejected && styles.dotDanger]} />
+                                <Text style={[styles.securityBadgeText, wasRejected && styles.badgeTextDanger]}>
+                                    {wasRejected ? 'ACCESS DENIED' : 'AWAITING CLEARANCE'}
+                                </Text>
+                            </View>
+
+                            <Text style={styles.eyebrow}>UTOPIA OPERATIONS</Text>
+                            <Text style={styles.title}>{heading}</Text>
+                            <Text style={styles.subtitle}>{message}</Text>
+
+                            {clearance?.full_name ? (
+                                <View style={styles.identityRow}>
+                                    <Text style={styles.identityLabel}>REGISTERED AS</Text>
+                                    <Text style={styles.identityValue}>{clearance.full_name}</Text>
                                 </View>
+                            ) : null}
 
-                                <View style={styles.content}>
-                                    <Text style={styles.eyebrow}>UTOPIA OPERATIONS</Text>
-                                    <Text style={styles.title}>{heading}</Text>
-                                    <Text style={styles.subtitle}>{message}</Text>
+                            {offline ? (
+                                <Text style={styles.offlineNote}>Offline — showing your last verified status.</Text>
+                            ) : null}
 
-                                    {clearance?.full_name ? (
-                                        <View style={styles.identityRow}>
-                                            <Text style={styles.identityLabel}>REGISTERED AS</Text>
-                                            <Text style={styles.identityValue}>{clearance.full_name}</Text>
-                                        </View>
-                                    ) : null}
+                            {lastError && !offline ? (
+                                <Text style={styles.errorNote}>{lastError}</Text>
+                            ) : null}
 
-                                    {offline ? (
-                                        <Text style={styles.offlineNote}>Offline — showing your last verified status.</Text>
-                                    ) : null}
-
-                                    {lastError && !offline ? (
-                                        <Text style={styles.errorNote}>{lastError}</Text>
-                                    ) : null}
-
-                                    {needsRegistration ? (
-                                        <View style={styles.formBlock}>
-                                            <Text style={styles.inputLabel}>Full name</Text>
-                                            <TextInput
-                                                style={styles.input}
-                                                value={fullName}
-                                                onChangeText={setFullName}
-                                                placeholder="Juan D. Dela Cruz"
-                                                placeholderTextColor="#9aa0a6"
-                                                autoCapitalize="words"
-                                            />
-                                            <Text style={styles.inputLabel}>Phone number</Text>
-                                            <TextInput
-                                                style={styles.input}
-                                                value={contactNumber}
-                                                onChangeText={(value) => setContactNumber(digitsOnly(value))}
-                                                placeholder="09171234567"
-                                                placeholderTextColor="#9aa0a6"
-                                                keyboardType="number-pad"
-                                                maxLength={PHONE_LENGTH}
-                                            />
-                                            <Pressable
-                                                style={[styles.primaryButton, isSubmitting && styles.buttonDisabled]}
-                                                onPress={isSubmitting ? undefined : handleCompleteRegistration}
-                                            >
-                                                <Text style={styles.primaryButtonText}>
-                                                    {isSubmitting ? 'Submitting…' : 'Submit for Approval'}
-                                                </Text>
-                                            </Pressable>
-                                        </View>
-                                    ) : isChecking ? (
-                                        <ActivityIndicator size="large" color={primaryColor} style={{ marginTop: 22 }} />
-                                    ) : (
-                                        <Pressable style={styles.primaryButton} onPress={() => check()}>
-                                            <Text style={styles.primaryButtonText}>Check Approval Status</Text>
-                                        </Pressable>
-                                    )}
-
-                                    <Pressable style={styles.secondaryButton} onPress={handleSignOut}>
-                                        <Text style={styles.secondaryButtonText}>Sign out</Text>
+                            {needsRegistration ? (
+                                <View style={styles.formBlock}>
+                                    <Text style={styles.inputLabel}>Full name</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        value={fullName}
+                                        onChangeText={setFullName}
+                                        placeholder="Juan D. Dela Cruz"
+                                        placeholderTextColor="#9aa0a6"
+                                        autoCapitalize="words"
+                                    />
+                                    <Text style={styles.inputLabel}>Phone number</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        value={contactNumber}
+                                        onChangeText={(value) => setContactNumber(digitsOnly(value))}
+                                        placeholder="09171234567"
+                                        placeholderTextColor="#9aa0a6"
+                                        keyboardType="number-pad"
+                                        maxLength={PHONE_LENGTH}
+                                    />
+                                    <Pressable
+                                        style={[styles.primaryButton, isSubmitting && styles.buttonDisabled]}
+                                        onPress={isSubmitting ? undefined : handleCompleteRegistration}
+                                    >
+                                        <Text style={styles.primaryButtonText}>
+                                            {isSubmitting ? 'Submitting…' : 'Submit for Approval'}
+                                        </Text>
                                     </Pressable>
                                 </View>
+                            ) : isChecking ? (
+                                <ActivityIndicator size="large" color={primaryColor} style={{ marginTop: 22 }} />
+                            ) : (
+                                <Pressable style={styles.primaryButton} onPress={() => check()}>
+                                    <Text style={styles.primaryButtonText}>Check Approval Status</Text>
+                                </Pressable>
+                            )}
 
-                                <Text style={styles.footer}>Utopia Security And Safety Solutions Inc.  |  Inspector Portal</Text>
-                            </View>
+                            <Pressable
+                                style={styles.secondaryButton}
+                                onPress={handleSignOut}
+                                /* Widen the touch target: this is the only way off
+                                 * this screen and it sits near the card edge. */
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                                <Text style={styles.secondaryButtonText}>Sign out</Text>
+                            </Pressable>
+
+                            <Text style={styles.footer}>Utopia Security And Safety Solutions Inc.  |  Inspector Portal</Text>
                         </View>
-                    </View>
-                </TouchableWithoutFeedback>
+                    </TouchableWithoutFeedback>
+                </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -216,19 +225,25 @@ export default function AwaitingApprovalScreen() {
 
 const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: '#0b1d31' },
-    flex: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    outerShell: { width: '92%', maxWidth: 430, alignSelf: 'center' },
-    card: { minHeight: 670, borderWidth: 1, borderColor: '#d8e3ef', borderRadius: 18, backgroundColor: '#fff', paddingHorizontal: 42, paddingTop: 42, paddingBottom: 24, alignItems: 'stretch', justifyContent: 'space-between', shadowColor: '#020b17', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 8 },
-    logo: { width: 120, height: 135, alignSelf: 'center', marginBottom: 20 },
+    flex: { flex: 1 },
+    /* flexGrow keeps a short card vertically centred while letting a tall one
+     * scroll, rather than forcing one fixed height to serve both. */
+    scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 24 },
+    card: {
+        width: '100%', maxWidth: 430, alignSelf: 'center',
+        borderWidth: 1, borderColor: '#d8e3ef', borderRadius: 18, backgroundColor: '#fff',
+        paddingHorizontal: 28, paddingTop: 32, paddingBottom: 20,
+        shadowColor: '#020b17', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 8,
+    },
+    logo: { width: 96, height: 108, alignSelf: 'center', marginBottom: 16 },
     securityBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', marginBottom: 16, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#fff7e6' },
     badgeDanger: { backgroundColor: '#fdeeee' },
     securityDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#b45309', marginRight: 7 },
     dotDanger: { backgroundColor: '#b91c1c' },
     securityBadgeText: { color: '#b45309', fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
     badgeTextDanger: { color: '#b91c1c' },
-    content: { flex: 1, justifyContent: 'center', alignItems: 'stretch', width: '100%' },
     eyebrow: { color: '#3f73c4', fontSize: 11, fontWeight: '800', letterSpacing: 1.8, textAlign: 'center', marginBottom: 8 },
-    title: { color: '#16213b', fontSize: 30, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
+    title: { color: '#16213b', fontSize: 28, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
     subtitle: { color: '#68788d', fontSize: 14, lineHeight: 20, textAlign: 'center', marginBottom: 18 },
     identityRow: { borderWidth: 1, borderColor: '#dce6f2', backgroundColor: '#f7fafd', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 14 },
     identityLabel: { color: '#8b9bb0', fontSize: 10, fontWeight: '800', letterSpacing: 1.2, marginBottom: 3 },
@@ -238,10 +253,12 @@ const styles = StyleSheet.create({
     formBlock: { width: '100%' },
     inputLabel: { color: '#26384f', fontSize: 12, fontWeight: '700', marginBottom: 6 },
     input: { height: 46, borderWidth: 1, borderColor: '#c4d3e6', borderRadius: 9, paddingHorizontal: 12, fontSize: 15, color: '#24364d', backgroundColor: '#fbfdff', marginBottom: 14 },
-    primaryButton: { height: 49, borderRadius: 12, backgroundColor: primaryColor, alignItems: 'center', justifyContent: 'center', marginTop: 12, shadowColor: '#1c4e8d', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 3 },
+    primaryButton: { height: 49, borderRadius: 12, backgroundColor: primaryColor, alignItems: 'center', justifyContent: 'center', marginTop: 8, shadowColor: '#1c4e8d', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 3 },
     buttonDisabled: { opacity: 0.7 },
     primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
-    secondaryButton: { height: 44, borderRadius: 10, borderWidth: 1, borderColor: '#dbe4ef', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+    secondaryButton: { height: 46, borderRadius: 10, borderWidth: 1, borderColor: '#dbe4ef', alignItems: 'center', justifyContent: 'center', marginTop: 12 },
     secondaryButtonText: { color: '#68788d', fontSize: 14, fontWeight: '700' },
-    footer: { marginTop: 'auto', paddingTop: 40, paddingBottom: 12, color: '#718198', fontSize: 11, textAlign: 'center' },
+    /* Plain flow spacing. The old marginTop:'auto' collapsed once content
+     * outgrew the card and painted this over the sign-out button. */
+    footer: { marginTop: 20, color: '#718198', fontSize: 11, textAlign: 'center' },
 });

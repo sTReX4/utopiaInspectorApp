@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { ActivityIndicator, Image, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { ApiError } from '@/lib/api';
-import { clearInspectorIdentity, resolveGateRoute } from '@/lib/inspectorAccount';
+import { resolveGateRoute, signOutInspector } from '@/lib/inspectorAccount';
 
 export default function IndexScreen() {
     const router = useRouter();
@@ -27,8 +28,7 @@ export default function IndexScreen() {
             } catch (error) {
                 // A rejected token is a dead session, not a denied approval.
                 if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-                    await supabase.auth.signOut();
-                    await clearInspectorIdentity();
+                    await signOutInspector();
                     router.replace('/login');
                     return;
                 }
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: '#0b1d31' },
     flex: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     outerShell: { width: '92%', maxWidth: 430, alignSelf: 'center' },
-    card: { minHeight: 670, borderWidth: 1, borderColor: '#d8e3ef', borderRadius: 18, backgroundColor: '#fff', paddingHorizontal: 42, paddingTop: 42, paddingBottom: 24, alignItems: 'stretch', justifyContent: 'space-between', shadowColor: '#020b17', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 8 },
+    card: { minHeight: 560, borderWidth: 1, borderColor: '#d8e3ef', borderRadius: 18, backgroundColor: '#fff', paddingHorizontal: 42, paddingTop: 42, paddingBottom: 24, alignItems: 'stretch', justifyContent: 'space-between', shadowColor: '#020b17', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 8 },
     logo: { width: 120, height: 135, alignSelf: 'center', marginBottom: 20 },
     securityBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', marginBottom: 16, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#eaf7f5' },
     securityDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#159a83', marginRight: 7 },

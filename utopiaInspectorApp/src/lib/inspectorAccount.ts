@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authorizedFetch, isOffline } from './api';
+import { supabase } from './supabase';
 import type { InspectorClearance } from './types';
 
 /* audit.tsx stamps submissions with this name, so it has to survive the move
@@ -49,6 +50,26 @@ async function cacheClearance(clearance: InspectorClearance) {
 
 export async function clearInspectorIdentity() {
   await AsyncStorage.multiRemove([CLEARANCE_KEY, INSPECTOR_NAME_KEY, INSPECTOR_ID_KEY]);
+}
+
+/**
+ * The single way out of the app.
+ *
+ * Ending the Supabase session is only half of it: the cached name, roster id
+ * and clearance have to go too, or the next person to open this handset
+ * inherits the previous inspector's identity and route. Three separate
+ * sign-out paths used to disagree about that.
+ */
+export async function signOutInspector(): Promise<void> {
+  try {
+    await supabase.auth.signOut();
+  } catch (error) {
+    // A dead network must not strand someone signed in on a shared device.
+    // The local identity is cleared either way.
+    console.warn('Supabase sign-out failed; clearing local identity anyway:', error);
+  } finally {
+    await clearInspectorIdentity();
+  }
 }
 
 /** The inspectors row id — not the auth id — which is what detachments and

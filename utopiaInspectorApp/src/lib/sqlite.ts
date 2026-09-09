@@ -30,6 +30,10 @@ const openConnection = async (): Promise<SQLite.SQLiteDatabase> => {
 
     await db.execAsync(`
         PRAGMA journal_mode = WAL;
+        -- Wait for a competing writer instead of failing instantly with
+        -- "database is locked". Deduplication upstream should keep writes from
+        -- overlapping at all; this is the belt to that pair of braces.
+        PRAGMA busy_timeout = 5000;
         CREATE TABLE IF NOT EXISTS pending_audits (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             payload TEXT NOT NULL,

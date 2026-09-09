@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
+import { Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface SiteDetailModalProps {
   visible: boolean;

@@ -1,7 +1,8 @@
 import Checkbox from 'expo-checkbox';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, BackHandler, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
+import { Alert, BackHandler, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { registerInspector, resolveGateRoute } from '@/lib/inspectorAccount';
 import {
@@ -328,21 +329,26 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View style={styles.flex}>
-            <View style={styles.outerShell}>
-              <View style={styles.card}>
-                <Image source={require('../../imgfolder/download-removebg-preview.png')} style={styles.logo} resizeMode="contain" />
-                <View style={styles.securityBadge}>
-                  <View style={styles.securityDot} />
-                  <Text style={styles.securityBadgeText}>SECURE ACCESS</Text>
-                </View>
-                {content()}
-                <Text style={styles.footer}>Utopia Security And Safety Solutions Inc.  |  Inspector Portal</Text>
+        {/* Scrolls rather than sitting in a fixed-height card: the sign-up
+          * step now carries a password checklist, which overflows a short
+          * screen with the keyboard raised. */}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={styles.card}>
+              <Image source={require('../../imgfolder/download-removebg-preview.png')} style={styles.logo} resizeMode="contain" />
+              <View style={styles.securityBadge}>
+                <View style={styles.securityDot} />
+                <Text style={styles.securityBadgeText}>SECURE ACCESS</Text>
               </View>
+              {content()}
+              <Text style={styles.footer}>Utopia Security And Safety Solutions Inc.  |  Inspector Portal</Text>
             </View>
-          </View>
-        </TouchableWithoutFeedback>
+          </TouchableWithoutFeedback>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -361,11 +367,10 @@ function PrimaryButton({ label, onPress, disabled }: { label: string; onPress: (
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#0b1d31' },
-  flex: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scrollContent: { flexGrow: 1, justifyContent: 'center', padding: 12 },
-  outerShell: { width: '92%', maxWidth: 430, alignSelf: 'center' },
-  card: { minHeight: 670, borderWidth: 1, borderColor: '#d8e3ef', borderRadius: 18, backgroundColor: '#fff', paddingHorizontal: 42, paddingTop: 42, paddingBottom: 24, alignItems: 'stretch', justifyContent: 'space-between', shadowColor: '#020b17', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 8 },
-  logo: { width: 120, height: 135, alignSelf: 'center', marginBottom: 20 },
+  flex: { flex: 1 },
+  scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 24 },
+  card: { width: '100%', maxWidth: 430, alignSelf: 'center', borderWidth: 1, borderColor: '#d8e3ef', borderRadius: 18, backgroundColor: '#fff', paddingHorizontal: 28, paddingTop: 32, paddingBottom: 20, alignItems: 'stretch', shadowColor: '#020b17', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 8 },
+  logo: { width: 96, height: 108, alignSelf: 'center', marginBottom: 16 },
   securityBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', marginBottom: 16, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#eaf7f5' },
   securityDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#159a83', marginRight: 7 },
   securityBadgeText: { color: '#147866', fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
@@ -394,5 +399,5 @@ const styles = StyleSheet.create({
   rememberText: { marginLeft: 10, color: '#3c4d64', fontSize: 14 },
   primaryButton: { height: 49, borderRadius: 12, backgroundColor: primaryColor, alignItems: 'center', justifyContent: 'center', marginTop: 22, shadowColor: '#1c4e8d', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 3 },
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
-  footer: { marginTop: 'auto', paddingTop: 56, paddingBottom: 12, color: '#718198', fontSize: 11, textAlign: 'center' },
+  footer: { marginTop: 20, color: '#718198', fontSize: 11, textAlign: 'center' },
 });

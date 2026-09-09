@@ -1,12 +1,12 @@
 import { useRouter } from 'expo-router';
 import { Alert, Button, StyleSheet, Text, View } from 'react-native';
-import { signOutAccount } from '../lib/account';
+import { signOutInspector } from '../lib/inspectorAccount';
 
 export default function SettingsScreen() {
   const router = useRouter();
 
   const signOut = async () => {
-    await signOutAccount();
+    await signOutInspector();
     router.replace('/login');
   };
 
