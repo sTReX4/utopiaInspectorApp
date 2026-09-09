@@ -5,7 +5,7 @@ import { getPendingAudits, removeSyncedAudit } from './sqlite';
 import { refreshGuardRoster } from './guardRoster';
 
 
-const API_URL = 'http://192.168.1.8:3000/api/audits';
+const API_URL = 'https://utopia-inspector-app.vercel.app/api/audits';
 
 // Ensure notifications show even when the app is open
 Notifications.setNotificationHandler({

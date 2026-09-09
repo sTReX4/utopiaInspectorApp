@@ -429,8 +429,7 @@ export default function AuditFormScreen() {
 
         // --- STANDARD ONLINE TRANSMISSION ---
         try {
-            // Revert back to the deployed API URL when moving out of local testing
-            const API_URL = 'http://192.168.1.8:3000/api/audits';
+            const API_URL = 'https://utopia-inspector-app.vercel.app/api/audits';
             
             const response = await fetch(API_URL, {
                 method: 'POST',
