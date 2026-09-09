@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Image, Pressable, Alert } from "react-native";
 import { Stack, useRouter, usePathname } from "expo-router";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Notifications from 'expo-notifications';
 import { initializeNetworkListener } from '../lib/syncManager';
 import { signOutInspector } from '../lib/inspectorAccount';
@@ -29,6 +29,15 @@ const COLORS = {
 const UNAUTHENTICATED_ROUTES = ['/', '/index', '/login', '/awaiting-approval'];
 
 export default function Layout() {
+  return (
+    <SafeAreaProvider>
+      <Chrome />
+    </SafeAreaProvider>
+  );
+}
+
+function Chrome() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -72,14 +81,15 @@ export default function Layout() {
   };
 
   return (
-    <SafeAreaProvider>
       <View style={styles.container}>
         {/* Enterprise Global Sync Indicator */}
         {showChrome && <SyncIndicator />}
 
-        {/* Global Header */}
+        {/* Global Header. Top padding comes from the measured inset, never a
+          * hardcoded 60, or the title sits under the notch on tall devices and
+          * floats on short ones. */}
         {showChrome && (
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
             <View>
               <Text style={styles.eyebrow}>Security ⛉</Text>
               <Text style={styles.title}>Utopia</Text>
@@ -104,7 +114,7 @@ export default function Layout() {
           <>
             {/* Invisible overlay to catch outside taps and close menu */}
             <Pressable style={styles.overlay} onPress={() => setMenuOpen(false)} />
-            <View style={styles.menu}>
+            <View style={[styles.menu, { top: insets.top + 60 }]}>
               {["Profile", "Security", "Offline Queue", "Sign out"].map((item, i, arr) => (
                 <TouchableOpacity
                   key={item}
@@ -126,7 +136,6 @@ export default function Layout() {
           <Stack screenOptions={{ headerShown: false }} />
         </View>
       </View>
-    </SafeAreaProvider>
   );
 }
 
@@ -146,7 +155,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
     paddingBottom: 16,
     zIndex: 10,
     backgroundColor: COLORS.navy
@@ -188,18 +196,12 @@ const styles = StyleSheet.create({
   // Dropdown Menu
   menu: {
     position: 'absolute',
-    top: 110,
     right: 20,
     width: 160,
     backgroundColor: COLORS.navyDeep,
     borderWidth: 1,
     borderColor: COLORS.steel,
     zIndex: 100,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
   },
   menuItem: {
     paddingHorizontal: 16,
