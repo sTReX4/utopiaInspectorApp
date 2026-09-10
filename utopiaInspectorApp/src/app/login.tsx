@@ -1,12 +1,25 @@
 import Checkbox from 'expo-checkbox';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, BackHandler, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
-import DateInputGroup from '../components/date-input-group';
+import { Alert, BackHandler, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
+import { registerInspector, resolveGateRoute } from '@/lib/inspectorAccount';
+import {
+  PHONE_LENGTH,
+  digitsOnly,
+  isPasswordStrong,
+  passwordRules,
+  validateEmail,
+  validateFullName,
+  validatePassword,
+  validatePhone,
+} from '@/lib/validation';
 import { Ionicons } from '@expo/vector-icons';
 
-type Screen = 'login' | 'name' | 'birthday' | 'credentials';
+type FieldErrors = Partial<Record<'fullName' | 'contactNumber' | 'email' | 'password', string | null>>;
+
+type Screen = 'login' | 'identity' | 'credentials';
 
 const primaryColor = '#3f73c4';
 
@@ -16,26 +29,19 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [middleInitial, setMiddleInitial] = useState('');
-  const [birthDay, setBirthDay] = useState('');
-  const [birthMonth, setBirthMonth] = useState('');
-  const [birthYear, setBirthYear] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       if (screen === 'credentials') {
-        setScreen('birthday');
+        setScreen('identity');
         return true;
       }
-      if (screen === 'birthday') {
-        setScreen('name');
-        return true;
-      }
-      if (screen === 'name') {
+      if (screen === 'identity') {
         setScreen('login');
         return true;
       }
@@ -45,8 +51,17 @@ export default function LoginScreen() {
     return () => subscription.remove();
   }, [screen]);
 
-  // NEW FLOW: Redirects to the Provisioning Gatekeeper instead of homepage
-  const goToProvisioning = () => router.replace('/provision');
+  /* Access keys are gone. Where an inspector lands is decided by the approval
+   * status on their personnel record, which only the server reads. */
+  const routeThroughGate = async () => {
+    try {
+      const { route } = await resolveGateRoute();
+      router.replace(route as any);
+    } catch (error) {
+      Alert.alert('Clearance check failed', error instanceof Error ? error.message : 'Please try again.');
+      setIsLoading(false);
+    }
+  };
 
   const signIn = async () => {
     if (!email.trim() || !password) {
@@ -66,43 +81,35 @@ export default function LoginScreen() {
       return;
     }
 
-    goToProvisioning();
+    await routeThroughGate();
   };
 
-  const nextFromName = () => {
-    if (!firstName.trim() || !lastName.trim()) {
-      Alert.alert('Name required', 'Enter your first and last name to continue.');
-      return;
-    }
-    setScreen('birthday');
-  };
+  const nextFromIdentity = () => {
+    const nameError = validateFullName(fullName);
+    const phoneError = validatePhone(contactNumber);
 
-  const nextFromBirthday = () => {
-    if (!birthDay || !birthMonth || !birthYear) {
-      Alert.alert('Birthday required', 'Enter your day, month, and year of birth.');
-      return;
-    }
+    setErrors({ fullName: nameError, contactNumber: phoneError });
+    if (nameError || phoneError) return;
+
     setScreen('credentials');
   };
 
   const register = async () => {
-    if (!email.trim() || !password) {
-      Alert.alert('Missing details', 'Enter an email address and password to finish registration.');
-      return;
-    }
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(password);
+
+    setErrors((previous) => ({ ...previous, email: emailError, password: passwordError }));
+    if (emailError || passwordError) return;
 
     setIsLoading(true);
-    
-    // Create the account and inject the custom UI data into Supabase's user_metadata
-    const { error } = await supabase.auth.signUp({
+
+    const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
         data: {
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          middle_initial: middleInitial.trim(),
-          birthday: `${birthYear}-${birthMonth}-${birthDay}`
+          full_name: fullName.trim(),
+          contact_number: contactNumber.trim()
         }
       }
     });
@@ -113,8 +120,40 @@ export default function LoginScreen() {
       return;
     }
 
-    Alert.alert('Account Created', 'Your credentials are secure. Proceed to device linking.');
-    goToProvisioning();
+    /* Sign-up only returns a session when email confirmation is off. Without
+     * one there is no bearer token to open the personnel record with, so the
+     * inspector has to confirm and sign in before joining the queue. */
+    let session = data.session;
+    if (!session) {
+      const { data: signedIn } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password
+      });
+      session = signedIn.session;
+    }
+
+    if (!session) {
+      Alert.alert(
+        'Confirm your email',
+        'Your account was created. Confirm your email address, then sign in to join the approval queue.'
+      );
+      setScreen('login');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      await registerInspector(fullName.trim(), contactNumber.trim());
+    } catch (registerError) {
+      // The account exists; the lock screen can retry opening the HR record.
+      console.error('Inspector record creation failed:', registerError);
+    }
+
+    Alert.alert(
+      'Request Submitted',
+      'Your account is now with Operations for approval. You will be able to sign in to the field app once a supervisor clears you.'
+    );
+    router.replace('/awaiting-approval' as any);
   };
 
   const content = () => {
@@ -124,24 +163,24 @@ export default function LoginScreen() {
           <Text style={styles.eyebrow}>UTOPIA OPERATIONS</Text>
           <Text style={styles.title}>Welcome</Text>
           <Text style={styles.subtitle}>Sign in to continue to your workspace.</Text>
-          <Pressable style={styles.signUpLink} onPress={() => setScreen('name')}>
+          <Pressable style={styles.signUpLink} onPress={() => setScreen('identity')}>
             <Text style={styles.linkText}>Sign up</Text>
           </Pressable>
           <Text style={styles.inputLabel}>Email address</Text>
           <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email Address" keyboardType="email-address" autoCapitalize="none" autoComplete="email" textContentType="emailAddress" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
-          
+
           <Text style={styles.inputLabel}>Password</Text>
           <View style={styles.passwordContainer}>
-            <TextInput 
-              style={styles.passwordInput} 
-              value={password} 
-              onChangeText={setPassword} 
-              placeholder="Password" 
-              secureTextEntry={!showPassword} 
-              autoComplete="password" 
-              textContentType="password" 
-              importantForAutofill="yes" 
-              placeholderTextColor="#9aa0a6" 
+            <TextInput
+              style={styles.passwordInput}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
+              secureTextEntry={!showPassword}
+              autoComplete="password"
+              textContentType="password"
+              importantForAutofill="yes"
+              placeholderTextColor="#9aa0a6"
             />
             <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
               <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#68788d" />
@@ -153,48 +192,61 @@ export default function LoginScreen() {
             <Text style={styles.rememberText}>Remember me</Text>
           </View>
           <PrimaryButton label={isLoading ? "Authenticating..." : "Log in"} onPress={signIn} disabled={isLoading} />
-          
-          <Pressable style={styles.devPassButton} onPress={goToProvisioning}>
-            <Text style={styles.devPassText}>Dev Pass (Skip to Provision)</Text>
-          </Pressable>
         </>
       );
     }
 
-    if (screen === 'name') {
+    if (screen === 'identity') {
       return (
         <>
           <Text style={styles.eyebrow}>CREATE ACCOUNT</Text>
           <Text style={styles.title}>Register</Text>
-          <Text style={styles.subtitle}>Tell us who will be using the inspector app.</Text>
-          <Text style={styles.inputLabel}>First name</Text>
-          <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} placeholder="First name" autoComplete="given-name" textContentType="givenName" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
-          <Text style={styles.inputLabel}>Last name and middle initial</Text>
-          <View style={styles.nameRow}>
-            <TextInput style={[styles.input, styles.lastNameInput]} value={lastName} onChangeText={setLastName} placeholder="Last name" autoComplete="family-name" textContentType="familyName" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
-            <TextInput style={[styles.input, styles.middleInput]} value={middleInitial} onChangeText={setMiddleInitial} placeholder="M.I." maxLength={1} autoComplete="name" textContentType="middleName" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
-          </View>
-          <PrimaryButton label="Next" onPress={nextFromName} />
-        </>
-      );
-    }
+          <Text style={styles.subtitle}>Operations reviews every request, so use the name and number on your personnel file.</Text>
 
-    if (screen === 'birthday') {
-      return (
-        <>
-          <Text style={styles.eyebrow}>CREATE ACCOUNT</Text>
-          <Text style={styles.title}>Register</Text>
-          <Text style={styles.subtitle}>Please enter your birthday.</Text>
-          <DateInputGroup
-            label="Birthday (MM/DD/YYYY)"
-            day={birthDay}
-            month={birthMonth}
-            year={birthYear}
-            onDayChange={setBirthDay}
-            onMonthChange={setBirthMonth}
-            onYearChange={setBirthYear}
+          <Text style={styles.inputLabel}>Full name</Text>
+          <TextInput
+            style={[styles.input, errors.fullName ? styles.inputInvalid : null]}
+            value={fullName}
+            onChangeText={(value) => {
+              setFullName(value);
+              if (errors.fullName) setErrors((prev) => ({ ...prev, fullName: null }));
+            }}
+            placeholder="Juan D. Dela Cruz"
+            autoCapitalize="words"
+            autoComplete="name"
+            textContentType="name"
+            importantForAutofill="yes"
+            placeholderTextColor="#9aa0a6"
           />
-          <PrimaryButton label="Next" onPress={nextFromBirthday} />
+          {errors.fullName ? <Text style={styles.fieldError}>{errors.fullName}</Text> : null}
+
+          <Text style={styles.inputLabel}>Phone number</Text>
+          <TextInput
+            style={[styles.input, errors.contactNumber ? styles.inputInvalid : null]}
+            value={contactNumber}
+            /* Digits only, capped at 11, so the field cannot hold anything the
+             * roster would reject. */
+            onChangeText={(value) => {
+              setContactNumber(digitsOnly(value));
+              if (errors.contactNumber) setErrors((prev) => ({ ...prev, contactNumber: null }));
+            }}
+            placeholder="09171234567"
+            keyboardType="number-pad"
+            maxLength={PHONE_LENGTH}
+            autoComplete="tel"
+            textContentType="telephoneNumber"
+            importantForAutofill="yes"
+            placeholderTextColor="#9aa0a6"
+          />
+          {errors.contactNumber ? (
+            <Text style={styles.fieldError}>{errors.contactNumber}</Text>
+          ) : (
+            <Text style={styles.fieldHint}>
+              {contactNumber.length}/{PHONE_LENGTH} digits — mobile number starting with 09
+            </Text>
+          )}
+
+          <PrimaryButton label="Next" onPress={nextFromIdentity} />
         </>
       );
     }
@@ -205,27 +257,67 @@ export default function LoginScreen() {
         <Text style={styles.title}>Register</Text>
         <Text style={styles.subtitle}>Set up the credentials you will use to sign in.</Text>
         <Text style={styles.inputLabel}>Email address</Text>
-        <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email address" keyboardType="email-address" autoCapitalize="none" autoComplete="email" textContentType="emailAddress" importantForAutofill="yes" placeholderTextColor="#9aa0a6" />
-        
+        <TextInput
+          style={[styles.input, errors.email ? styles.inputInvalid : null]}
+          value={email}
+          onChangeText={(value) => {
+            setEmail(value);
+            if (errors.email) setErrors((prev) => ({ ...prev, email: null }));
+          }}
+          placeholder="Email address"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+          textContentType="emailAddress"
+          importantForAutofill="yes"
+          placeholderTextColor="#9aa0a6"
+        />
+        {errors.email ? <Text style={styles.fieldError}>{errors.email}</Text> : null}
+
         <Text style={styles.inputLabel}>Password</Text>
-        <View style={styles.passwordContainer}>
-          <TextInput 
-            style={styles.passwordInput} 
-            value={password} 
-            onChangeText={setPassword} 
-            placeholder="Password" 
-            secureTextEntry={!showPassword} 
-            autoComplete="password" 
-            textContentType="password" 
-            importantForAutofill="yes" 
-            placeholderTextColor="#9aa0a6" 
+        <View style={[styles.passwordContainer, errors.password ? styles.inputInvalid : null]}>
+          <TextInput
+            style={styles.passwordInput}
+            value={password}
+            onChangeText={(value) => {
+              setPassword(value);
+              if (errors.password) setErrors((prev) => ({ ...prev, password: null }));
+            }}
+            placeholder="Password"
+            secureTextEntry={!showPassword}
+            autoComplete="password-new"
+            textContentType="newPassword"
+            importantForAutofill="yes"
+            placeholderTextColor="#9aa0a6"
           />
           <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
             <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#68788d" />
           </Pressable>
         </View>
 
-        <PrimaryButton label={isLoading ? "Registering..." : "Register"} onPress={register} disabled={isLoading} />
+        {/* Live checklist so a rejected password is never a guessing game. */}
+        <View style={styles.ruleList}>
+          {passwordRules(password).map((rule) => (
+            <View key={rule.label} style={styles.ruleRow}>
+              <Text style={[styles.ruleMark, rule.met && styles.ruleMarkMet]}>
+                {rule.met ? '✓' : '•'}
+              </Text>
+              <Text style={[styles.ruleText, rule.met && styles.ruleTextMet]}>{rule.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {errors.password ? <Text style={styles.fieldError}>{errors.password}</Text> : null}
+
+        <Text style={styles.helperText}>
+          Registering opens an approval request. A supervisor has to clear it before the field app unlocks.
+        </Text>
+
+        <PrimaryButton
+          label={isLoading ? "Registering..." : "Register"}
+          onPress={register}
+          disabled={isLoading || !isPasswordStrong(password) || !email.trim()}
+        />
       </>
     );
   };
@@ -237,21 +329,26 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View style={styles.flex}>
-            <View style={styles.outerShell}>
-              <View style={styles.card}>
-                <Image source={require('../../imgfolder/download-removebg-preview.png')} style={styles.logo} resizeMode="contain" />
-                <View style={styles.securityBadge}>
-                  <View style={styles.securityDot} />
-                  <Text style={styles.securityBadgeText}>SECURE ACCESS</Text>
-                </View>
-                {content()}
-                <Text style={styles.footer}>Utopia Security And Safety Solutions Inc.  |  Inspector Portal</Text>
+        {/* Scrolls rather than sitting in a fixed-height card: the sign-up
+          * step now carries a password checklist, which overflows a short
+          * screen with the keyboard raised. */}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={styles.card}>
+              <Image source={require('../../imgfolder/download-removebg-preview.png')} style={styles.logo} resizeMode="contain" />
+              <View style={styles.securityBadge}>
+                <View style={styles.securityDot} />
+                <Text style={styles.securityBadgeText}>SECURE ACCESS</Text>
               </View>
+              {content()}
+              <Text style={styles.footer}>Utopia Security And Safety Solutions Inc.  |  Inspector Portal</Text>
             </View>
-          </View>
-        </TouchableWithoutFeedback>
+          </TouchableWithoutFeedback>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -259,8 +356,8 @@ export default function LoginScreen() {
 
 function PrimaryButton({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
   return (
-    <Pressable 
-      style={[styles.primaryButton, disabled && { opacity: 0.7 }]} 
+    <Pressable
+      style={[styles.primaryButton, disabled && { opacity: 0.7 }]}
       onPress={disabled ? undefined : onPress}
     >
       <Text style={styles.primaryButtonText}>{label}</Text>
@@ -270,11 +367,10 @@ function PrimaryButton({ label, onPress, disabled }: { label: string; onPress: (
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#0b1d31' },
-  flex: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scrollContent: { flexGrow: 1, justifyContent: 'center', padding: 12 },
-  outerShell: { width: '92%', maxWidth: 430, alignSelf: 'center' },
-  card: { minHeight: 670, borderWidth: 1, borderColor: '#d8e3ef', borderRadius: 18, backgroundColor: '#fff', paddingHorizontal: 42, paddingTop: 42, paddingBottom: 24, alignItems: 'stretch', justifyContent: 'space-between', shadowColor: '#020b17', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 8 },
-  logo: { width: 120, height: 135, alignSelf: 'center', marginBottom: 20 },
+  flex: { flex: 1 },
+  scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 24 },
+  card: { width: '100%', maxWidth: 430, alignSelf: 'center', borderWidth: 1, borderColor: '#d8e3ef', borderRadius: 18, backgroundColor: '#fff', paddingHorizontal: 28, paddingTop: 32, paddingBottom: 20, alignItems: 'stretch', shadowColor: '#020b17', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 8 },
+  logo: { width: 96, height: 108, alignSelf: 'center', marginBottom: 16 },
   securityBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', marginBottom: 16, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#eaf7f5' },
   securityDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#159a83', marginRight: 7 },
   securityBadgeText: { color: '#147866', fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
@@ -284,22 +380,24 @@ const styles = StyleSheet.create({
   signUpLink: { alignSelf: 'flex-end', marginBottom: 8 },
   linkText: { color: '#168ac4', fontSize: 14, fontWeight: '700' },
   instruction: { color: '#009ce0', fontSize: 14, textAlign: 'center', lineHeight: 19, marginBottom: 15 },
+  helperText: { color: '#8b9bb0', fontSize: 12, lineHeight: 17, textAlign: 'center', marginTop: 2 },
   inputLabel: { color: '#26384f', fontSize: 12, fontWeight: '700', marginBottom: 6 },
   input: { height: 46, borderWidth: 1, borderColor: '#c4d3e6', borderRadius: 9, paddingHorizontal: 12, fontSize: 15, color: '#24364d', backgroundColor: '#fbfdff', marginBottom: 14 },
+  inputInvalid: { borderColor: '#d26b6b', backgroundColor: '#fffafa' },
+  fieldError: { color: '#b03c3c', fontSize: 12, marginTop: -10, marginBottom: 12 },
+  fieldHint: { color: '#8b9bb0', fontSize: 11, marginTop: -10, marginBottom: 12 },
+  ruleList: { marginTop: -4, marginBottom: 12 },
+  ruleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 3 },
+  ruleMark: { width: 16, fontSize: 12, color: '#9aa8ba', fontWeight: '700' },
+  ruleMarkMet: { color: '#159a83' },
+  ruleText: { fontSize: 12, color: '#8b9bb0' },
+  ruleTextMet: { color: '#3c6b60' },
   passwordContainer: { flexDirection: 'row', alignItems: 'center', height: 46, borderWidth: 1, borderColor: '#c4d3e6', borderRadius: 9, backgroundColor: '#fbfdff', marginBottom: 14, paddingRight: 10 },
   passwordInput: { flex: 1, height: '100%', paddingHorizontal: 12, fontSize: 15, color: '#24364d' },
   eyeIcon: { padding: 8, justifyContent: 'center', alignItems: 'center' },
   rememberRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   rememberText: { marginLeft: 10, color: '#3c4d64', fontSize: 14 },
-  nameRow: { flexDirection: 'row', gap: 16 },
-  lastNameInput: { flex: 1 },
-  middleInput: { width: 67 },
-  birthdayRow: { flexDirection: 'row', justifyContent: 'center', gap: 5, marginBottom: 50 },
-  dateInput: { height: 34, width: 86, borderWidth: 1, borderColor: '#a9c9ef', textAlign: 'center', color: '#333' },
-  yearInput: { height: 34, width: 90, borderWidth: 1, borderColor: '#a9c9ef', textAlign: 'center', color: '#333' },
   primaryButton: { height: 49, borderRadius: 12, backgroundColor: primaryColor, alignItems: 'center', justifyContent: 'center', marginTop: 22, shadowColor: '#1c4e8d', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 3 },
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
-  devPassButton: { height: 42, borderRadius: 10, backgroundColor: '#fff1f1', borderWidth: 1, borderColor: '#f1b7b7', alignItems: 'center', justifyContent: 'center', marginTop: 12 },
-  devPassText: { color: '#a93232', fontSize: 14, fontWeight: '700' },
-  footer: { marginTop: 'auto', paddingTop: 56, paddingBottom: 12, color: '#718198', fontSize: 11, textAlign: 'center' },
+  footer: { marginTop: 20, color: '#718198', fontSize: 11, textAlign: 'center' },
 });

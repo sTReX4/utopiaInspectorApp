@@ -1,3 +1,7 @@
+import type { InspectorRow } from '@/lib/types';
+
+export type { InspectorStatus } from '@/lib/types';
+
 export interface Guard {
   id: string;
   guard_name: string;
@@ -7,22 +11,9 @@ export interface Guard {
   is_active: boolean;
 }
 
-export interface InspectorKey {
-  id: string;
-  access_key: string;
-  assigned_to: string;
-  is_used: boolean;
-  created_by: string;
-  created_at: string;
-  used_at: string | null;
-}
-
-export interface Inspector {
-  id: string;
-  full_name: string;
-  contact_number: string | null;
-  is_active: boolean;
-  created_at: string;
+/* The roster read joins the detachments each inspector covers; everything else
+ * is the inspectors row verbatim. */
+export interface Inspector extends InspectorRow {
   detachments?: { branch_name: string }[];
 }
 
@@ -36,5 +27,5 @@ export interface BranchOption {
 export type DeleteTarget = {
   id: string;
   name: string;
-  type: 'guard' | 'inspector' | 'key';
+  type: 'guard' | 'inspector';
 };

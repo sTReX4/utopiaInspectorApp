@@ -4,7 +4,7 @@ import { User } from '@phosphor-icons/react';
 import Modal from '@/app/components/modal';
 import { FIELD, LABEL, PRIMARY_ACTION } from './form-styles';
 
-export type NewInspector = { full_name: string; contact_number: string };
+export type NewInspector = { full_name: string; contact_number: string; email: string };
 
 type Props = {
   open: boolean;
@@ -26,7 +26,19 @@ export default function RegisterInspectorModal({ open, value, onChange, onClose,
         </div>
         <div>
           <label className={LABEL}>Contact Number</label>
-          <input required type="text" className={FIELD} value={value.contact_number} onChange={e => onChange({ ...value, contact_number: e.target.value })} placeholder="0917-123-4567" />
+          <input required type="text" className={FIELD} value={value.contact_number} onChange={e => onChange({ ...value, contact_number: e.target.value })} placeholder="09171234567" />
+        </div>
+        <div>
+          <label className={LABEL}>Sign-Up Email</label>
+          <input required type="email" className={FIELD} value={value.email} onChange={e => onChange({ ...value, email: e.target.value })} placeholder="inspector@example.com" />
+          {/* This is the join key. When the inspector signs up with this
+              address the app claims this record instead of opening a second
+              one, so it has to be the address they will actually use. */}
+          <p className="text-xs text-ink-muted mt-2 leading-relaxed">
+            The address this inspector will register with. Their sign-up claims this record
+            rather than creating a duplicate — they will still appear in Pending Approvals for
+            you to clear.
+          </p>
         </div>
         <div className="pt-2">
           <button type="submit" className={PRIMARY_ACTION}>Save Inspector Record</button>

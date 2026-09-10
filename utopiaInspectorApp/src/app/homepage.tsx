@@ -26,12 +26,20 @@ export default function HomepageScreen() {
     status: "0/0"
   });
 
+  // --- New States for Daily Progress ---
+  const [isLoading, setIsLoading] = useState(true);
+  const [isServingCache, setIsServingCache] = useState(false);
+  const [completedToday, setCompletedToday] = useState(0);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [progressPercentNum, setProgressPercentNum] = useState(0);
+
   // --- Fetch Logic ---
   useFocusEffect(
     React.useCallback(() => {
       let isActive = true;
 
       const fetchDashboardData = async () => {
+        setIsLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
@@ -57,11 +65,11 @@ export default function HomepageScreen() {
         const totalDetachments = safeSites.length;
         let guardsCount = 0;
         let auditsCount = 0;
-        let progressPercent = 0;
+        let calculatedProgress = 0;
 
         const today = new Date().toISOString().split('T')[0];
 
-        // Fetch all audits submitted by this inspector today
+        // Fetch all audits submitted by this inspector today for progress calculation
         const { data: todayAudits } = await supabase
           .from('audits') 
           .select('branch_name') 
@@ -74,9 +82,13 @@ export default function HomepageScreen() {
         const auditedBranchNames = new Set(safeAudits.map(a => a.branch_name));
         const auditedDetachmentsCount = safeSites.filter(s => auditedBranchNames.has(s.branch_name)).length;
 
+        if (isActive) setCompletedToday(auditedDetachmentsCount);
+
         if (totalDetachments > 0) {
-          progressPercent = Math.round((auditedDetachmentsCount / totalDetachments) * 100);
+          calculatedProgress = Math.round((auditedDetachmentsCount / totalDetachments) * 100);
         }
+
+        if (isActive) setProgressPercentNum(calculatedProgress);
 
         // Status Calculation: Guard vs Audit ratio for the CURRENT deployment
         if (currentActiveSite) {
@@ -89,21 +101,22 @@ export default function HomepageScreen() {
           guardsCount = gCount || 0;
           auditsCount = safeAudits.filter(a => a.branch_name === currentActiveSite.branch_name).length;
         }
+
+        // 3. Fetch GLOBAL Recent Activity (Live Feed of all records)
+        // Notice we removed the `.eq('inspector_id', user.id)` so it fetches everything!
         const { data: historyData } = await supabase
-          .from('audits') // Change this if you have a dedicated 'activity_logs' table
+          .from('audits') 
           .select('branch_name, created_at, status') 
-          .eq('inspector_id', user.id)
           .order('created_at', { ascending: false })
-          .limit(3);
+          .limit(5); // Increased to 5 to make the feed look more active
 
         if (isActive && historyData) {
-          // Format the database rows to match the UI design
           const formattedHistory = historyData.map((item) => {
             const dateObj = new Date(item.created_at);
             return {
               date: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
               event: `Audit submitted — ${item.branch_name}`,
-              flag: item.status === 'flagged', // Adjust based on how you mark anomalies
+              flag: item.status === 'flagged', 
             };
           });
           setRecentActivity(formattedHistory);
@@ -112,16 +125,17 @@ export default function HomepageScreen() {
         if (isActive) {
           setStats({
             detachments: totalDetachments.toString(),
-            progress: `${progressPercent}%`,
+            progress: `${calculatedProgress}%`,
             status: `${auditsCount}/${guardsCount}`
           });
+          setIsLoading(false);
         }
       };
 
       fetchDashboardData();
 
       return () => { isActive = false; };
-    }, [activeSite]) // Re-run calculations if the inspector switches deployments
+    }, [activeSite]) 
   );
 
   useEffect(() => {
@@ -140,6 +154,10 @@ export default function HomepageScreen() {
     }
   };
 
+  // --- UI Calculations ---
+  const totalAssigned = assignedSites.length;
+  const remaining = Math.max(0, totalAssigned - completedToday);
+
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.welcomeBanner, { transform: [{ translateY: slideAnim }] }]}>
@@ -154,46 +172,70 @@ export default function HomepageScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* --- 1. Current Deployment Boxes --- */}
-       <Text style={styles.sectionTitle}>Current Deployment</Text>
-        {activeSite ? (
-          <View style={styles.deploymentRow}>
-            <View style={styles.deploymentBox}>
-              <Text style={styles.depLabel}>Branch</Text>
-              <Text style={styles.depValue} numberOfLines={1}>{activeSite.branch_name}</Text>
+        {/* --- Daily Progress: the day's headline number --- */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => router.push('/detachment-list')}
+        >
+          <View style={styles.progressCard}>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressLabel}>Daily Progress</Text>
+              {isServingCache ? (
+                <Text style={styles.progressOffline}>OFFLINE</Text>
+              ) : null}
             </View>
-            {/* Removed the Branch Code box, leaving only Branch and Location */}
-            <View style={styles.deploymentBox}>
-              <Text style={styles.depLabel}>Location</Text>
-              <Text style={styles.depValue} numberOfLines={1}>{activeSite.branch_location}</Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.emptyDeployment}>
-             <Text style={styles.emptyText}>No Active Deployment</Text>
-          </View>
-        )}
 
-        {/* --- 2. Detachment Alert Banner --- */}
-        <TouchableOpacity 
+            <View style={styles.progressFigureRow}>
+              <Text style={styles.progressFigure}>
+                {isLoading ? '—' : completedToday}
+                <Text style={styles.progressFigureTotal}>{isLoading ? '' : ` / ${totalAssigned}`}</Text>
+              </Text>
+              <Text style={styles.progressPercent}>{isLoading ? '' : `${progressPercentNum}%`}</Text>
+            </View>
+
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${progressPercentNum}%` }]} />
+            </View>
+
+            <Text style={styles.progressCaption}>
+              {isLoading
+                ? 'Loading your route…'
+                : totalAssigned === 0
+                  ? 'No detachments assigned to you yet'
+                  : remaining === 0
+                    ? 'Route complete — every detachment inspected today'
+                    : `${remaining} detachment${remaining === 1 ? '' : 's'} left to inspect today`}
+            </Text>
+
+            {pendingSyncCount > 0 ? (
+              <Text style={styles.progressPending}>
+                {pendingSyncCount} counted from the offline queue, not yet synced
+              </Text>
+            ) : null}
+          </View>
+        </TouchableOpacity>
+
+        {/* --- Detachment Alert --- */}
+        <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => setIsDropdownOpen(!isDropdownOpen)} 
-          style={{ zIndex: 20 }}
+          onPress={() => setIsDropdownOpen(!isDropdownOpen)}
         >
           <View style={[
-            styles.alertBanner, 
-            assignedSites.length > 0 ? styles.alertBannerActive : styles.alertBannerInactive,
+            styles.alertBanner,
+            totalAssigned > 0 ? styles.alertBannerActive : styles.alertBannerInactive,
             isDropdownOpen && styles.alertBannerOpen,
             tutorialStep === 1 && styles.highlightedElement
           ]}>
             <View style={[
-              styles.pulseDot, 
-              assignedSites.length > 0 ? styles.pulseDotActive : styles.pulseDotInactive
+              styles.pulseDot,
+              totalAssigned > 0 ? styles.pulseDotActive : styles.pulseDotInactive
             ]} />
-            
+
             <View style={{ flex: 1 }}>
-              {/* Now displaying Branch Code and Location directly in the alert banner */}
-              <Text style={[styles.alertTitle, assignedSites.length > 0 && { color: '#ef4444' }]}>
+              <Text style={[
+                styles.alertTitle,
+                totalAssigned > 0 && { color: '#ef4444' } 
+              ]}>
                 {activeSite ? activeSite.branch_code : 'Detachment Alert'}
               </Text>
               <Text style={styles.alertSub}>
@@ -211,7 +253,7 @@ export default function HomepageScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* --- 3. Dropdown Menu for Switching Sites --- */}
+        {/* --- Dropdown Menu for Switching Sites --- */}
         {isDropdownOpen && assignedSites.length > 0 && (
           <View style={styles.dropdownContainer}>
             <Text style={styles.dropdownHeader}>Switch Active Detachment:</Text>
@@ -233,7 +275,7 @@ export default function HomepageScreen() {
           </View>
         )}
 
-        {/* --- 4. Stat Row --- */}
+        {/* --- Stat Row --- */}
         <View style={styles.statRow}>
           {[
             { label: "Detachments", value: stats.detachments },
@@ -270,7 +312,7 @@ export default function HomepageScreen() {
         </View>
 
         {/* Recent activity */}
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        <Text style={styles.sectionTitle}>Live Feed: All Records</Text>
         <View style={[styles.historyContainer, tutorialStep === 3 && styles.highlightedElement]}>
           {recentActivity.length > 0 ? (
             recentActivity.map((h, i) => (
@@ -319,20 +361,31 @@ const styles = StyleSheet.create({
   },
   welcomeText: { color: '#e8e8e8', fontSize: 13, fontWeight: '500' },
 
-  sectionTitle: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 2, color: '#555', fontFamily: 'monospace', marginBottom: 12 },
+  progressCard: {
+    backgroundColor: '#111', borderWidth: 1, borderColor: '#1e1e1e',
+    padding: 18, marginBottom: 14
+  },
+  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  progressLabel: {
+    fontSize: 10, textTransform: 'uppercase', letterSpacing: 2,
+    color: '#555', fontFamily: 'monospace'
+  },
+  progressOffline: {
+    fontSize: 9, letterSpacing: 1.5, color: '#c9a84c', fontFamily: 'monospace',
+    borderWidth: 1, borderColor: '#3a3121', paddingHorizontal: 6, paddingVertical: 2
+  },
+  progressFigureRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  progressFigure: { fontSize: 44, fontWeight: '700', color: '#e8e8e8', letterSpacing: -1 },
+  progressFigureTotal: { fontSize: 24, fontWeight: '500', color: '#555' },
+  progressPercent: { fontSize: 15, fontWeight: '600', color: '#c9a84c', fontFamily: 'monospace' },
+  progressTrack: { height: 4, backgroundColor: '#1e1e1e', marginTop: 14, marginBottom: 10 },
+  progressFill: { height: 4, backgroundColor: '#c9a84c' },
+  progressCaption: { fontSize: 11, color: '#777', fontFamily: 'monospace' },
+  progressPending: { fontSize: 10, color: '#c9a84c', fontFamily: 'monospace', marginTop: 6 },
 
-  // Current Deployment Styles
-  deploymentRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, gap: 8 },
-  deploymentBox: { flex: 1, backgroundColor: '#111', borderWidth: 1, borderColor: '#1e1e1e', padding: 12, borderRadius: 6, alignItems: 'center' },
-  depLabel: { fontSize: 9, textTransform: 'uppercase', color: '#555', fontFamily: 'monospace', marginBottom: 4 },
-  depValue: { fontSize: 12, fontWeight: '600', color: '#e8e8e8', textAlign: 'center' },
-  emptyDeployment: { backgroundColor: '#111', borderWidth: 1, borderColor: '#1e1e1e', padding: 16, borderRadius: 6, alignItems: 'center', marginBottom: 20 },
-  emptyText: { color: '#555', fontSize: 12, fontFamily: 'monospace', textTransform: 'uppercase' },
-
-  // Alert Banner Styles
-  alertBanner: { 
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#111', 
-    borderLeftWidth: 2, padding: 14, marginBottom: 20 
+  alertBanner: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#111',
+    borderLeftWidth: 2, padding: 14, marginBottom: 20
   },
   alertBannerOpen: {
     marginBottom: 0, 

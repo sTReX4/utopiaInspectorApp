@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Network from 'expo-network';
+import { API_BASE_URL } from '../lib/api';
 
 export type ReportStatus = 'PENDING' | 'SYNCING' | 'SUBMITTED' | 'FAILED';
 export type QueuedReport<T = any> = {
@@ -45,7 +46,7 @@ export const enqueueReport = async <T,>(reportData: T): Promise<QueuedReport<T>>
 
 // Dummy fetch function - replace with your Supabase/Vercel logic
 async function postReport(report: QueuedReport) {
-    const response = await fetch('https://utopia-inspector-app.vercel.app/api/audits', { 
+    const response = await fetch(`${API_BASE_URL}/api/audits`, { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' }, 
         body: JSON.stringify(report.reportData) 
