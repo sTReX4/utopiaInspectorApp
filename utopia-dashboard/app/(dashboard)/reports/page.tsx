@@ -19,6 +19,7 @@ interface AuditRecord {
   guard_name: string;
   violations_checklist: any;
   guard_present_status: any;
+  visit_type: string | null;
   firearm_serial: string | null;
   firearm_make: string | null;
   remarks: string | null;
@@ -67,7 +68,7 @@ export default function ReportsExtractionPage() {
     try {
       let query = supabase
         .from('audits')
-        .select('id, inspector_name, time_in, time_out, branch_code, branch_name, branch_location, guard_name, violations_checklist, guard_present_status, firearm_serial, firearm_make, remarks, guard_signature, gps_latitude, escalation_status, escalation_remarks, live_photo_url')
+        .select('id, inspector_name, time_in, time_out, branch_code, branch_name, branch_location, guard_name, violations_checklist, guard_present_status, visit_type, firearm_serial, firearm_make, remarks, guard_signature, gps_latitude, escalation_status, escalation_remarks, live_photo_url')
         .order('time_in', { ascending: false });
 
       if (filterInspector) query = query.ilike('inspector_name', `%${filterInspector}%`);

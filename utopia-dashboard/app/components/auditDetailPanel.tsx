@@ -373,12 +373,42 @@ export default function AuditDetailPanel({ auditId, onClose, userRole }: AuditDe
 
                  <div className="w-full sm:w-2/3 flex flex-col gap-y-6">
                    {isAlarmResponse ? (
-                     <div className="bg-danger-bg border border-danger-ink/20 p-5 h-full">
-                       <span className="text-xs text-danger-ink block mb-2 border-b border-danger-ink/20 pb-2">Active Incident Dispatch</span>
-                       <span className="text-xs text-ink-muted block mb-1.5 mt-4">Resolution Remarks</span>
-                       <p className="text-sm text-ink font-medium leading-relaxed">
-                         {auditData.incident_remarks || 'No incident remarks provided.'}
-                       </p>
+                     <div className="flex flex-col gap-4 h-full">
+                       <div className="bg-danger-bg border border-danger-ink/20 p-5">
+                         <span className="text-xs text-danger-ink block mb-2 border-b border-danger-ink/20 pb-2">Active Incident Dispatch</span>
+                         <span className="text-xs text-ink-muted block mb-1.5 mt-4">Resolution Remarks</span>
+                         <p className="text-sm text-ink font-medium leading-relaxed">
+                           {auditData.incident_remarks || 'No incident remarks provided.'}
+                         </p>
+                       </div>
+
+                       {/* The same site condition a no-show records. On an alarm
+                         * response it is the point of the visit, so it belongs
+                         * beside the resolution rather than under a guard. */}
+                       {auditData.guard_present_status && (
+                         <div className="bg-canvas border border-line p-4">
+                           <span className="text-xs text-ink block mb-4 border-b border-line pb-2">Site Condition On Arrival</span>
+                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
+                             <div>
+                               <span className="text-xs text-ink-muted block mb-1">ATM Status</span>
+                               <div>
+                                 {renderStatusBadge(
+                                   auditData.guard_present_status.atm_online
+                                     ? true
+                                     : (auditData.guard_present_status.atm_offline ? false : null),
+                                   auditData.guard_present_status.atm_online
+                                     ? 'ONLINE'
+                                     : (auditData.guard_present_status.atm_offline ? 'OFFLINE' : 'UNCHECKED')
+                                 )}
+                               </div>
+                             </div>
+                             <div>
+                               <span className="text-xs text-ink-muted block mb-1">Facility Doors Secure</span>
+                               <div>{renderStatusBadge(auditData.guard_present_status.door_secure ? 'Secured' : 'Breached/Open')}</div>
+                             </div>
+                           </div>
+                         </div>
+                       )}
                      </div>
                    ) : (
                      <div className="grid grid-cols-2 gap-y-6 gap-x-4">

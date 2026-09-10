@@ -128,6 +128,14 @@ export default function AuditFormScreen() {
     const [visitType, setVisitType] = useState<'Routine' | 'Alarm Response'>('Routine');
     const [incidentRemarks, setIncidentRemarks] = useState('');
 
+    /* An alarm response is a site check, not a post inspection: the client only
+     * calls operations out when no guard is there to answer. So the guard-on-post
+     * toggle has no say over it. Everything keyed on the guard, the roster
+     * fields, the compliance ticket and the guard signature, sits this one out,
+     * and the site condition is recorded instead. */
+    const isAlarmResponse = visitType === 'Alarm Response';
+    const isGuardAudited = !isAlarmResponse && isGuardPresent;
+
     const [inspectorName, setInspectorName] = useState<string>('Unknown Inspector');
     /* The roster row id, which is what audits.inspector_id and the daily
      * progress tracker are keyed on. Null only if the gate never cached it. */
@@ -287,19 +295,19 @@ export default function AuditFormScreen() {
                       accuracy: location.coords.accuracy,
                   }
                 : null,
-            guard_present_status: !isGuardPresent
+            guard_present_status: !isGuardAudited
                 ? {
                       atm_online: isAtmOnline,
                       atm_offline: isAtmOffline,
                       door_secure: isDoorSecure,
                   }
                 : null,
-            guard_name: isGuardPresent ? guardName : null,
-            lesp_expiry: isGuardPresent ? formattedLespExpiry : null,
-            uniform_compliance: isGuardPresent ? isUniformCompliant : null,
-            firearm_serial: isGuardPresent ? firearmSerial : null,
-            firearm_make: isGuardPresent ? firearmMake : null,
-            metrics: isGuardPresent
+            guard_name: isGuardAudited ? guardName : null,
+            lesp_expiry: isGuardAudited ? formattedLespExpiry : null,
+            uniform_compliance: isGuardAudited ? isUniformCompliant : null,
+            firearm_serial: isGuardAudited ? firearmSerial : null,
+            firearm_make: isGuardAudited ? firearmMake : null,
+            metrics: isGuardAudited
                 ? {
                       lto_license: ltoStatus,
                       ddo_license: ddoStatus,
@@ -310,7 +318,7 @@ export default function AuditFormScreen() {
                   }
                 : null,
             remarks: remarks,
-            violation_ticket: isGuardPresent && isTicketOpen
+            violation_ticket: isGuardAudited && isTicketOpen
                 ? {
                       security_license_no: securityLicenseNo,
                       security_license_expiry: securityLicenseExpiry,
@@ -339,7 +347,7 @@ export default function AuditFormScreen() {
                   }
                 : null,
             live_photo_uri: `data:image/jpeg;base64,${base64Photo}`,
-            guard_signature: isGuardPresent ? guardSignature : null,
+            guard_signature: isGuardAudited ? guardSignature : null,
             client_signature: isClientAbsent ? 'UNAVAILABLE_ON_SITE' : clientSignature,
 
             visit_type: visitType,
@@ -348,7 +356,6 @@ export default function AuditFormScreen() {
 
         const network = await Network.getNetworkStateAsync();
         const isOffline = !network.isConnected || !network.isInternetReachable;
-        const isAlarmResponse = visitType === 'Alarm Response';
 
         // --- OFFLINE ARCHITECTURE INTERCEPT ---
         if (isOffline) {
@@ -468,7 +475,7 @@ export default function AuditFormScreen() {
     };
 
     const handleSubmit = async () => {
-        if (isGuardPresent && !guardSignature) {
+        if (isGuardAudited && !guardSignature) {
             Alert.alert('Missing Signature', 'The Guard on duty MUST sign the audit.');
             return;
         }
@@ -628,7 +635,7 @@ export default function AuditFormScreen() {
      * at the post learned what was missing one item at a time. */
     const readiness = [
         { label: 'Photo', done: livePhotoUri !== null },
-        ...(isGuardPresent ? [{ label: 'Guard signed', done: guardSignature !== null }] : []),
+        ...(isGuardAudited ? [{ label: 'Guard signed', done: guardSignature !== null }] : []),
         { label: 'Client signed', done: isClientAbsent || clientSignature !== null },
     ];
     const outstanding = readiness.filter((item) => !item.done).length;
@@ -683,17 +690,25 @@ export default function AuditFormScreen() {
                     </View>
                 </Section>
 
-                {visitType === 'Alarm Response' ? (
-                    <Section label="Incident resolution" icon="warning-outline">
-                        <View style={styles.field}>
-                            <CustomTextInput
-                                value={incidentRemarks}
-                                onChangeText={setIncidentRemarks}
-                                multiline
-                                placeholder="Branch concern, findings, and resolution"
-                            />
-                        </View>
-                    </Section>
+                {isAlarmResponse ? (
+                    <>
+                        <Section label="Site condition" icon="business-outline">
+                            <ToggleRow label="ATM is online" value={isAtmOnline} onValueChange={handleAtmOnlineToggle} isFirst />
+                            <ToggleRow label="ATM is offline" value={isAtmOffline} onValueChange={handleAtmOfflineToggle} />
+                            <ToggleRow label="Door, glass and padlock secure" value={isDoorSecure} onValueChange={setIsDoorSecure} />
+                        </Section>
+
+                        <Section label="Incident resolution" icon="warning-outline">
+                            <View style={styles.field}>
+                                <CustomTextInput
+                                    value={incidentRemarks}
+                                    onChangeText={setIncidentRemarks}
+                                    multiline
+                                    placeholder="Branch concern, findings, and resolution"
+                                />
+                            </View>
+                        </Section>
+                    </>
                 ) : (
                     <>
                         <Section label="Guard on post" icon="person-outline">
@@ -895,7 +910,7 @@ export default function AuditFormScreen() {
                                 </Section>
                             </>
                         ) : (
-                            <Section label="Site status, guard absent" icon="business-outline">
+                            <Section label="Site condition" icon="business-outline">
                                 <ToggleRow label="ATM is online" value={isAtmOnline} onValueChange={handleAtmOnlineToggle} isFirst />
                                 <ToggleRow label="ATM is offline" value={isAtmOffline} onValueChange={handleAtmOfflineToggle} />
                                 <ToggleRow label="Door, glass and padlock secure" value={isDoorSecure} onValueChange={setIsDoorSecure} />
@@ -908,12 +923,14 @@ export default function AuditFormScreen() {
                     <View style={styles.captureRow}>
                         <View style={{ flex: 1 }}>
                             <Text style={type.title}>
-                                {isGuardPresent ? 'Guard on post' : 'Site condition'}
+                                {isGuardAudited ? 'Guard on post' : 'Site condition'}
                             </Text>
                             <Text style={type.dataMuted}>
-                                {isGuardPresent
+                                {isGuardAudited
                                     ? 'Camera only. Uploads are blocked.'
-                                    : 'Photograph the site or logbook to record the absence.'}
+                                    : isAlarmResponse
+                                      ? 'Photograph the site as found on arrival.'
+                                      : 'Photograph the site or logbook to record the absence.'}
                             </Text>
                         </View>
                         <Pressable
@@ -928,7 +945,7 @@ export default function AuditFormScreen() {
                 </Section>
 
                 <Section label="Signatures" icon="pencil-outline">
-                    {isGuardPresent ? (
+                    {isGuardAudited ? (
                         <SignRow
                             label="Guard on duty"
                             signed={guardSignature !== null}
@@ -944,7 +961,7 @@ export default function AuditFormScreen() {
                             setIsClientAbsent(absent);
                             if (absent) setClientSignature(null);
                         }}
-                        isFirst={!isGuardPresent}
+                        isFirst={!isGuardAudited}
                     />
 
                     {!isClientAbsent ? (

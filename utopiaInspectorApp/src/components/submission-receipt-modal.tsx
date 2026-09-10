@@ -53,9 +53,15 @@ export default function SubmissionReceiptModal({
 }: SubmissionReceiptModalProps) {
   if (!auditData) return null;
 
-  // A populated `guard_present_status` means the guard was absent from post.
-  const guardAbsent = !!auditData.guard_present_status;
-  const absent = 'Not applicable, guard absent';
+  /* A populated `guard_present_status` carries the site condition, recorded
+   * whenever there is no guard to inspect: a no-show, or an alarm response,
+   * which is only ever called in when the post is unmanned. */
+  const isAlarmResponse = auditData.visit_type === 'Alarm Response';
+  const site = auditData.guard_present_status;
+  const guardAbsent = !!site;
+  const absent = isAlarmResponse
+    ? 'Not applicable, alarm response'
+    : 'Not applicable, guard absent';
 
   const submittedAt = auditData.created_at
     ? new Date(auditData.created_at).toLocaleString()
@@ -84,11 +90,31 @@ export default function SubmissionReceiptModal({
         <Section label="Personnel">
           <Row
             label="Guard"
-            value={guardAbsent ? 'No show, absent from post' : auditData.guard_name}
+            value={
+              guardAbsent
+                ? (isAlarmResponse ? 'Not inspected, alarm response' : 'No show, absent from post')
+                : auditData.guard_name
+            }
             isFirst
           />
           <Row label="Inspector" value={auditData.inspector_name} />
         </Section>
+
+        {site ? (
+          <Section label="Site condition">
+            <Row
+              label="ATM"
+              value={site.atm_online ? 'Online' : site.atm_offline ? 'Offline' : 'Not checked'}
+              tone={site.atm_online ? 'ok' : undefined}
+              isFirst
+            />
+            <Row
+              label="Door, glass and padlock"
+              value={site.door_secure ? 'Secure' : 'Not secure'}
+              tone={site.door_secure ? 'ok' : undefined}
+            />
+          </Section>
+        ) : null}
 
         <Section label="Compliance">
           <Row

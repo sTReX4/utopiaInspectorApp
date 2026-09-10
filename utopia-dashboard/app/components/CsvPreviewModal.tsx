@@ -19,11 +19,14 @@ export default function CsvPreviewModal({ audits, onClose, targetInspector, targ
     const detachment = audit.branch_name || 'N/A';
     const area = audit.branch_location || 'N/A';
 
-    const isNoShow = audit.guard_present_status !== null;
+    /* Set on both a no-show and an alarm response: in either case there is no
+     * guard to report on and the row carries the site condition instead. */
+    const isSiteOnly = audit.guard_present_status !== null;
+    const isAlarmResponse = audit.visit_type === 'Alarm Response';
 
     let guardName, uniform, lespExpiry, faSn, faMake, remarks, signature;
 
-    if (isNoShow) {
+    if (isSiteOnly) {
       let statusObj: any = {};
       try {
         statusObj = typeof audit.guard_present_status === 'string'
@@ -37,7 +40,7 @@ export default function CsvPreviewModal({ audits, onClose, targetInspector, targ
       const atmStat = statusObj?.atm_online ? "ATM ONLINE" : (statusObj?.atm_offline ? "ATM OFFLINE" : "ATM UNCHECKED");
       const isSecure = statusObj?.door_secure;
 
-      guardName = "NO-SHOW";
+      guardName = isAlarmResponse ? "ALARM RESPONSE" : "NO-SHOW";
       lespExpiry = atmStat;
       uniform = "DOOR";
       faSn = "GLASS";

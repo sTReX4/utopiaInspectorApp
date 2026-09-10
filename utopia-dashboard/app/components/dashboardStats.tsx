@@ -78,7 +78,12 @@ export default function DashboardStats({ activeFilter, onFilterSelect, globalDat
                 { count: alarms }
             ] = await Promise.all([
                 getGlobalProgressQuery(),
-                getBaseQuery().not('guard_present_status', 'is', null),
+                /* An alarm response also fills guard_present_status, with the
+                 * site condition rather than a no-show. Legacy rows have a null
+                 * visit_type, so the filter has to let null through. */
+                getBaseQuery()
+                    .not('guard_present_status', 'is', null)
+                    .or('visit_type.is.null,visit_type.neq.Alarm Response'),
                 getBaseQuery().is('inspector_signature', null),
                 getBaseQuery().eq('uniform_status', false),
                 getBaseQuery().not('violations_checklist', 'is', null),

@@ -46,7 +46,10 @@ export default function LivePhotoGrid({ activeFilter, globalDate, globalInspecto
             }
 
             if (activeFilter === 'no-show') {
-                query = query.not('guard_present_status', 'is', null);
+                // Alarm responses carry a site condition here, not a no-show.
+                query = query
+                    .not('guard_present_status', 'is', null)
+                    .or('visit_type.is.null,visit_type.neq.Alarm Response');
             } else if (activeFilter === 'violations') {
                 query = query.not('violations_checklist', 'is', null);
             } else if (activeFilter === 'uniform') {
