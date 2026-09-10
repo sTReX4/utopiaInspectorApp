@@ -1,18 +1,18 @@
-import { Stack } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import Checkbox from 'expo-checkbox';
+import { Checkbox } from 'expo-checkbox';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Location from 'expo-location';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useState, useRef } from 'react';
-import { useNavigation, useRouter } from 'expo-router';
-import { Alert, Button, Keyboard, Platform, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View, ActivityIndicator, Animated } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { color, radius, space, type } from '@/constants/tokens';
 import CustomTextInput from '../components/custom-text-input';
 import LiveCameraModal from '../components/live-camera-modal';
 import SignaturePad from '../components/signature-pad';
-import SubmissionReceiptModal from '../components/submission-receipt-modal';
+import SubmissionReceiptModal, { type AuditRecord } from '../components/submission-receipt-modal';
 import ViolationItemCard from '../components/violation-item-card';
 import DateInputGroup from '../components/date-input-group';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,8 +22,6 @@ import { triggerAtomicSync } from '../lib/syncManager';
 import { loadGuardsForBranch, RosterSource } from '../lib/guardRoster';
 import { getInspectorId } from '../lib/inspectorAccount';
 import { API_BASE_URL } from '../lib/api';
-
-const NAME_HISTORY_FILE = FileSystem.documentDirectory + 'nameHistory.json';
 
 const HINTS_DATA: Record<string, string> = {
     lesp: "License to Exercise Security Profession",
@@ -37,51 +35,10 @@ const HINTS_DATA: Record<string, string> = {
     violation: "Details regarding any observed infractions"
 };
 
-// Custom component for the animated inline hint
-const HintLabel = ({ text, hintKey }: { text: string; hintKey: string }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const slideAnim = useRef(new Animated.Value(-30)).current;
-    const opacityAnim = useRef(new Animated.Value(0)).current;
-
-    const toggleHint = () => {
-        if (isOpen) {
-            // Animate out
-            Animated.parallel([
-                Animated.timing(slideAnim, { toValue: -30, duration: 200, useNativeDriver: true }),
-                Animated.timing(opacityAnim, { toValue: 0, duration: 200, useNativeDriver: true })
-            ]).start(() => setIsOpen(false));
-        } else {
-            // Animate in
-            setIsOpen(true);
-            Animated.parallel([
-                Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
-                Animated.timing(opacityAnim, { toValue: 1, duration: 300, useNativeDriver: true })
-            ]).start();
-        }
-    };
-
-    return (
-        <View style={styles.hintRow}>
-            <Text style={styles.labelTitle}>{text}</Text>
-            <TouchableOpacity onPress={toggleHint} style={styles.hintButton}>
-                <Text style={styles.exclamation}>!</Text>
-            </TouchableOpacity>
-
-            {isOpen && (
-                <Animated.View style={[styles.message, { opacity: opacityAnim, transform: [{ translateX: slideAnim }] }]}>
-                    <Text style={styles.messageText}>{HINTS_DATA[hintKey]}</Text>
-                </Animated.View>
-            )}
-        </View>
-    );
-};
-
 export default function AuditFormScreen() {
-    const navigation = useNavigation();
-    const router = useRouter();
+    const insets = useSafeAreaInsets();
 
     const [submittedPayload, setSubmittedPayload] = useState<any>(null);
-    const [savedNames, setSavedNames] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [permission, requestPermission] = useCameraPermissions();
     const [isVerified, setIsVerified] = useState<boolean>(false);
@@ -90,9 +47,7 @@ export default function AuditFormScreen() {
     const [branchName, setBranchName] = useState<string>('');
     const [branchLocation, setBranchLocation] = useState<string>('');
 
-    // Scanner Enhancements State
     const [isTorchOn, setIsTorchOn] = useState<boolean>(false);
-    const scanLineAnim = useRef(new Animated.Value(0)).current;
 
     interface GuardRosterData {
         guard_name: string;
@@ -193,26 +148,6 @@ export default function AuditFormScreen() {
         fetchIdentity();
     }, []);
 
-    // Animated Laser Sweep Effect
-    useEffect(() => {
-        if (!isVerified) {
-            Animated.loop(
-                Animated.sequence([
-                    Animated.timing(scanLineAnim, {
-                        toValue: 250, 
-                        duration: 2000,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(scanLineAnim, {
-                        toValue: 0,
-                        duration: 2000,
-                        useNativeDriver: true,
-                    })
-                ])
-            ).start();
-        }
-    }, [isVerified, scanLineAnim]);
-
     useEffect(() => {
         const fetchAssignedGuards = async () => {
             if (!isVerified || !branchName) return;
@@ -289,24 +224,33 @@ export default function AuditFormScreen() {
         setIsDoorSecure(false);
     };
 
-    const handleClearAll = () => {
-        Alert.alert(
-            'System Flush',
-            'Wipe local device memory and clear the corrupted Inspector identity?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Wipe Memory',
-                    style: 'destructive',
-                    onPress: async () => {
-                        clearAuditInputs();
-                        await AsyncStorage.clear();
-                        router.replace('/login');
-                    },
-                },
-            ]
-        );
-    };
+    /**
+     * The submitted payload as the receipt's record shape.
+     *
+     * The two are not the same: the payload has no row id, carries the
+     * submission time as inspector_out_time, and names the uniform field
+     * uniform_compliance where the table calls it uniform_status. Passing the
+     * payload straight through typechecked only because the state was `any`,
+     * and rendered empty rows.
+     */
+    const toAuditRecord = (payload: any): AuditRecord => ({
+        id: payload.branch_code + ':' + payload.inspector_out_time,
+        created_at: payload.inspector_out_time ?? null,
+        branch_code: payload.branch_code,
+        branch_name: payload.branch_name ?? null,
+        branch_location: payload.branch_location ?? null,
+        inspector_name: payload.inspector_name,
+        guard_name: payload.guard_name ?? null,
+        firearm_make: payload.firearm_make ?? null,
+        firearm_serial: payload.firearm_serial ?? null,
+        lesp_expiry: payload.lesp_expiry ?? null,
+        uniform_status: payload.uniform_compliance ?? null,
+        remarks: payload.remarks ?? null,
+        guard_present_status: payload.guard_present_status ?? null,
+        incident_remarks: payload.incident_remarks ?? null,
+        visit_type: payload.visit_type ?? null,
+        escalation_status: null,
+    });
 
     const submitAuditPayload = async () => {
         setIsSubmitting(true);
@@ -518,7 +462,7 @@ export default function AuditFormScreen() {
             } else {
                 Alert.alert("Invalid QR Code", "This QR code does not belong to a valid detachment.", [{ text: "Try Again", onPress: () => setIsProcessingScan(false) }]);
             }
-        } catch (error) {
+        } catch {
             Alert.alert("Scan Failed", "Unrecognized QR format. Please scan an official Utopia detachment code.", [{ text: "Try Again", onPress: () => setIsProcessingScan(false) }]);
         }
     };
@@ -545,838 +489,852 @@ export default function AuditFormScreen() {
         ]);
     };
 
+    /* --- Permission gate ------------------------------------------------- */
+
     if (!permission || !locationPermission) {
-        return <View style={styles.container}><Text>Loading Camera...</Text></View>;
+        return (
+            <View style={styles.screen}>
+                <View style={[styles.gate, { paddingTop: insets.top + space.xl }]}>
+                    <Text style={type.label}>Initialising</Text>
+                    <Text style={[type.title, { marginTop: space.xs }]}>Checking device permissions</Text>
+                </View>
+            </View>
+        );
     }
 
     if (!permission.granted) {
         return (
-            <View style={[styles.container, { justifyContent: 'center'}]}>
-                <Text style={{ textAlign: 'center', marginBottom: 20 }}>Camera and GPS access are strictly required to conduct this audit.</Text>
-                <Button title="Grant Permissions" onPress={() => { requestPermission(); requestLocationPermission(); }} color="#0056b3"/>
+            <View style={styles.screen}>
+                <View style={[styles.gate, { paddingTop: insets.top + space.xl }]}>
+                    <Text style={[type.label, { color: color.dangerInk }]}>Access required</Text>
+                    <Text style={[type.title, { marginTop: space.xs }]}>Camera and location</Text>
+                    <Text style={[type.body, { marginTop: space.sm }]}>
+                        An audit is only valid with a live photo and a position fix taken on site. The
+                        form does not open until both are granted.
+                    </Text>
+                    <Pressable
+                        onPress={() => { requestPermission(); requestLocationPermission(); }}
+                        style={({ pressed }) => [styles.button, { marginTop: space.lg }, pressed && styles.buttonPressed]}
+                    >
+                        <Text style={styles.buttonLabel}>Grant permissions</Text>
+                    </Pressable>
+                </View>
             </View>
         );
     }
 
+    /* --- Scanner ---------------------------------------------------------- */
+
     if (!isVerified) {
         return (
-            <View style={{flex: 1, backgroundColor: '#000'}}>
+            <View style={styles.scanScreen}>
                 <CameraView
                     style={StyleSheet.absoluteFill}
                     barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
                     onBarcodeScanned={handleBarcodeScanned}
-                    enableTorch={isTorchOn} // Flaslight control integration
+                    enableTorch={isTorchOn}
                 />
-                <View style={styles.overlay}>
-                    <View style={styles.unfocusedContainer} />
-                    <View style={styles.middleContainer}>
-                        <View style={styles.unfocusedContainer} />
-                        
-                        <View style={styles.focusedContainer}>
-                            {/* Animated Green Laser Line */}
-                            <Animated.View style={[
-                                styles.scanLine,
-                                { transform: [{ translateY: scanLineAnim }] }
-                            ]} />
-                        </View>
-                        
-                        <View style={styles.unfocusedContainer} />
-                    </View>
-                    <View style={styles.bottomContainer}>
-                        <Text style={styles.scannerText}>Scan Detachment QR Code to Begin Audit</Text>
-                        
-                        {/* Flashlight Toggle */}
-                        <TouchableOpacity 
-                            style={styles.torchButton}
-                            onPress={() => setIsTorchOn(!isTorchOn)}
-                        >
-                            <Text style={styles.torchButtonText}>
-                                {isTorchOn ? "🔦 Turn Flashlight Off" : "🔦 Turn Flashlight On"}
-                            </Text>
-                        </TouchableOpacity>
 
-                        <Button
-                            title="DEV BYPASS (FOR TESTING ONLY)"
-                            color="red"
-                            onPress={() => {
-                                setBranchCode("DEV-001");
-                                setBranchName("Development Branch");
-                                setBranchLocation("Localhost");
-                                setTimeIn(new Date().toISOString());
-                                setIsVerified(true);
-                            }}
-                        />
+                {/* box-none so the frame never swallows a tap meant for the camera. */}
+                <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+                    <View style={[styles.scanHead, { paddingTop: insets.top + space.lg }]}>
+                        <Text style={styles.scanTitle}>Scan detachment code</Text>
+                        <Text style={styles.scanNote}>
+                            The branch code unlocks that branch and no other. Your position is
+                            captured at the same moment.
+                        </Text>
+                    </View>
+
+                    {/* A still 1px frame. A sweeping laser line would be motion with
+                      * nothing to say: the live camera feed already shows the scanner
+                      * is running. */}
+                    <View style={styles.scanMiddle} pointerEvents="none">
+                        <View style={styles.scanWindow} />
+                    </View>
+
+                    <View style={[styles.scanFoot, { paddingBottom: insets.bottom + space.lg }]}>
+                        <Pressable
+                            onPress={() => setIsTorchOn(!isTorchOn)}
+                            accessibilityRole="switch"
+                            accessibilityState={{ checked: isTorchOn }}
+                            style={[styles.scanControl, isTorchOn && styles.scanControlOn]}
+                        >
+                            <Text style={[styles.scanControlLabel, isTorchOn && styles.scanControlLabelOn]}>
+                                {isTorchOn ? 'Torch on' : 'Torch off'}
+                            </Text>
+                        </Pressable>
+
+                        {/* __DEV__ only. This skips the QR check, which is the whole
+                          * micro-locator half of the location proof, so it must not be
+                          * reachable in a release build. */}
+                        {__DEV__ ? (
+                            <Pressable
+                                onPress={() => {
+                                    setBranchCode('DEV-001');
+                                    setBranchName('Development Branch');
+                                    setBranchLocation('Localhost');
+                                    setTimeIn(new Date().toISOString());
+                                    setIsVerified(true);
+                                }}
+                                style={[styles.scanControl, styles.scanControlDev]}
+                            >
+                                <Text style={[styles.scanControlLabel, { color: color.dangerInk }]}>
+                                    Dev bypass
+                                </Text>
+                            </Pressable>
+                        ) : null}
                     </View>
                 </View>
             </View>
         );
     }
 
+    /* --- Audit form -------------------------------------------------------- */
+
+    const coords = location?.coords;
+
+    /* The 22 regulatory metrics, as data rather than 22 hand-written rows.
+     * Order and wording follow the routing form, so the numbering an inspector
+     * reads here matches the numbering the ticket is filed under. */
+    const complianceItems: { name: string; value: 'Yes' | 'No'; set: (v: 'Yes' | 'No') => void }[] = [
+        { name: 'Valid Security License', value: validSecurityLicense, set: setValidSecurityLicense },
+        { name: 'Company ID', value: companyId, set: setCompanyId },
+        { name: 'Pershing Cap', value: pershingCap, set: setPershingCap },
+        { name: 'Authorized Hair Cut', value: authorizedHairCut, set: setAuthorizedHairCut },
+        { name: 'Properly Shaved', value: properlyShaved, set: setProperlyShaved },
+        { name: 'Authorized Uniform', value: authorizedUniform, set: setAuthorizedUniform },
+        { name: 'Authorized Name Cloth', value: authorizedNameCloth, set: setAuthorizedNameCloth },
+        { name: 'Authorized Agency Patch', value: authorizedAgencyPatch, set: setAuthorizedAgencyPatch },
+        { name: 'Necktie With Clip', value: necktieWithClip, set: setNecktieWithClip },
+        { name: 'Security Badge', value: securityBadge, set: setSecurityBadge },
+        { name: 'Collar Pin 2 pcs.', value: collarPin, set: setCollarPin },
+        { name: 'Lanyard (Navy Blue)', value: lanyard, set: setLanyard },
+        { name: 'Whistle', value: whistle, set: setWhistle },
+        { name: 'Holster', value: holster, set: setHolster },
+        { name: 'Belt Clip 6 pcs.', value: beltClip, set: setBeltClip },
+        { name: 'Belt with buckle', value: beltWithBuckle, set: setBeltWithBuckle },
+        { name: 'Garrison Belt', value: garrisonBelt, set: setGarrisonBelt },
+        { name: 'Authorized Shoes', value: authorizedShoes, set: setAuthorizedShoes },
+        { name: 'Hand Cuff', value: handCuff, set: setHandCuff },
+        { name: 'Short/Clean finger Nails', value: shortCleanFingerNails, set: setShortCleanFingerNails },
+        { name: 'Medicine Kit With Mediplus', value: medicineKitWithMediplus, set: setMedicineKitWithMediplus },
+        { name: 'Stun Gun With Flashlight', value: stunGunWithFlashlight, set: setStunGunWithFlashlight },
+    ];
+
+    const flaggedCount = complianceItems.filter((item) => item.value === 'No').length;
+
+    /* The same three conditions handleSubmit enforces. They used to be visible
+     * only after tapping Submit and reading an alert, so an inspector standing
+     * at the post learned what was missing one item at a time. */
+    const readiness = [
+        { label: 'Photo', done: livePhotoUri !== null },
+        ...(isGuardPresent ? [{ label: 'Guard signed', done: guardSignature !== null }] : []),
+        { label: 'Client signed', done: isClientAbsent || clientSignature !== null },
+    ];
+    const outstanding = readiness.filter((item) => !item.done).length;
+
     return (
     <>
-        <Stack.Screen
-            options={{
-                title: 'Digital Audit',
-                headerRight: () => (
-                    <TouchableOpacity onPress={handleClearAll} style={{ marginRight: 15 }}>
-                        <Text style={{ color: '#d32f2f', fontWeight: 'bold', fontSize: 12 }}>
-                            Clear
-                        </Text>
-                    </TouchableOpacity>
-                ),
-            }}
-        />
-
-        <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <KeyboardAwareScrollView
-            style={styles.container}
-            contentContainerStyle={styles.contentContainer}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-            enableOnAndroid
-            enableAutomaticScroll
-            enableResetScrollToCoords={false}
-            extraScrollHeight={24}
-            extraHeight={24}
+        <KeyboardAvoidingView
+            style={styles.screen}
+            /* iOS needs the pad. Android resizes the window itself under the
+             * manifest's adjustResize, and stacking both double-counts it. */
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-
-            <View style={{ marginBottom: 20, padding: 15, backgroundColor: '#fff', borderRadius: 8}}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 10 }}>Guard Duty Status</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                    <Checkbox value={isGuardPresent} onValueChange={setIsGuardPresent} color={isGuardPresent ? '#28a745' : undefined} />
-                    <Text style={{ marginLeft: 10, fontSize: 16 }}>Guard is Present</Text>
-                </View>
-            </View> 
-
-            <View style={styles.detachmentHeader}>
-                <Text style={styles.detachmentTitle}>{branchName} ({branchCode})</Text>
-                <Text style={styles.detachmentSubtitle}>{branchLocation}</Text>
-            </View>
-
-            {/* --- NEW: ACTIVE DISPATCH SELECTOR --- */}
-            <View style={{ marginBottom: 20, borderWidth: 1, borderColor: '#e2e8f0', backgroundColor: '#f8fafc', padding: 15 }}>
-                <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', marginBottom: 10 }}>Visit Classification</Text>
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <TouchableOpacity 
-                        style={{ flex: 1, padding: 12, borderWidth: 1, borderColor: visitType === 'Routine' ? '#0f172a' : '#cbd5e1', backgroundColor: visitType === 'Routine' ? '#0f172a' : '#ffffff', alignItems: 'center' }}
-                        onPress={() => setVisitType('Routine')}
-                    >
-                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: visitType === 'Routine' ? '#ffffff' : '#64748b' }}>ROUTINE</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                        style={{ flex: 1, padding: 12, borderWidth: 1, borderColor: visitType === 'Alarm Response' ? '#dc2626' : '#cbd5e1', backgroundColor: visitType === 'Alarm Response' ? '#dc2626' : '#ffffff', alignItems: 'center' }}
-                        onPress={() => setVisitType('Alarm Response')}
-                    >
-                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: visitType === 'Alarm Response' ? '#ffffff' : '#64748b' }}>ALARM RESPONSE</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-
-        {visitType === 'Alarm Response' ? (
-            <View style={{ marginBottom: 20, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fef2f2', padding: 15 }}>
-                <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#991b1b', textTransform: 'uppercase', marginBottom: 10 }}>Incident Resolution Report</Text>
-                <TextInput
-                    style={{ borderWidth: 1, borderColor: '#f87171', backgroundColor: '#ffffff', padding: 12, fontSize: 14, minHeight: 100, textAlignVertical: 'top' }}
-                    placeholder="Detail the branch concern, findings, and resolution..."
-                    multiline
-                    value={incidentRemarks}
-                    onChangeText={setIncidentRemarks}
-                />
-            </View>
-        ) : isGuardPresent ? (
-
-            <View>
-                <Text style={styles.header}>Audit Form</Text>
-
-                <View style={{ marginBottom: 20 }}>
-                    <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>Guard on Post</Text>
-                    
-                    <TouchableOpacity
-                        style={{
-                            backgroundColor: '#fff',
-                            borderWidth: 1,
-                            borderColor: '#ccc',
-                            borderRadius: 8,
-                            padding: 15,
-                            flexDirection: 'row',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                        }}
-                        onPress={() => setIsGuardDropdownOpen(!isGuardDropdownOpen)}
-                    >
-                        <Text style={{ fontSize: 16, color: guardName ? '#0f172a' : '#94a3b8', fontWeight: guardName ? '600' : 'normal' }}>
-                            {guardName ? guardName : 'Tap to select guard from roster...'}
-                        </Text>
-                        <Text style={{ color: '#64748b', fontSize: 18, fontWeight: 'bold' }}>
-                            {isGuardDropdownOpen ? '▲' : '▼'}
-                        </Text>
-                    </TouchableOpacity>
-
-                    {isGuardDropdownOpen && (
-                        <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, marginTop: 5, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }}>
-                            {rosterSource === 'cache' && (
-                                <Text style={{ paddingHorizontal: 15, paddingTop: 12, color: '#b45309', fontSize: 12, fontWeight: '600' }}>
-                                    {`Offline. Showing the roster saved on this device${
-                                        rosterRefreshedAt
-                                            ? ` on ${new Date(rosterRefreshedAt).toLocaleString()}`
-                                            : ''
-                                    }.`}
-                                </Text>
-                            )}
-
-                            {isRosterLoading ? (
-                                <Text style={{ padding: 15, color: '#64748b', fontStyle: 'italic' }}>
-                                    Loading roster...
-                                </Text>
-                            ) : assignedGuards.length === 0 ? (
-                                <Text style={{ padding: 15, color: '#ef4444', fontStyle: 'italic', fontWeight: '500' }}>
-                                    {rosterSource === 'cache' && !rosterRefreshedAt
-                                        ? 'No roster saved on this device yet. Connect to the internet once to download it before heading to a dead zone.'
-                                        : 'No guards officially deployed to this detachment in the system.'}
-                                </Text>
-                            ) : (
-                                assignedGuards.map((guard, index) => (
-                                    <TouchableOpacity
-                                        key={index}
-                                        style={{
-                                            padding: 16,
-                                            borderBottomWidth: index === assignedGuards.length - 1 ? 0 : 1,
-                                            borderBottomColor: '#f1f5f9',
-                                            backgroundColor: guardName === guard.guard_name ? '#f8fafc' : '#fff'
-                                        }}
-                                        onPress={() => {
-                                            setGuardName(guard.guard_name);
-                                            setIsGuardDropdownOpen(false);
-                                            
-                                            if (guard.lesp_expiry_date) {
-                                                const [year, month, day] = guard.lesp_expiry_date.split('-');
-                                                setLespExpYear(year);
-                                                setLespExpMonth(month);
-                                                setLespExpDay(day);
-                                            } else {
-                                                setLespExpYear('');
-                                                setLespExpMonth('');
-                                                setLespExpDay('');
-                                            }
-                                        }}
-                                    >
-                                        <Text style={{ fontSize: 15, color: guardName === guard.guard_name ? '#0ea5e9' : '#334155', fontWeight: guardName === guard.guard_name ? 'bold' : '500' }}>
-                                            {guard.guard_name}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))
-                            )}
-                        </View>
-                    )}
+            <ScrollView
+                /* Padding belongs on the content container. On the ScrollView
+                 * itself the bottom inset is ignored and the last field sits
+                 * under the action bar. */
+                contentContainerStyle={[
+                    styles.content,
+                    { paddingLeft: insets.left, paddingRight: insets.right },
+                ]}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            >
+                <View style={[styles.identity, { paddingTop: insets.top + space.md }]}>
+                    <Text style={styles.branchCode}>{branchCode}</Text>
+                    <Text style={[type.title, { fontSize: 18 }]}>{branchName}</Text>
+                    <Text style={type.dataMuted}>{branchLocation}</Text>
                 </View>
 
-                <HintLabel text="LESP Expiry Date" hintKey="lesp" />
-                <DateInputGroup 
-                    label=""
-                    day={lespExpDay}
-                    month={lespExpMonth}
-                    year={lespExpYear}
-                    onDayChange={setLespExpDay}
-                    onMonthChange={setLespExpMonth}
-                    onYearChange={setLespExpYear}
-                />
-
-                <View style={styles.checkboxContainer}>
-                    <Checkbox
-                        value={isUniformCompliant}
-                        onValueChange={setIsUniformCompliant}
-                        color={isUniformCompliant ? '#0056b3' : undefined}
+                <View style={styles.section}>
+                    <DataRow label="Time in" value={timeIn ? new Date(timeIn).toLocaleTimeString() : 'Not set'} isFirst />
+                    <DataRow
+                        label="Position"
+                        value={coords ? `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}` : 'No fix'}
                     />
-                    <Text style={styles.checkboxLabel}>Proper Uniform Authorized?</Text>
+                    <DataRow
+                        label="Accuracy"
+                        value={coords?.accuracy != null ? `${coords.accuracy.toFixed(1)} m` : 'Unknown'}
+                    />
+                    <DataRow label="Inspector" value={inspectorName} />
                 </View>
 
-                <Text style={styles.subHeader}>Documents</Text>
-
-                <HintLabel text="LTO" hintKey="lto" />
-                <View style={styles.radioGroup}>
-                    {['Valid', 'Expired', 'Missing'].map((status) => (
-                        <TouchableOpacity
-                            key={status}
-                            style={[styles.radioButton, ltoStatus === status && styles.radioButtonActive]}
-                            onPress={() => setLtoStatus(status)}
-                        >
-                            <Text style={[styles.radioText, ltoStatus === status && styles.radioTextActive]}>{status}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                <HintLabel text="DDO" hintKey="ddo" />
-                <View style={styles.radioGroup}>
-                    {['Valid', 'Expired', 'Missing'].map((status) => (
-                        <TouchableOpacity
-                            key={status}
-                            style={[styles.radioButton, ddoStatus === status && styles.radioButtonActive]}
-                            onPress={() => setDdoStatus(status)}
-                        >
-                            <Text style={[styles.radioText, ddoStatus === status && styles.radioTextActive]}>{status}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                <HintLabel text="LTOFP" hintKey="ltofp" />
-                <View style={styles.radioGroup}>
-                    {['Valid', 'Expired', 'Missing'].map((status) => (
-                        <TouchableOpacity
-                            key={status}
-                            style={[styles.radioButton, ltofpStatus === status && styles.radioButtonActive]}
-                            onPress={() => setLtofpStatus(status)}
-                        >
-                            <Text style={[styles.radioText, ltofpStatus === status && styles.radioTextActive]}>{status}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                <HintLabel text="FA LICENSE" hintKey="fa" />
-                <View style={styles.radioGroup}>
-                    {['Valid', 'Expired', 'Missing'].map((status) => (
-                        <TouchableOpacity
-                            key={status}
-                            style={[styles.radioButton, faStatus === status && styles.radioButtonActive]}
-                            onPress={() => setFaStatus(status)}
-                        >
-                            <Text style={[styles.radioText, faStatus === status && styles.radioTextActive]}>{status}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                <HintLabel text="COMPANY ID" hintKey="id" />
-                <View style={styles.radioGroup}>
-                    {['Valid', 'Expired', 'Missing'].map((status) => (
-                        <TouchableOpacity
-                            key={status}
-                            style={[styles.radioButton, idStatus === status && styles.radioButtonActive]}
-                            onPress={() => setIdStatus(status)}
-                        >
-                            <Text style={[styles.radioText, idStatus === status && styles.radioTextActive]}>{status}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                <HintLabel text="RLM" hintKey="rlm" />
-                <View style={styles.radioGroup}>
-                    {['Valid', 'Expired', 'Missing'].map((status) => (
-                        <TouchableOpacity
-                            key={status}
-                            style={[styles.radioButton, rlmStatus === status && styles.radioButtonActive]}
-                            onPress={() => setRlmStatus(status)}
-                        >
-                            <Text style={[styles.radioText, rlmStatus === status && styles.radioTextActive]}>{status}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                <HintLabel text="Remarks" hintKey="remarks" />
-                <CustomTextInput
-                    value={remarks}
-                    onChangeText={setRemarks}
-                    multiline={true}
-                />
-
-                <TouchableOpacity 
-                    style={styles.dropdownButton} 
-                    onPress={() => setIsTicketOpen(!isTicketOpen)}
-                >
-                    <Text style={styles.dropdownText}>
-                        {isTicketOpen ? "[-]" : "[+]"} Log Guard Violations
-                    </Text>
-                </TouchableOpacity>
-
-                {isTicketOpen && (
-                    <View style={styles.checkboxGroup}>
-                        <Text style={styles.subHeader}>Violation Ticket</Text>
-
-                        <CustomTextInput
-                            label="Security License No."
-                            value={securityLicenseNo}
-                            onChangeText={setSecurityLicenseNo}
-                        />
-
-                        <CustomTextInput
-                            label="Security License Expiry"
-                            value={securityLicenseExpiry}
-                            onChangeText={setSecurityLicenseExpiry}
-                        />
-
-                        <Text style={styles.subHeader}>Presentable/Operational/Applicable</Text>
-
-                        <ViolationItemCard itemName="1. Valid Security License" status={validSecurityLicense} onUpdate={setValidSecurityLicense} />
-                        <ViolationItemCard itemName="2. Company ID" status={companyId} onUpdate={setCompanyId} />
-                        <ViolationItemCard itemName="3. Pershing Cap" status={pershingCap} onUpdate={setPershingCap} />
-                        <ViolationItemCard itemName="4. Authorized Hair Cut" status={authorizedHairCut} onUpdate={setAuthorizedHairCut} />
-                        <ViolationItemCard itemName="5. Properly Shaved" status={properlyShaved} onUpdate={setProperlyShaved} />
-                        <ViolationItemCard itemName="6. Authorized Uniform" status={authorizedUniform} onUpdate={setAuthorizedUniform} />
-                        <ViolationItemCard itemName="7. Authorized Name Cloth" status={authorizedNameCloth} onUpdate={setAuthorizedNameCloth} />
-                        <ViolationItemCard itemName="8. Authorized Agency Patch" status={authorizedAgencyPatch} onUpdate={setAuthorizedAgencyPatch} />
-                        <ViolationItemCard itemName="9. Necktie With Clip" status={necktieWithClip} onUpdate={setNecktieWithClip} />
-                        <ViolationItemCard itemName="10. Security Badge" status={securityBadge} onUpdate={setSecurityBadge} />
-                        <ViolationItemCard itemName="11. Collar Pin 2 pcs." status={collarPin} onUpdate={setCollarPin} />
-                        <ViolationItemCard itemName="12. Lanyard (Navy Blue)" status={lanyard} onUpdate={setLanyard} />
-                        <ViolationItemCard itemName="13. Whistle" status={whistle} onUpdate={setWhistle} />
-                        <ViolationItemCard itemName="14. Holster" status={holster} onUpdate={setHolster} />
-                        <ViolationItemCard itemName="15. Belt Clip 6 pcs." status={beltClip} onUpdate={setBeltClip} />
-                        <ViolationItemCard itemName="16. Belt with buckle" status={beltWithBuckle} onUpdate={setBeltWithBuckle} />
-                        <ViolationItemCard itemName="17. Garrison Belt" status={garrisonBelt} onUpdate={setGarrisonBelt} />
-                        <ViolationItemCard itemName="18. Authorized Shoes" status={authorizedShoes} onUpdate={setAuthorizedShoes} />
-                        <ViolationItemCard itemName="19. Hand Cuff" status={handCuff} onUpdate={setHandCuff} />
-                        <ViolationItemCard itemName="20. Short/Clean finger Nails" status={shortCleanFingerNails} onUpdate={setShortCleanFingerNails} />
-                        <ViolationItemCard itemName="21. Medicine Kit With Mediplus" status={medicineKitWithMediplus} onUpdate={setMedicineKitWithMediplus} />
-                        <ViolationItemCard itemName="22. Stun Gun With Flashlight" status={stunGunWithFlashlight} onUpdate={setStunGunWithFlashlight} />
-
-                        <HintLabel text="Violation" hintKey="violation" />
-                        <CustomTextInput
-                            value={violationRemarks}
-                            onChangeText={setViolationRemarks}
-                            multiline={true}
+                <Section label="Visit classification" icon="flag-outline">
+                    <View style={styles.controlRow}>
+                        <Segment label="Routine" selected={visitType === 'Routine'} onPress={() => setVisitType('Routine')} />
+                        <Segment
+                            label="Alarm response"
+                            selected={visitType === 'Alarm Response'}
+                            tone="danger"
+                            onPress={() => setVisitType('Alarm Response')}
                         />
                     </View>
+                </Section>
+
+                {visitType === 'Alarm Response' ? (
+                    <Section label="Incident resolution" icon="warning-outline">
+                        <View style={styles.field}>
+                            <CustomTextInput
+                                value={incidentRemarks}
+                                onChangeText={setIncidentRemarks}
+                                multiline
+                                placeholder="Branch concern, findings, and resolution"
+                            />
+                        </View>
+                    </Section>
+                ) : (
+                    <>
+                        <Section label="Guard on post" icon="person-outline">
+                            <ToggleRow
+                                label="Guard is present"
+                                value={isGuardPresent}
+                                onValueChange={setIsGuardPresent}
+                                isFirst
+                            />
+                        </Section>
+
+                        {isGuardPresent ? (
+                            <>
+                                <Section label="Identity" icon="id-card-outline">
+                                    <Pressable
+                                        onPress={() => setIsGuardDropdownOpen(!isGuardDropdownOpen)}
+                                        style={styles.selectRow}
+                                    >
+                                        <Text style={guardName ? type.title : styles.selectPlaceholder}>
+                                            {guardName || 'Select guard from roster'}
+                                        </Text>
+                                        <Text style={styles.chevron}>{isGuardDropdownOpen ? '-' : '+'}</Text>
+                                    </Pressable>
+
+                                    {isGuardDropdownOpen ? (
+                                        <View style={styles.divider}>
+                                            {rosterSource === 'cache' ? (
+                                                <Text style={styles.rosterNotice}>
+                                                    {`Offline. Showing the roster saved on this device${
+                                                        rosterRefreshedAt
+                                                            ? ` on ${new Date(rosterRefreshedAt).toLocaleString()}`
+                                                            : ''
+                                                    }.`}
+                                                </Text>
+                                            ) : null}
+
+                                            {isRosterLoading ? (
+                                                <Text style={styles.rosterEmpty}>Loading roster</Text>
+                                            ) : assignedGuards.length === 0 ? (
+                                                <Text style={[styles.rosterEmpty, { color: color.dangerInk }]}>
+                                                    {rosterSource === 'cache' && !rosterRefreshedAt
+                                                        ? 'No roster saved on this device yet. Connect once to download it before heading to a dead zone.'
+                                                        : 'No guards deployed to this detachment in the system.'}
+                                                </Text>
+                                            ) : (
+                                                assignedGuards.map((guard, index) => (
+                                                    <Pressable
+                                                        key={`${guard.guard_name}-${index}`}
+                                                        style={[
+                                                            styles.rosterRow,
+                                                            index > 0 && styles.divider,
+                                                            guardName === guard.guard_name && styles.rosterRowSelected,
+                                                        ]}
+                                                        onPress={() => {
+                                                            setGuardName(guard.guard_name);
+                                                            setIsGuardDropdownOpen(false);
+
+                                                            if (guard.lesp_expiry_date) {
+                                                                const [year, month, day] = guard.lesp_expiry_date.split('-');
+                                                                setLespExpYear(year);
+                                                                setLespExpMonth(month);
+                                                                setLespExpDay(day);
+                                                            } else {
+                                                                setLespExpYear('');
+                                                                setLespExpMonth('');
+                                                                setLespExpDay('');
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Text style={type.title}>{guard.guard_name}</Text>
+                                                        <Text style={type.dataMuted}>
+                                                            {guard.lesp_expiry_date
+                                                                ? `LESP ${guard.lesp_expiry_date}`
+                                                                : 'LESP not on file'}
+                                                        </Text>
+                                                    </Pressable>
+                                                ))
+                                            )}
+                                        </View>
+                                    ) : null}
+
+                                    <View style={[styles.field, styles.divider]}>
+                                        <FieldLabel text="LESP expiry date" hintKey="lesp" />
+                                        <DateInputGroup
+                                            label=""
+                                            day={lespExpDay}
+                                            month={lespExpMonth}
+                                            year={lespExpYear}
+                                            onDayChange={setLespExpDay}
+                                            onMonthChange={setLespExpMonth}
+                                            onYearChange={setLespExpYear}
+                                        />
+                                    </View>
+
+                                    {/* Both of these already ride in the payload and are
+                                      * columns on the audits row. The form never rendered
+                                      * an input for either, so every report so far has
+                                      * carried an empty firearm make and serial. */}
+                                    <View style={[styles.field, styles.divider]}>
+                                        <CustomTextInput
+                                            label="Firearm make"
+                                            value={firearmMake}
+                                            onChangeText={setFirearmMake}
+                                            placeholder="Leave blank if unarmed"
+                                        />
+                                    </View>
+                                    <View style={[styles.field, styles.divider]}>
+                                        <CustomTextInput
+                                            label="Firearm serial"
+                                            value={firearmSerial}
+                                            onChangeText={setFirearmSerial}
+                                            placeholder="Leave blank if unarmed"
+                                        />
+                                    </View>
+
+                                    <ToggleRow
+                                        label="Proper uniform authorized"
+                                        value={isUniformCompliant}
+                                        onValueChange={setIsUniformCompliant}
+                                    />
+                                </Section>
+
+                                <Section label="Documents" icon="document-text-outline">
+                                    <StatusRow hintKey="lto" label="LTO" value={ltoStatus} onChange={setLtoStatus} isFirst />
+                                    <StatusRow hintKey="ddo" label="DDO" value={ddoStatus} onChange={setDdoStatus} />
+                                    <StatusRow hintKey="ltofp" label="LTOFP" value={ltofpStatus} onChange={setLtofpStatus} />
+                                    <StatusRow hintKey="fa" label="FA licence" value={faStatus} onChange={setFaStatus} />
+                                    <StatusRow hintKey="id" label="Company ID" value={idStatus} onChange={setIdStatus} />
+                                    <StatusRow hintKey="rlm" label="RLM" value={rlmStatus} onChange={setRlmStatus} />
+                                </Section>
+
+                                <Section label="Remarks" icon="create-outline">
+                                    <View style={styles.field}>
+                                        <FieldLabel text="Inspector remarks" hintKey="remarks" />
+                                        <CustomTextInput
+                                            value={remarks}
+                                            onChangeText={setRemarks}
+                                            multiline
+                                            placeholder="Observations from this visit"
+                                        />
+                                    </View>
+                                </Section>
+
+                                <Section label={`Compliance (${flaggedCount} flagged)`} icon="checkbox-outline">
+                                    <Pressable
+                                        onPress={() => setIsTicketOpen(!isTicketOpen)}
+                                        style={styles.discloseRow}
+                                    >
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={type.title}>Violation ticket</Text>
+                                            <Text style={type.dataMuted}>22 regulatory metrics</Text>
+                                        </View>
+                                        <Text style={styles.chevron}>{isTicketOpen ? '-' : '+'}</Text>
+                                    </Pressable>
+
+                                    {isTicketOpen ? (
+                                        <>
+                                            <View style={[styles.field, styles.divider]}>
+                                                <CustomTextInput
+                                                    label="Security licence no."
+                                                    value={securityLicenseNo}
+                                                    onChangeText={setSecurityLicenseNo}
+                                                    placeholder="As printed on the licence"
+                                                />
+                                            </View>
+                                            <View style={[styles.field, styles.divider]}>
+                                                <CustomTextInput
+                                                    label="Security licence expiry"
+                                                    value={securityLicenseExpiry}
+                                                    onChangeText={setSecurityLicenseExpiry}
+                                                    placeholder="DD/MM/YYYY"
+                                                />
+                                            </View>
+
+                                            <View style={[styles.groupHead, styles.divider]}>
+                                                <Text style={type.label}>Presentable, operational, applicable</Text>
+                                            </View>
+
+                                            {complianceItems.map((item, index) => (
+                                                <ViolationItemCard
+                                                    key={item.name}
+                                                    itemName={`${index + 1}. ${item.name}`}
+                                                    status={item.value}
+                                                    onUpdate={item.set}
+                                                />
+                                            ))}
+
+                                            <View style={[styles.field, styles.divider]}>
+                                                <FieldLabel text="Violation detail" hintKey="violation" />
+                                                <CustomTextInput
+                                                    value={violationRemarks}
+                                                    onChangeText={setViolationRemarks}
+                                                    multiline
+                                                    placeholder="Reason for the violation, for example sleeping on post"
+                                                />
+                                            </View>
+                                        </>
+                                    ) : null}
+                                </Section>
+                            </>
+                        ) : (
+                            <Section label="Site status, guard absent" icon="business-outline">
+                                <ToggleRow label="ATM is online" value={isAtmOnline} onValueChange={handleAtmOnlineToggle} isFirst />
+                                <ToggleRow label="ATM is offline" value={isAtmOffline} onValueChange={handleAtmOfflineToggle} />
+                                <ToggleRow label="Door, glass and padlock secure" value={isDoorSecure} onValueChange={setIsDoorSecure} />
+                            </Section>
+                        )}
+                    </>
                 )}
-            </View>
 
-        ) : (
-            <View style={{ marginBottom: 20, padding: 15, backgroundColor: '#fff3cd', borderRadius: 8, borderLeftWidth: 5, borderLeftColor: '#ffc107'}}>
-                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#856404', marginBottom: 15 }}>
-                    Bank Detachment Status (Guard Absent)
-                </Text>
+                <Section label="Live photo" icon="camera-outline">
+                    <View style={styles.captureRow}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={type.title}>
+                                {isGuardPresent ? 'Guard on post' : 'Site condition'}
+                            </Text>
+                            <Text style={type.dataMuted}>
+                                {isGuardPresent
+                                    ? 'Camera only. Uploads are blocked.'
+                                    : 'Photograph the site or logbook to record the absence.'}
+                            </Text>
+                        </View>
+                        <Pressable
+                            onPress={() => setIsCameraModalOpen(true)}
+                            style={[styles.captureButton, livePhotoUri ? styles.captureButtonDone : null]}
+                        >
+                            <Text style={[styles.captureLabel, livePhotoUri ? styles.captureLabelDone : null]}>
+                                {livePhotoUri ? 'Captured' : 'Open camera'}
+                            </Text>
+                        </Pressable>
+                    </View>
+                </Section>
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15}}>
-                    <Checkbox value={isAtmOnline} onValueChange={handleAtmOnlineToggle} />
-                    <Text style={{ marginLeft: 10, fontSize: 16, fontWeight: '500' }}>ATM is Online</Text>
-                </View>
+                <Section label="Signatures" icon="pencil-outline">
+                    {isGuardPresent ? (
+                        <SignRow
+                            label="Guard on duty"
+                            signed={guardSignature !== null}
+                            onPress={() => setActiveSigner('guard')}
+                            isFirst
+                        />
+                    ) : null}
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15}}>
-                    <Checkbox value={isAtmOffline} onValueChange={handleAtmOfflineToggle}/>
-                    <Text style={{ marginLeft: 10, fontSize: 16, fontWeight: '500' }}>ATM is Offline</Text>
-                </View>
-
-                <View style={{ flexDirection: 'row', alignItems: 'center'}}>
-                    <Checkbox value={isDoorSecure} onValueChange={setIsDoorSecure} />
-                    <Text style={{ marginLeft: 10, fontSize: 16, fontWeight: '500' }}>DOOR GLASS PADLOCK NO PROBLEM</Text>
-                </View>
-            </View>
-        )}
-
-            <Text style={styles.subHeader}>Live Photo Capture</Text>
-
-            <Text style={{ fontStyle: 'italic', color: '#666', marginBottom: 15}}>
-                {isGuardPresent ? "Capture a live photo of the guard on post for verification." 
-                : "Capture a live photo of the detachment to document the absence of the guard."}
-            </Text>
-
-            <View style={styles.signatureTriggerRow}>   
-                <Text style={styles.triggerLabel}>
-                    {isGuardPresent ? "Guard on Post:" : "Site Condition:"}
-                </Text>
-                <TouchableOpacity 
-                    style={[styles.triggerButton, livePhotoUri && styles.triggerButtonSuccess]} 
-                    onPress={() => setIsCameraModalOpen(true)}
-                >
-                    <Text style={styles.triggerButtonText}>
-                        {livePhotoUri ? "✅ Photo Captured" : "📷 Tap to Open Camera"}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
-            <LiveCameraModal
-                visible={isCameraModalOpen}
-                onClose={() => setIsCameraModalOpen(false)}
-                onCapture={(uri) => {setLivePhotoUri(uri);}}
-            />
-
-            <Text style={styles.subHeader}>E-Signatures</Text>
-
-            {isGuardPresent && (
-                <View style={styles.signatureTriggerRow}>
-                    <Text style={styles.triggerLabel}>Guard on Duty:</Text>
-                    <TouchableOpacity 
-                        style={[styles.triggerButton, guardSignature && styles.triggerButtonSuccess]} 
-                        onPress={() => setActiveSigner('guard')}
-                    >
-                        <Text style={styles.triggerButtonText}>
-                            {guardSignature ? "✅ Signature Captured" : "Tap to Sign"}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-
-                <View style={styles.checkboxContainer}>
-                    <Checkbox
+                    <ToggleRow
+                        label="Client unavailable on site"
                         value={isClientAbsent}
-                        onValueChange={(absent) => {
+                        onValueChange={(absent: boolean) => {
                             setIsClientAbsent(absent);
                             if (absent) setClientSignature(null);
                         }}
-                        color={isClientAbsent ? '#dc3545' : undefined}
+                        isFirst={!isGuardPresent}
                     />
-                    <Text style={styles.checkboxLabel}>Client is currently UNAVAILABLE on site</Text>
+
+                    {!isClientAbsent ? (
+                        <SignRow
+                            label="Client representative"
+                            signed={clientSignature !== null}
+                            onPress={() => setActiveSigner('client')}
+                        />
+                    ) : null}
+                </Section>
+            </ScrollView>
+
+            {/* Outside the ScrollView, so submit is reachable from anywhere in a
+              * form this long and the keyboard can never cover it. */}
+            <View style={[styles.actionBar, { paddingBottom: insets.bottom + space.md }]}>
+                <View style={styles.readyRow}>
+                    {readiness.map((item) => (
+                        <ReadyChip key={item.label} label={item.label} done={item.done} />
+                    ))}
                 </View>
 
-                {!isClientAbsent && (
-                    <View style={styles.signatureTriggerRow}>
-                        <Text style={styles.triggerLabel}>Client Rep:</Text>
-                        <TouchableOpacity 
-                            style={[styles.triggerButton, clientSignature && styles.triggerButtonSuccess]} 
-                            onPress={() => setActiveSigner('client')}
-                        >
-                            <Text style={styles.triggerButtonText}>
-                                {clientSignature ? "✅ Signature Captured" : "Tap to Sign"}
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-
-            <View style={styles.buttonContainer}>
-                {/* DYNAMIC RED BUTTON TO PREVENT SPAM CLICKING */}
-                <TouchableOpacity
-                    style={[
-                        styles.submitButton,
-                        { backgroundColor: isSubmitting ? '#ef4444' : '#0f172a' } 
-                    ]}
+                <Pressable
                     onPress={handleSubmit}
                     disabled={isSubmitting}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: isSubmitting }}
+                    style={({ pressed }) => [
+                        styles.button,
+                        isSubmitting && styles.buttonBusy,
+                        pressed && !isSubmitting && styles.buttonPressed,
+                    ]}
                 >
                     {isSubmitting ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                            <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 10 }} />
-                            <Text style={styles.submitButtonText}>Submitting...</Text>
+                        <View style={styles.busyRow}>
+                            <ActivityIndicator size="small" color={color.surface} />
+                            <Text style={styles.buttonLabel}>Submitting</Text>
                         </View>
                     ) : (
-                        <Text style={styles.submitButtonText}>Submit Audit Report</Text>
+                        <Text style={styles.buttonLabel}>
+                            {outstanding === 0
+                                ? 'Submit audit report'
+                                : `${outstanding} still needed`}
+                        </Text>
                     )}
-                </TouchableOpacity>
+                </Pressable>
             </View>
-        </KeyboardAwareScrollView>
-        </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
 
-            {activeSigner !== null && (
-                <SignaturePad
-                    key={activeSigner}
-                    title={activeSigner === 'guard' ? 'Guard on Duty Signature' : 'Client / Representative Signature'}
-                    visible={true}
-                    onClose={() => setActiveSigner(null)}
-                    onSign={activeSigner === 'guard' ? setGuardSignature : setClientSignature}
-                />
-            )}
+        <LiveCameraModal
+            visible={isCameraModalOpen}
+            onClose={() => setIsCameraModalOpen(false)}
+            onCapture={(uri) => { setLivePhotoUri(uri); }}
+        />
 
-        
+        {submittedPayload !== null && (
+            <SubmissionReceiptModal
+                visible={true}
+                auditData={toAuditRecord(submittedPayload)}
+                onClose={() => setSubmittedPayload(null)}
+            />
+        )}
 
-        </View>
+        {activeSigner !== null && (
+            <SignaturePad
+                key={activeSigner}
+                title={activeSigner === 'guard' ? 'Guard on Duty Signature' : 'Client / Representative Signature'}
+                visible={true}
+                onClose={() => setActiveSigner(null)}
+                onSign={activeSigner === 'guard' ? setGuardSignature : setClientSignature}
+            />
+        )}
     </>
     );
 }
 
-const colors = {
-    cloud: '#f8fafc',
-    white: '#ffffff',
-    navy: '#0f172a',
-    charcoal: '#334155',
-    steel: '#64748b',
-    silver: '#cbd5e1',
-    fog: '#e2e8f0',
-    mist: '#f1f5f9',
-    overlay: 'rgba(15, 23, 42, 0.75)',
-    overlaySoft: 'rgba(15, 23, 42, 0.08)',
-};
+/* --- Primitives ----------------------------------------------------------- */
+
+/**
+ * A titled band of rows. Full bleed, hairline top and bottom, no card.
+ * At this density a card border plus a page margin plus a shadow spends three
+ * visual devices to say what one hairline says.
+ */
+function Section({
+    label, icon, children,
+}: {
+    label: string;
+    icon?: React.ComponentProps<typeof Ionicons>['name'];
+    children: React.ReactNode;
+}) {
+    return (
+        <View>
+            <View style={styles.sectionHead}>
+                {icon ? <Ionicons name={icon} size={13} color={color.inkMuted} /> : null}
+                <Text style={type.label}>{label}</Text>
+            </View>
+            <View style={styles.section}>{children}</View>
+        </View>
+    );
+}
+
+/** One submission prerequisite, ticked or not. */
+function ReadyChip({ label, done }: { label: string; done: boolean }) {
+    return (
+        <View style={[styles.chip, done ? styles.chipDone : styles.chipTodo]}>
+            <Ionicons
+                name={done ? 'checkmark-circle' : 'ellipse-outline'}
+                size={12}
+                color={done ? color.okInk : color.dangerInk}
+            />
+            <Text style={[type.badge, styles.chipLabel, { color: done ? color.okInk : color.dangerInk }]}>
+                {label}
+            </Text>
+        </View>
+    );
+}
+
+/** Read-only key and value. Values are mono so digits align down the column. */
+function DataRow({ label, value, isFirst }: { label: string; value: string; isFirst?: boolean }) {
+    return (
+        <View style={[styles.dataRow, !isFirst && styles.divider]}>
+            <Text style={type.label}>{label}</Text>
+            <Text style={type.data} numberOfLines={1}>{value}</Text>
+        </View>
+    );
+}
+
+/**
+ * Field label with an optional expansion of the acronym.
+ *
+ * The hint used to slide in over 300ms. On a form with nine of them that is
+ * nine waits for a definition the inspector wanted immediately, so it now
+ * appears on the same frame as the tap.
+ */
+function FieldLabel({ text, hintKey }: { text: string; hintKey: string }) {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+        <View style={styles.fieldLabelBlock}>
+            <Pressable
+                onPress={() => setIsOpen(!isOpen)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: isOpen }}
+                accessibilityLabel={`${text}. Show what this stands for.`}
+                style={styles.fieldLabelRow}
+            >
+                <Text style={type.label}>{text}</Text>
+                <Text style={styles.hintMark}>{isOpen ? '-' : '?'}</Text>
+            </Pressable>
+            {isOpen ? <Text style={styles.hintText}>{HINTS_DATA[hintKey]}</Text> : null}
+        </View>
+    );
+}
+
+/** One document and its three-way status, on a single row. */
+function StatusRow({
+    label, hintKey, value, onChange, isFirst,
+}: {
+    label: string; hintKey: string; value: string;
+    onChange: (v: string) => void; isFirst?: boolean;
+}) {
+    return (
+        <View style={[styles.statusRow, !isFirst && styles.divider]}>
+            <FieldLabel text={label} hintKey={hintKey} />
+            <View style={styles.controlRow}>
+                {['Valid', 'Expired', 'Missing'].map((status) => (
+                    <Segment
+                        key={status}
+                        label={status}
+                        selected={value === status}
+                        tone={status === 'Valid' ? 'ink' : 'danger'}
+                        onPress={() => onChange(status)}
+                    />
+                ))}
+            </View>
+        </View>
+    );
+}
+
+/**
+ * One cell of a segmented control.
+ *
+ * No timing curve anywhere: on a field device the mark has to land before the
+ * finger lifts, and an inspector working down 22 metrics feels every 200ms.
+ */
+function Segment({
+    label, selected, onPress, tone = 'ink',
+}: {
+    label: string; selected: boolean; onPress: () => void; tone?: 'ink' | 'danger';
+}) {
+    const fill = tone === 'danger' ? color.dangerInk : color.ink;
+
+    return (
+        <Pressable
+            onPress={onPress}
+            accessibilityRole="radio"
+            accessibilityState={{ selected }}
+            style={[
+                styles.segment,
+                selected && { backgroundColor: fill, borderColor: fill },
+            ]}
+        >
+            <Text style={[type.badge, styles.segmentLabel, selected && styles.segmentLabelOn]}>
+                {label}
+            </Text>
+        </Pressable>
+    );
+}
+
+/** A checkbox and its label, as a full-width row so the whole row is the target. */
+function ToggleRow({
+    label, value, onValueChange, isFirst,
+}: {
+    label: string; value: boolean; onValueChange: (v: boolean) => void; isFirst?: boolean;
+}) {
+    return (
+        <Pressable
+            onPress={() => onValueChange(!value)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: value }}
+            style={[styles.toggleRow, !isFirst && styles.divider]}
+        >
+            <Checkbox
+                value={value}
+                onValueChange={onValueChange}
+                color={value ? color.ink : undefined}
+                style={styles.checkbox}
+            />
+            <Text style={type.title}>{label}</Text>
+        </Pressable>
+    );
+}
+
+/** A signature slot and its state. */
+function SignRow({
+    label, signed, onPress, isFirst,
+}: {
+    label: string; signed: boolean; onPress: () => void; isFirst?: boolean;
+}) {
+    return (
+        <View style={[styles.captureRow, !isFirst && styles.divider]}>
+            <Text style={[type.title, { flex: 1 }]}>{label}</Text>
+            <Pressable
+                onPress={onPress}
+                style={[styles.captureButton, signed ? styles.captureButtonDone : null]}
+            >
+                <Text style={[styles.captureLabel, signed ? styles.captureLabelDone : null]}>
+                    {signed ? 'Signed' : 'Sign'}
+                </Text>
+            </Pressable>
+        </View>
+    );
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: colors.cloud
-  },
-  contentContainer: {
-    paddingBottom: 120,
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-    color: colors.navy,
-  },
-  subHeader: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: colors.navy,
-  },
+    screen: { flex: 1, backgroundColor: color.canvas },
+    content: { paddingBottom: space.xl },
+    gate: { paddingHorizontal: space.lg, paddingBottom: space.xl },
 
-  // Slide Animation Inline Hint Styles
-  hintRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 8,
-    marginLeft: 5,
-    zIndex: 10,
-  },
-  labelTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.navy,
-  },
-  hintButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  exclamation: {
-    color: colors.navy,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  message: {
-    backgroundColor: colors.navy,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginLeft: 4,
-    flexShrink: 1,
-  },
-  messageText: {
-    color: colors.white,
-    fontSize: 13,
-    fontWeight: '600',
-  },
+    /* Sections are full bleed and separate on hairlines, never on cards. */
+    sectionHead: {
+        flexDirection: 'row', alignItems: 'center', gap: space.xs + 2,
+        paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.sm,
+    },
 
-  checkboxGroup: {
-    backgroundColor: colors.white,
-    padding: 15,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: colors.fog,
-    marginBottom: 15,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-    padding: 10,
-  },
-  checkboxLabel: {
-    marginLeft: 10,
-    fontSize: 16,
-    color: colors.charcoal,
-  },
-  radioGroup: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  radioButton: {
-    flex: 1,
-    paddingVertical: 12,
-    marginHorizontal: 4,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.fog,
-    borderRadius: 5,
-    alignItems: 'center',
-  },
-  radioButtonActive: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
-  },
-  radioText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.steel,
-  },
-  radioTextActive: {
-    color: colors.white,
-  },
-  buttonContainer: {
-    marginBottom: 60,
-  },
-  submitButton: {
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    backgroundColor: colors.navy,
-  },
-  submitButtonText: {
-    color: colors.white,
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  clearButtonContainer: {
-    padding: 10,
-    backgroundColor: colors.white,
-  },
-  // Destructive action: outline + bold weight carries the emphasis, no red
-  clearButton: {
-    padding: 10,
-    backgroundColor: colors.white,
-    borderRadius: 5,
-    borderWidth: 2,
-    borderColor: colors.navy,
-    alignItems: 'center',
-  },
-  clearButtonText: {
-    color: colors.navy,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  dropdownButton: {
-    backgroundColor: colors.white,
-    padding: 15,
-    borderRadius: 5,
-    borderWidth: 2,
-    borderColor: colors.navy,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  dropdownText: { fontSize: 16, fontWeight: 'bold', color: colors.navy },
-  violationSection: {
-    backgroundColor: colors.mist,
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: colors.fog,
-  },
-  signatureTriggerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 15, backgroundColor: colors.white, padding: 15, borderRadius: 5, borderWidth: 1, borderColor: colors.fog },
-  triggerLabel: { fontSize: 16, fontWeight: 'bold', color: colors.navy },
-  triggerButton: { paddingVertical: 10, paddingHorizontal: 15, backgroundColor: colors.mist, borderRadius: 5, borderWidth: 1, borderColor: colors.silver },
-  triggerButtonSuccess: { backgroundColor: colors.navy, borderColor: colors.navy },
-  triggerButtonText: { fontSize: 14, fontWeight: 'bold', color: colors.charcoal },
+    readyRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs, marginBottom: space.sm },
+    chip: {
+        flexDirection: 'row', alignItems: 'center', gap: space.xs,
+        borderWidth: 1, borderRadius: radius.badge,
+        paddingHorizontal: space.sm, paddingVertical: 2,
+    },
+    chipDone: { borderColor: color.okInk, backgroundColor: color.okBg },
+    chipTodo: { borderColor: color.dangerInk, backgroundColor: color.dangerBg },
+    chipLabel: { fontSize: 9 },
+    section: {
+        backgroundColor: color.surface,
+        borderTopWidth: 1, borderBottomWidth: 1, borderColor: color.line,
+    },
+    divider: { borderTopWidth: 1, borderTopColor: color.line },
 
-  // Camera Overlay Enhanced Styles
-  scannerOverlay: {
-    position: 'absolute',
-    bottom: 50,
-    left: 20,
-    right: 20,
-    backgroundColor: colors.overlay,
-    padding: 15,
-    borderRadius: 10,
-  },
-  scannerText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  scanLine: {
-    width: '100%',
-    height: 3,
-    backgroundColor: colors.white,
-    shadowColor: colors.white,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  torchButton: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 24,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: colors.white,
-    alignSelf: 'center',
-  },
-  torchButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+    /* Branch identity. The code is the key to the whole report, so it is the
+     * one piece of type given mono at full contrast. */
+    identity: {
+        backgroundColor: color.shell,
+        paddingHorizontal: space.lg, paddingBottom: space.lg,
+        gap: 2,
+    },
+    branchCode: {
+        ...type.data, color: color.shellMuted,
+        letterSpacing: 1, textTransform: 'uppercase',
+    },
 
-  detachmentHeader: {
-    backgroundColor: colors.mist,
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    borderLeftWidth: 5,
-    borderLeftColor: colors.navy,
-  },
-  detachmentTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.navy,
-  },
-  detachmentSubtitle: {
-    fontSize: 14,
-    color: colors.steel,
-    marginTop: 5,
-  },
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  unfocusedContainer: {
-    flex: 1,
-    backgroundColor: colors.overlaySoft,
-  },
-  middleContainer: {
-    flexDirection: 'row',
-    flex: 1.5,
-  },
-  focusedContainer: {
-    flex: 2,
-    borderColor: colors.white,
-    borderWidth: 2,
-    borderRadius: 12,
-    backgroundColor: 'transparent',
-    overflow: 'hidden', // Keeps the laser sweep strictly inside the bounds
-  },
-  bottomContainer: {
-    flex: 1,
-    backgroundColor: colors.overlaySoft,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 40,
-  },
-  nameGroup: {
-    marginBottom: 20,
-  },
-  nameLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: colors.navy,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  suggestionList: {
-    backgroundColor: colors.white,
-    borderColor: colors.fog,
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 20,
-  },
-  suggestionLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 8,
-    color: colors.navy,
-  },
-  suggestionItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    backgroundColor: colors.mist,
-    marginBottom: 8,
-  },
-  suggestionText: {
-    color: colors.charcoal,
-    fontSize: 15,
-  },
+    dataRow: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        paddingHorizontal: space.lg, paddingVertical: space.sm,
+        gap: space.md,
+    },
+
+    field: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.sm },
+    groupHead: { paddingHorizontal: space.lg, paddingVertical: space.sm, backgroundColor: color.sunken },
+
+    fieldLabelBlock: { gap: space.xs },
+    fieldLabelRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+    hintMark: { ...type.badge, color: color.inkMuted, fontSize: 11 },
+    hintText: { ...type.dataMuted, color: color.infoInk },
+
+    statusRow: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.sm },
+    controlRow: { flexDirection: 'row' },
+    segment: {
+        flex: 1, alignItems: 'center',
+        paddingVertical: space.sm,
+        borderWidth: 1, borderColor: color.lineStrong,
+        backgroundColor: color.surface,
+    },
+    segmentLabel: { color: color.inkMuted, fontSize: 10 },
+    segmentLabelOn: { color: color.surface },
+
+    toggleRow: {
+        flexDirection: 'row', alignItems: 'center', gap: space.md,
+        paddingHorizontal: space.lg, paddingVertical: space.md,
+    },
+    checkbox: { width: 18, height: 18, borderRadius: 0, borderColor: color.lineStrong },
+
+    selectRow: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        paddingHorizontal: space.lg, paddingVertical: space.md,
+    },
+    selectPlaceholder: { ...type.title, color: color.inkMuted, fontWeight: '400' },
+    chevron: { ...type.data, fontSize: 18, color: color.inkMuted },
+
+    rosterNotice: {
+        ...type.dataMuted, color: color.warnInk,
+        paddingHorizontal: space.lg, paddingTop: space.sm,
+    },
+    rosterEmpty: { ...type.body, paddingHorizontal: space.lg, paddingVertical: space.md },
+    rosterRow: { paddingHorizontal: space.lg, paddingVertical: space.sm, gap: 2 },
+    rosterRowSelected: { backgroundColor: color.sunken },
+
+    discloseRow: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: space.lg, paddingVertical: space.md,
+    },
+
+    captureRow: {
+        flexDirection: 'row', alignItems: 'center', gap: space.md,
+        paddingHorizontal: space.lg, paddingVertical: space.md,
+    },
+    captureButton: {
+        borderWidth: 1, borderColor: color.lineStrong, borderRadius: radius.control,
+        paddingHorizontal: space.md, paddingVertical: space.sm,
+    },
+    captureButtonDone: { backgroundColor: color.okBg, borderColor: color.okInk },
+    captureLabel: { ...type.badge, color: color.inkMuted, fontSize: 10 },
+    captureLabelDone: { color: color.okInk },
+
+    /* Pinned above the keyboard, so a form this long never hides its own
+     * submit. */
+    actionBar: {
+        backgroundColor: color.surface,
+        borderTopWidth: 1, borderTopColor: color.line,
+        paddingHorizontal: space.lg, paddingTop: space.md,
+    },
+    button: {
+        backgroundColor: color.ink, borderRadius: radius.control,
+        paddingVertical: space.md, alignItems: 'center',
+    },
+    buttonPressed: { backgroundColor: color.shellHover },
+    buttonBusy: { backgroundColor: color.inkMuted },
+    buttonLabel: { ...type.badge, color: color.surface, fontSize: 12 },
+    busyRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+
+    /* Scanner. Dark by necessity: it sits over a camera feed. */
+    scanScreen: { flex: 1, backgroundColor: color.shell },
+    scanHead: {
+        backgroundColor: 'rgba(15, 23, 42, 0.82)',
+        paddingHorizontal: space.lg, paddingBottom: space.lg, gap: space.xs,
+    },
+    scanTitle: { ...type.title, color: color.shellInk, fontSize: 17 },
+    scanNote: { ...type.body, color: color.shellMuted },
+    scanMiddle: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    scanWindow: { width: '74%', aspectRatio: 1, borderWidth: 1, borderColor: color.shellInk },
+    scanFoot: {
+        backgroundColor: 'rgba(15, 23, 42, 0.82)',
+        paddingHorizontal: space.lg, paddingTop: space.lg, gap: space.sm,
+    },
+    scanControl: {
+        borderWidth: 1, borderColor: color.shellMuted, borderRadius: radius.control,
+        paddingVertical: space.sm, alignItems: 'center',
+    },
+    scanControlOn: { backgroundColor: color.shellInk, borderColor: color.shellInk },
+    scanControlDev: { borderColor: color.dangerInk },
+    scanControlLabel: { ...type.badge, color: color.shellMuted, fontSize: 11 },
+    scanControlLabelOn: { color: color.shell },
 });

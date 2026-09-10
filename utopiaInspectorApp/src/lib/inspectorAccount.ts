@@ -72,7 +72,7 @@ export async function signOutInspector(): Promise<void> {
   }
 }
 
-/** The inspectors row id — not the auth id — which is what detachments and
+/** The inspectors row id, not the auth id, which is what detachments and
  *  audits are keyed on. */
 export async function getInspectorId(): Promise<string | null> {
   return AsyncStorage.getItem(INSPECTOR_ID_KEY);

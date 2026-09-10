@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { Alert, BackHandler, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Alert, BackHandler, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SignatureScreen from 'react-native-signature-canvas';
+import { color, radius, space, type } from '@/constants/tokens';
 
 interface SignaturePadProps {
     title: string;
@@ -9,18 +11,20 @@ interface SignaturePadProps {
     onSign: (signatureBase64: string) => void;
 }
 
+/**
+ * The e-signature block that replaces the wet signature on the paper form.
+ *
+ * The canvas is deliberately a fixed 300pt band, not a full-height surface.
+ * SignatureScreen is a WebView running with androidHardwareAccelerationDisabled
+ * and a software layer, which the blank-canvas bug on Android needs. Under
+ * software rendering the cost of a stroke scales with the painted area, so
+ * stretching the canvas to fill the screen made every stroke repaint roughly
+ * two and a half times the pixels and the pen visibly lagged the finger.
+ * A signature is wide and short anyway.
+ */
 export default function SignaturePad({ title, visible, onClose, onSign }: SignaturePadProps) {
     const signatureRef = useRef<any>(null);
-    
-    // FIX: State to force a brand new canvas key every time the modal opens
-    const [canvasKey, setCanvasKey] = useState(0);
-
-    // FIX: Generate a fresh WebView only when it becomes visible
-    useEffect(() => {
-        if (visible) {
-            setCanvasKey(prev => prev + 1);
-        }
-    }, [visible]);
+    const insets = useSafeAreaInsets();
 
     useEffect(() => {
         if (!visible) {
@@ -50,98 +54,105 @@ export default function SignaturePad({ title, visible, onClose, onSign }: Signat
     }
 
     return (
-        <Modal visible={visible} animationType="slide" transparent={true}>
-            <View style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                    <Text style={styles.title}>{title}</Text>
+        <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+            <View style={styles.screen}>
+                <View style={[styles.header, { paddingTop: insets.top + space.md }]}>
+                    <Text style={styles.headerEyebrow}>Signature</Text>
+                    <Text style={styles.headerTitle}>{title}</Text>
+                </View>
 
-                    <View style={styles.canvasContainer}>
-                        <SignatureScreen
-                            key={canvasKey}
-                            ref={signatureRef}
-                            onOK={handleSignature}
-                            onEmpty={() => Alert.alert('Signature required', 'Please add a signature before saving.')}
-                            onError={(error) => {
-                                console.error('Signature pad error:', error);
-                                Alert.alert('Signature error', 'The signature pad could not save. Please try again.');
-                            }}
-                            androidLayerType="software"
-                            androidHardwareAccelerationDisabled={true}
-                            webStyle={`.m-signature-pad--footer { display: none; margin: 0px; }`}
-                        />
-                    </View>
+                <View style={styles.hint}>
+                    <Text style={styles.hintText}>Sign inside the box</Text>
+                </View>
 
-                    <View style={styles.buttonRow}>
-                    <TouchableOpacity
-                        style={[styles.button, styles.cancelButton]}
+                <View style={styles.canvas}>
+                    <SignatureScreen
+                        ref={signatureRef}
+                        onOK={handleSignature}
+                        onEmpty={() => Alert.alert('Signature required', 'Please add a signature before saving.')}
+                        onError={(error) => {
+                            console.error('Signature pad error:', error);
+                            Alert.alert('Signature error', 'The signature pad could not save. Please try again.');
+                        }}
+                        androidLayerType="software"
+                        androidHardwareAccelerationDisabled={true}
+                        webStyle={`.m-signature-pad--footer { display: none; margin: 0px; }`}
+                    />
+                </View>
+
+                <View style={styles.spacer} />
+
+                <View style={[styles.actions, { paddingBottom: insets.bottom + space.md }]}>
+                    <Pressable
                         onPress={onClose}
+                        accessibilityRole="button"
+                        style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
                     >
-                        <Text style={styles.buttonText}>Cancel</Text>
-                    </TouchableOpacity>
+                        <Text style={styles.buttonLabel}>Cancel</Text>
+                    </Pressable>
 
-                        <TouchableOpacity
-                            style={[styles.button, styles.clearButton]}
-                            onPress={() => signatureRef.current?.clearSignature()}
-                        >
-                            <Text style={styles.buttonText}>Clear</Text>
-                        </TouchableOpacity>
+                    <Pressable
+                        onPress={() => signatureRef.current?.clearSignature()}
+                        accessibilityRole="button"
+                        style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+                    >
+                        <Text style={styles.buttonLabel}>Clear</Text>
+                    </Pressable>
 
-                    <TouchableOpacity
-                        style={[styles.button, styles.saveButton]}
+                    <Pressable
                         onPress={() => signatureRef.current?.readSignature()}
+                        accessibilityRole="button"
+                        style={({ pressed }) => [styles.button, styles.save, pressed && styles.savePressed]}
                     >
-                        <Text style={[styles.buttonText, { color: '#fff' }]}>Save</Text>
-                    </TouchableOpacity>
-                    </View>
-                    </View>
+                        <Text style={[styles.buttonLabel, styles.saveLabel]}>Save</Text>
+                    </Pressable>
+                </View>
             </View>
         </Modal>
     );
 }
 
 const styles = StyleSheet.create({
-    modalOverlay: {
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        bottom: 0,
-        left: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        justifyContent: 'center',
-        padding: 20,
-        zIndex: 100,
-        elevation: 100,
+    screen: { flex: 1, backgroundColor: color.canvas },
+
+    header: {
+        backgroundColor: color.shell,
+        paddingHorizontal: space.lg, paddingBottom: space.md,
+        gap: 2,
     },
-    modalContent: {
-        backgroundColor: '#fff',
-        borderRadius: 10,
-        padding: 20,
-        elevation: 5,
-    },
-    title: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
-    canvasContainer: { 
+    headerEyebrow: { ...type.label, color: color.shellMuted },
+    headerTitle: { ...type.title, color: color.shellInk, fontSize: 17 },
+
+    hint: { paddingHorizontal: space.lg, paddingVertical: space.md },
+    hintText: { ...type.label },
+
+    /* Fixed height, for the reason in the header comment. Hairline box, no
+     * radius: the canvas is the content, not a card. */
+    canvas: {
         height: 300,
-        width: '100%',
-        backgroundColor: '#fff', 
-        borderWidth: 1, 
-        borderColor: '#ccc',
-        borderRadius: 5,
-        overflow: 'hidden'
+        backgroundColor: color.surface,
+        borderTopWidth: 1, borderBottomWidth: 1, borderColor: color.line,
+        overflow: 'hidden',
     },
-    buttonRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 15,
+
+    spacer: { flex: 1 },
+
+    actions: {
+        flexDirection: 'row', gap: space.sm,
+        paddingHorizontal: space.lg, paddingTop: space.md,
+        backgroundColor: color.surface,
     },
     button: {
-        flex: 1,
-        padding: 12,
-        borderRadius: 5,
-        marginHorizontal: 5,
-        alignItems: 'center',
+        flex: 1, alignItems: 'center',
+        borderWidth: 1, borderColor: color.lineStrong, borderRadius: radius.control,
+        paddingVertical: space.md,
+        backgroundColor: color.surface,
     },
-    cancelButton: { backgroundColor: '#e0e0e0' },
-    clearButton: { backgroundColor: '#ffc107' },
-    saveButton: { backgroundColor: '#0056b3' },
-    buttonText: { fontWeight: 'bold', color: '#333' }
+    /* Instant, no timing curve. */
+    buttonPressed: { backgroundColor: color.sunken },
+    buttonLabel: { ...type.badge, color: color.ink, fontSize: 11 },
+
+    save: { backgroundColor: color.ink, borderColor: color.ink },
+    savePressed: { backgroundColor: color.shellHover },
+    saveLabel: { color: color.surface },
 });

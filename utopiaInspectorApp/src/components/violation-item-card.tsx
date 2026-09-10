@@ -1,73 +1,86 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { color, space, type } from '@/constants/tokens';
 
 interface ViolationItemCardProps {
   itemName: string;
   status: 'Yes' | 'No';
   onUpdate: (value: 'Yes' | 'No') => void;
+  /** Suppresses the divider on the first row of a group. */
+  isFirst?: boolean;
 }
 
-export default function ViolationItemCard({ itemName, status, onUpdate }: ViolationItemCardProps) {
+/**
+ * One of the 22 compliance metrics, as a row rather than a card.
+ *
+ * Twenty-two stacked cards ran to roughly two thousand points of scroll. As
+ * flush rows on a shared hairline the same list is about half that, and the
+ * inspector can see several at once while working down the guard.
+ *
+ * "No" is the finding that costs a guard money, so it is the one the eye can
+ * pick out of the column without reading every label.
+ */
+export default function ViolationItemCard({
+  itemName, status, onUpdate, isFirst,
+}: ViolationItemCardProps) {
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>{itemName}</Text>
-      <View style={styles.optionsRow}>
-        <TouchableOpacity
-          style={[styles.option, status === 'Yes' && styles.optionSelected]}
-          onPress={() => onUpdate('Yes')}
-        >
-          <Text style={[styles.optionText, status === 'Yes' && styles.optionTextSelected]}>Yes</Text>
-        </TouchableOpacity>
+    <View style={[styles.row, !isFirst && styles.divider]}>
+      <Text style={styles.name} numberOfLines={2}>{itemName}</Text>
 
-        <TouchableOpacity
-          style={[styles.option, status === 'No' && styles.optionSelected]}
-          onPress={() => onUpdate('No')}
-        >
-          <Text style={[styles.optionText, status === 'No' && styles.optionTextSelected]}>No</Text>
-        </TouchableOpacity>
+      <View style={styles.control}>
+        {(['Yes', 'No'] as const).map((option) => {
+          const selected = status === option;
+          const flags = selected && option === 'No';
+
+          return (
+            <Pressable
+              key={option}
+              onPress={() => onUpdate(option)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`${itemName}: ${option}`}
+              /* No timing curve. The inspector is tapping down a list of 22
+               * and needs the mark to land before the finger lifts. */
+              style={[
+                styles.option,
+                selected && styles.optionSelected,
+                flags && styles.optionFlagged,
+              ]}
+            >
+              <Text style={[
+                type.badge,
+                styles.optionLabel,
+                selected && styles.optionLabelSelected,
+              ]}>
+                {option}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: space.md,
+    paddingHorizontal: space.lg, paddingVertical: space.sm,
+    backgroundColor: color.surface,
   },
-  title: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 10,
-  },
-  optionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  divider: { borderTopWidth: 1, borderTopColor: color.line },
+  name: { ...type.title, flex: 1, fontSize: 13, fontWeight: '500' },
+
+  control: { flexDirection: 'row' },
   option: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
+    minWidth: 46, alignItems: 'center',
+    paddingVertical: space.xs + 2, paddingHorizontal: space.sm,
+    borderWidth: 1, borderColor: color.lineStrong,
+    backgroundColor: color.surface,
   },
-  optionSelected: {
-    backgroundColor: '#0056b3',
-    borderColor: '#0056b3',
-  },
-  optionText: {
-    color: '#374151',
-    fontWeight: '600',
-  },
-  optionTextSelected: {
-    color: '#fff',
-  },
+  /* One control, one radius: the pair reads as a single segmented unit. */
+  optionSelected: { backgroundColor: color.ink, borderColor: color.ink },
+  optionFlagged: { backgroundColor: color.dangerInk, borderColor: color.dangerInk },
+  optionLabel: { color: color.inkMuted, fontSize: 10 },
+  optionLabelSelected: { color: color.surface },
 });

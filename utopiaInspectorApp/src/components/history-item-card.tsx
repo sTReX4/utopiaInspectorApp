@@ -1,77 +1,54 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { color, space, type } from '@/constants/tokens';
 
 interface HistoryItemCardProps {
   guardName: string;
   inspectorName: string;
   date: string;
   onPress: () => void;
+  /** Suppresses the divider on the first row of a list. */
+  isFirst?: boolean;
 }
 
-export default function HistoryItemCard({ guardName, inspectorName, date, onPress }: HistoryItemCardProps) {
+/**
+ * One filed audit in the submission history, as a flush row.
+ *
+ * The date is mono so a column of them aligns and can be scanned down, which
+ * is the only reason anyone opens this list.
+ */
+export default function HistoryItemCard({
+  guardName, inspectorName, date, onPress, isFirst,
+}: HistoryItemCardProps) {
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.guardName} numberOfLines={1}>{guardName}</Text>
-        <Text style={styles.dateText}>{date}</Text>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.row,
+        !isFirst && styles.divider,
+        pressed && styles.rowPressed,
+      ]}
+    >
+      <View style={styles.main}>
+        <Text style={type.title} numberOfLines={1}>{guardName}</Text>
+        <Text style={type.dataMuted} numberOfLines={1}>
+          Inspected by {inspectorName}
+        </Text>
       </View>
-      <View style={styles.cardBody}>
-        <Text style={styles.inspectorLabel}>INSPECTED BY:</Text>
-        <Text style={styles.inspectorName} numberOfLines={1}>{inspectorName}</Text>
-      </View>
-    </TouchableOpacity>
+
+      <Text style={type.data}>{date}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#ffffff',
-    padding: 16,
-    borderRadius: 10,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: space.md,
+    paddingHorizontal: space.lg, paddingVertical: space.md,
+    backgroundColor: color.surface,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-    paddingBottom: 10,
-  },
-  guardName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#0f172a',
-    flex: 1,
-    marginRight: 10,
-  },
-  dateText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  cardBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  inspectorLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#94a3b8',
-    marginRight: 6,
-  },
-  inspectorName: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#334155',
-    flex: 1,
-  },
+  divider: { borderTopWidth: 1, borderTopColor: color.line },
+  rowPressed: { backgroundColor: color.sunken },
+  main: { flex: 1, gap: 2 },
 });

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { color, radius, space, type } from '@/constants/tokens';
 
 interface SiteCardProps {
   branchName: string;
@@ -7,51 +8,66 @@ interface SiteCardProps {
   location: string;
   status?: string;
   onPress: () => void;
+  /** Suppresses the divider on the first row of a list. */
+  isFirst?: boolean;
 }
 
-export default function SiteItemCard({ branchName, branchCode, location, status, onPress }: SiteCardProps) {
+/**
+ * One detachment in a list, as a flush row.
+ *
+ * It used to be a rounded card with a drop shadow and a blue accent stripe
+ * down its left edge. Three devices were separating it from the next card;
+ * one hairline does the same work.
+ */
+export default function SiteItemCard({
+  branchName, branchCode, location, status, onPress, isFirst,
+}: SiteCardProps) {
   const isActive = status?.toLowerCase() === 'active';
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress}>
-    <View style={styles.headerRow}>
-    <Text style={styles.branchName}>{branchName}</Text>
-    <View style={[styles.badge, { backgroundColor: isActive ? '#dcfce7' : '#f1f5f9' }]}>
-    <Text style={[styles.badgeText, { color: isActive ? '#16a34a' : '#64748b' }]}>
-          {status?.toUpperCase() || 'UNKNOWN'}
-    </Text>
-    </View>
-    </View>
-      
-    <View style={styles.detailsContainer}>
-    <Text style={styles.text}><Text style={styles.label}>Code: 
-    </Text>{branchCode}</Text>
-    <Text style={styles.text}><Text style={styles.label}>Location: 
-    </Text>{location}</Text>
-    </View>
-    </TouchableOpacity>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.row,
+        !isFirst && styles.divider,
+        pressed && styles.rowPressed,
+      ]}
+    >
+      <View style={styles.main}>
+        <Text style={styles.code}>{branchCode}</Text>
+        <Text style={type.title} numberOfLines={1}>{branchName}</Text>
+        <Text style={type.dataMuted} numberOfLines={1}>{location}</Text>
+      </View>
+
+      <View style={[styles.badge, isActive ? styles.badgeActive : styles.badgeIdle]}>
+        <Text style={[type.badge, isActive ? styles.badgeTextActive : styles.badgeTextIdle]}>
+          {status || 'Unknown'}
+        </Text>
+      </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    padding: 16,
-    backgroundColor: '#ffffff',
-    marginBottom: 12,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3b82f6',
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: space.md,
+    paddingHorizontal: space.lg, paddingVertical: space.md,
+    backgroundColor: color.surface,
   },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  branchName: { fontSize: 16, fontWeight: 'bold', color: '#1e293b', flex: 1 },
-  badge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6 },
-  badgeText: { fontSize: 10, fontWeight: '800' },
-  detailsContainer: { marginTop: 4 },
-  text: { fontSize: 14, color: '#334155', marginBottom: 4 },
-  label: { fontWeight: '600', color: '#94a3b8' },
+  divider: { borderTopWidth: 1, borderTopColor: color.line },
+  /* Instant, no timing curve. */
+  rowPressed: { backgroundColor: color.sunken },
+
+  main: { flex: 1, gap: 2 },
+  code: { ...type.dataMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
+
+  badge: {
+    borderWidth: 1, borderRadius: radius.badge,
+    paddingHorizontal: space.sm, paddingVertical: 3,
+  },
+  badgeActive: { backgroundColor: color.okBg, borderColor: color.okInk },
+  badgeIdle: { backgroundColor: color.sunken, borderColor: color.lineStrong },
+  badgeTextActive: { color: color.okInk },
+  badgeTextIdle: { color: color.inkMuted },
 });

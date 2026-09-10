@@ -1,4 +1,5 @@
 import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { color, radius, space, type } from '@/constants/tokens';
 
 interface CustomTextInputProps {
     label?: string;
@@ -9,17 +10,26 @@ interface CustomTextInputProps {
     hint?: string;
 }
 
-export default function CustomTextInput({ label, value, onChangeText, multiline = false, placeholder, hint }: CustomTextInputProps) {
+/**
+ * Label above, control below, helper under that. Never placeholder-as-label:
+ * the placeholder disappears the moment the inspector types, and a field whose
+ * only label vanishes on first keystroke is unreadable on review.
+ */
+export default function CustomTextInput({
+    label, value, onChangeText, multiline = false, placeholder, hint,
+}: CustomTextInputProps) {
     return (
         <View style={styles.container}>
-            {label ? <Text style={styles.label}>{label}</Text> : null}
+            {label ? <Text style={type.label}>{label}</Text> : null}
             <TextInput
                 style={[styles.input, multiline && styles.textArea]}
                 value={value}
                 onChangeText={onChangeText}
                 multiline={multiline}
-                placeholder={placeholder ?? (label ? `Enter ${label}...` : undefined)}
-                placeholderTextColor="#999"
+                placeholder={placeholder}
+                /* inkMuted, not a stock slate-400. Placeholder text still has
+                 * to clear WCAG AA against the white field. */
+                placeholderTextColor={color.inkMuted}
             />
             {hint ? <Text style={styles.hint}>{hint}</Text> : null}
         </View>
@@ -27,9 +37,13 @@ export default function CustomTextInput({ label, value, onChangeText, multiline 
 }
 
 const styles = StyleSheet.create({
-    container: { marginBottom: 15 },
-    label: { fontSize: 16, fontWeight: 'bold', marginBottom: 5, color: '#333' },
-    input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 10, fontSize: 16, backgroundColor: '#fff' },
-    textArea: { height: 100, textAlignVertical: 'top' },
-    hint: { fontSize: 13, color: '#666', marginTop: 4 },
+    container: { gap: space.xs },
+    input: {
+        borderWidth: 1, borderColor: color.lineStrong, borderRadius: radius.control,
+        backgroundColor: color.surface,
+        paddingHorizontal: space.md, paddingVertical: space.sm,
+        fontSize: 15, color: color.ink,
+    },
+    textArea: { minHeight: 96, textAlignVertical: 'top', paddingTop: space.sm },
+    hint: { ...type.dataMuted },
 });

@@ -23,7 +23,7 @@ export const passwordRules = (password: string): PasswordRule[] => [
     { label: 'One uppercase letter', met: /[A-Z]/.test(password) },
     { label: 'One lowercase letter', met: /[a-z]/.test(password) },
     { label: 'One number', met: /[0-9]/.test(password) },
-    { label: 'One symbol (!@#$…)', met: /[^A-Za-z0-9]/.test(password) },
+    { label: 'One symbol (!@#$)', met: /[^A-Za-z0-9]/.test(password) },
 ];
 
 export const isPasswordStrong = (password: string): boolean =>

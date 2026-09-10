@@ -34,6 +34,9 @@ export const color = {
    * as a second brand colour. */
   dangerBg: '#fef2f2',
   dangerInk: '#b91c1c',
+  /* dangerInk is 8.6:1 on the light canvas but only 1.7:1 on the dark shell,
+   * so the shell needs its own step, exactly as okShell does. */
+  dangerShell: '#fca5a5',
   infoBg: '#eff6ff',
   infoInk: '#1d4ed8',
   okBg: '#ecfdf5',

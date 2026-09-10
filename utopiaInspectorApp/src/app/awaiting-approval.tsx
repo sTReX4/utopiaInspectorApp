@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ApiError, isOffline } from '@/lib/api';
 import { fetchClearance, getCachedClearance, isCleared, registerInspector, signOutInspector } from '@/lib/inspectorAccount';
 import type { InspectorClearance } from '@/lib/types';
 import { PHONE_LENGTH, digitsOnly, validateFullName, validatePhone } from '@/lib/validation';
+import AuthShell from '@/components/auth-shell';
+import { color, radius, space, type } from '@/constants/tokens';
 
-const primaryColor = '#3f73c4';
 const POLL_INTERVAL_MS = 20000;
 
 /* The lock screen an inspector sits on between signing up and being cleared by
@@ -68,7 +68,11 @@ export default function AwaitingApprovalScreen() {
     }, [router]);
 
     useEffect(() => {
-        check();
+        /* Silent on the opening pass: isChecking already starts true, so
+         * announcing it again just queues a render, and a first-load failure
+         * is reported by the inline notice rather than a modal the inspector
+         * has to dismiss before they can read it. */
+        (async () => { await check(true); })();
 
         // Approval usually lands while the inspector is staring at this screen.
         const interval = setInterval(() => check(true), POLL_INTERVAL_MS);
@@ -120,145 +124,170 @@ export default function AwaitingApprovalScreen() {
                 ? 'Your clearance has been stood down by Operations. Contact your Operations Manager to be reinstated.'
                 : 'Your account is in the Operations approval queue. This screen unlocks the moment a supervisor clears you for field duty.';
 
+    /* This badge carries real clearance state, which is the one case a status
+     * marker earns its place. The decorative dot that used to sit beside it
+     * did not. */
+    const badge: { label: string; tone: 'warn' | 'danger' } = wasRejected
+        ? { label: 'Access denied', tone: 'danger' }
+        : isSuspended
+            ? { label: 'Stood down', tone: 'danger' }
+            : { label: 'Awaiting clearance', tone: 'warn' };
+
     return (
-        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-            <KeyboardAvoidingView
-                style={styles.flex}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-            >
-                {/* The card grows with its content instead of being pinned to a
-                  * fixed height. The registration form pushed the old fixed card
-                  * past the viewport, which collapsed the footer's auto margin
-                  * on top of the sign-out button and swallowed its taps. */}
-                <ScrollView
-                    contentContainerStyle={styles.scrollContent}
-                    keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator={false}
-                >
-                    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-                        <View style={styles.card}>
-                            <Image source={require('../../imgfolder/download-removebg-preview.png')} style={styles.logo} resizeMode="contain" />
+        <AuthShell
+            eyebrow="Utopia operations"
+            title={heading}
+            subtitle={message}
+            badge={badge}
+        >
+            <View style={styles.section}>
+                {clearance?.full_name ? (
+                    <View style={styles.dataRow}>
+                        <Text style={type.label}>Registered as</Text>
+                        <Text style={type.data} numberOfLines={1}>{clearance.full_name}</Text>
+                    </View>
+                ) : null}
 
-                            <View style={[styles.securityBadge, wasRejected && styles.badgeDanger]}>
-                                <View style={[styles.securityDot, wasRejected && styles.dotDanger]} />
-                                <Text style={[styles.securityBadgeText, wasRejected && styles.badgeTextDanger]}>
-                                    {wasRejected ? 'ACCESS DENIED' : 'AWAITING CLEARANCE'}
-                                </Text>
-                            </View>
+                {offline ? (
+                    <View style={[styles.notice, clearance?.full_name ? styles.divider : null]}>
+                        <Text style={[type.label, { color: color.warnInk }]}>Offline</Text>
+                        <Text style={[type.dataMuted, { marginTop: 2 }]}>
+                            Showing your last verified status.
+                        </Text>
+                    </View>
+                ) : null}
 
-                            <Text style={styles.eyebrow}>UTOPIA OPERATIONS</Text>
-                            <Text style={styles.title}>{heading}</Text>
-                            <Text style={styles.subtitle}>{message}</Text>
+                {lastError && !offline ? (
+                    <View style={[styles.notice, styles.noticeDanger, clearance?.full_name ? styles.divider : null]}>
+                        <Text style={[type.label, { color: color.dangerInk }]}>Status check failed</Text>
+                        <Text style={[type.dataMuted, { marginTop: 2 }]}>{lastError}</Text>
+                    </View>
+                ) : null}
 
-                            {clearance?.full_name ? (
-                                <View style={styles.identityRow}>
-                                    <Text style={styles.identityLabel}>REGISTERED AS</Text>
-                                    <Text style={styles.identityValue}>{clearance.full_name}</Text>
-                                </View>
-                            ) : null}
-
-                            {offline ? (
-                                <Text style={styles.offlineNote}>Offline — showing your last verified status.</Text>
-                            ) : null}
-
-                            {lastError && !offline ? (
-                                <Text style={styles.errorNote}>{lastError}</Text>
-                            ) : null}
-
-                            {needsRegistration ? (
-                                <View style={styles.formBlock}>
-                                    <Text style={styles.inputLabel}>Full name</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        value={fullName}
-                                        onChangeText={setFullName}
-                                        placeholder="Juan D. Dela Cruz"
-                                        placeholderTextColor="#9aa0a6"
-                                        autoCapitalize="words"
-                                    />
-                                    <Text style={styles.inputLabel}>Phone number</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        value={contactNumber}
-                                        onChangeText={(value) => setContactNumber(digitsOnly(value))}
-                                        placeholder="09171234567"
-                                        placeholderTextColor="#9aa0a6"
-                                        keyboardType="number-pad"
-                                        maxLength={PHONE_LENGTH}
-                                    />
-                                    <Pressable
-                                        style={[styles.primaryButton, isSubmitting && styles.buttonDisabled]}
-                                        onPress={isSubmitting ? undefined : handleCompleteRegistration}
-                                    >
-                                        <Text style={styles.primaryButtonText}>
-                                            {isSubmitting ? 'Submitting…' : 'Submit for Approval'}
-                                        </Text>
-                                    </Pressable>
-                                </View>
-                            ) : isChecking ? (
-                                <ActivityIndicator size="large" color={primaryColor} style={{ marginTop: 22 }} />
-                            ) : (
-                                <Pressable style={styles.primaryButton} onPress={() => check()}>
-                                    <Text style={styles.primaryButtonText}>Check Approval Status</Text>
-                                </Pressable>
-                            )}
-
-                            <Pressable
-                                style={styles.secondaryButton}
-                                onPress={handleSignOut}
-                                /* Widen the touch target: this is the only way off
-                                 * this screen and it sits near the card edge. */
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                                <Text style={styles.secondaryButtonText}>Sign out</Text>
-                            </Pressable>
-
-                            <Text style={styles.footer}>Utopia Security And Safety Solutions Inc.  |  Inspector Portal</Text>
+                {needsRegistration ? (
+                    <>
+                        <View style={[styles.field, styles.divider]}>
+                            <Text style={type.label}>Full name</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={fullName}
+                                onChangeText={setFullName}
+                                autoCapitalize="words"
+                            />
                         </View>
-                    </TouchableWithoutFeedback>
-                </ScrollView>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+                        <View style={[styles.field, styles.divider]}>
+                            <Text style={type.label}>Phone number</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={contactNumber}
+                                onChangeText={(value) => setContactNumber(digitsOnly(value))}
+                                keyboardType="number-pad"
+                                maxLength={PHONE_LENGTH}
+                            />
+                            <Text style={type.dataMuted}>
+                                {`${contactNumber.length} of ${PHONE_LENGTH} digits. Mobile number starting with 09.`}
+                            </Text>
+                        </View>
+                    </>
+                ) : (
+                    <View style={[styles.pollRow, clearance?.full_name || offline || lastError ? styles.divider : null]}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={type.title}>Approval status</Text>
+                            <Text style={type.dataMuted}>
+                                {isChecking ? 'Checking with Operations' : 'Rechecked every 20 seconds'}
+                            </Text>
+                        </View>
+                        {isChecking ? <ActivityIndicator size="small" color={color.ink} /> : null}
+                    </View>
+                )}
+            </View>
+
+            <View style={styles.actions}>
+                {needsRegistration ? (
+                    <Pressable
+                        onPress={isSubmitting ? undefined : handleCompleteRegistration}
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: isSubmitting }}
+                        style={({ pressed }) => [
+                            styles.primaryButton,
+                            isSubmitting && styles.primaryButtonDisabled,
+                            pressed && !isSubmitting && styles.primaryButtonPressed,
+                        ]}
+                    >
+                        <Text style={styles.primaryLabel}>
+                            {isSubmitting ? 'Submitting' : 'Submit for approval'}
+                        </Text>
+                    </Pressable>
+                ) : (
+                    <Pressable
+                        onPress={() => check()}
+                        accessibilityRole="button"
+                        style={({ pressed }) => [
+                            styles.primaryButton,
+                            isChecking && styles.primaryButtonDisabled,
+                            pressed && !isChecking && styles.primaryButtonPressed,
+                        ]}
+                    >
+                        <Text style={styles.primaryLabel}>Check now</Text>
+                    </Pressable>
+                )}
+
+                <Pressable
+                    onPress={handleSignOut}
+                    accessibilityRole="button"
+                    /* Widen the touch target: this is the only way off this screen. */
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed]}
+                >
+                    <Text style={styles.secondaryLabel}>Sign out</Text>
+                </Pressable>
+            </View>
+        </AuthShell>
     );
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: '#0b1d31' },
-    flex: { flex: 1 },
-    /* flexGrow keeps a short card vertically centred while letting a tall one
-     * scroll, rather than forcing one fixed height to serve both. */
-    scrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 24 },
-    card: {
-        width: '100%', maxWidth: 430, alignSelf: 'center',
-        borderWidth: 1, borderColor: '#d8e3ef', borderRadius: 18, backgroundColor: '#fff',
-        paddingHorizontal: 28, paddingTop: 32, paddingBottom: 20,
-        shadowColor: '#020b17', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 24, elevation: 8,
+    section: {
+        backgroundColor: color.surface,
+        borderTopWidth: 1, borderBottomWidth: 1, borderColor: color.line,
     },
-    logo: { width: 96, height: 108, alignSelf: 'center', marginBottom: 16 },
-    securityBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', marginBottom: 16, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: '#fff7e6' },
-    badgeDanger: { backgroundColor: '#fdeeee' },
-    securityDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#b45309', marginRight: 7 },
-    dotDanger: { backgroundColor: '#b91c1c' },
-    securityBadgeText: { color: '#b45309', fontSize: 10, fontWeight: '800', letterSpacing: 1.1 },
-    badgeTextDanger: { color: '#b91c1c' },
-    eyebrow: { color: '#3f73c4', fontSize: 11, fontWeight: '800', letterSpacing: 1.8, textAlign: 'center', marginBottom: 8 },
-    title: { color: '#16213b', fontSize: 28, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
-    subtitle: { color: '#68788d', fontSize: 14, lineHeight: 20, textAlign: 'center', marginBottom: 18 },
-    identityRow: { borderWidth: 1, borderColor: '#dce6f2', backgroundColor: '#f7fafd', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 14 },
-    identityLabel: { color: '#8b9bb0', fontSize: 10, fontWeight: '800', letterSpacing: 1.2, marginBottom: 3 },
-    identityValue: { color: '#16213b', fontSize: 15, fontWeight: '700' },
-    offlineNote: { color: '#b45309', fontSize: 12, textAlign: 'center', marginBottom: 12 },
-    errorNote: { color: '#b03c3c', fontSize: 12, lineHeight: 17, textAlign: 'center', marginBottom: 12 },
-    formBlock: { width: '100%' },
-    inputLabel: { color: '#26384f', fontSize: 12, fontWeight: '700', marginBottom: 6 },
-    input: { height: 46, borderWidth: 1, borderColor: '#c4d3e6', borderRadius: 9, paddingHorizontal: 12, fontSize: 15, color: '#24364d', backgroundColor: '#fbfdff', marginBottom: 14 },
-    primaryButton: { height: 49, borderRadius: 12, backgroundColor: primaryColor, alignItems: 'center', justifyContent: 'center', marginTop: 8, shadowColor: '#1c4e8d', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 3 },
-    buttonDisabled: { opacity: 0.7 },
-    primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
-    secondaryButton: { height: 46, borderRadius: 10, borderWidth: 1, borderColor: '#dbe4ef', alignItems: 'center', justifyContent: 'center', marginTop: 12 },
-    secondaryButtonText: { color: '#68788d', fontSize: 14, fontWeight: '700' },
-    /* Plain flow spacing. The old marginTop:'auto' collapsed once content
-     * outgrew the card and painted this over the sign-out button. */
-    footer: { marginTop: 20, color: '#718198', fontSize: 11, textAlign: 'center' },
+    divider: { borderTopWidth: 1, borderTopColor: color.line },
+
+    dataRow: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        gap: space.md,
+        paddingHorizontal: space.lg, paddingVertical: space.md,
+    },
+    notice: { paddingHorizontal: space.lg, paddingVertical: space.sm, backgroundColor: color.warnBg },
+    noticeDanger: { backgroundColor: color.dangerBg },
+
+    pollRow: {
+        flexDirection: 'row', alignItems: 'center', gap: space.md,
+        paddingHorizontal: space.lg, paddingVertical: space.md,
+    },
+
+    field: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.xs },
+    input: {
+        borderWidth: 1, borderColor: color.lineStrong, borderRadius: radius.control,
+        backgroundColor: color.surface,
+        paddingHorizontal: space.md, paddingVertical: space.sm,
+        fontSize: 15, color: color.ink,
+    },
+
+    actions: { paddingHorizontal: space.lg, paddingTop: space.lg, gap: space.sm },
+    primaryButton: {
+        backgroundColor: color.ink, borderRadius: radius.control,
+        paddingVertical: space.md, alignItems: 'center',
+    },
+    primaryButtonPressed: { backgroundColor: color.shellHover },
+    primaryButtonDisabled: { backgroundColor: color.lineStrong },
+    primaryLabel: { ...type.badge, color: color.surface, fontSize: 12 },
+
+    secondaryButton: {
+        borderWidth: 1, borderColor: color.lineStrong, borderRadius: radius.control,
+        paddingVertical: space.md, alignItems: 'center',
+        backgroundColor: color.surface,
+    },
+    secondaryButtonPressed: { backgroundColor: color.sunken },
+    secondaryLabel: { ...type.badge, color: color.ink, fontSize: 12 },
 });

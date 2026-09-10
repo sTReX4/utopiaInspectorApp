@@ -8,7 +8,7 @@ export interface Inspector {
   full_name: string;
   contact_number: string | null;
   email: string | null;
-  /* Onboarding state, separate from is_active — which operations uses to stand
+  /* Onboarding state, separate from is_active, which operations uses to stand
    * down an inspector who was already approved. */
   status: InspectorStatus;
   is_active: boolean;
